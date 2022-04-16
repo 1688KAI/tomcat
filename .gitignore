@@ -41,8 +41,8 @@ mvn.properties
 maven-resolver-ant-tasks-*.jar
 thumbs.db
 Thumbs.db
-catalina-home/bin/setenv.*
 java/org/apache/catalina/startup/catalina.properties
 modules/jdbc-pool/bin
 modules/jdbc-pool/includes
-catalina-home/webapps/docs/jdbc-pool.xml
+catalina-home/logs
+catalina-home/work
