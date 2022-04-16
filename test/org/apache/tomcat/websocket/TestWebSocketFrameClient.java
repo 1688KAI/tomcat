@@ -24,11 +24,11 @@ import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import jakarta.websocket.ClientEndpointConfig;
-import jakarta.websocket.ClientEndpointConfig.Configurator;
-import jakarta.websocket.ContainerProvider;
-import jakarta.websocket.Session;
-import jakarta.websocket.WebSocketContainer;
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.ClientEndpointConfig.Configurator;
+import javax.websocket.ContainerProvider;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -64,12 +64,15 @@ public class TestWebSocketFrameClient extends WebSocketBaseTest {
         WebSocketContainer wsContainer = ContainerProvider.getWebSocketContainer();
 
         // BZ 62596
+        final StringBuilder dummyValue = new StringBuilder(4000);
+        for (int i = 0; i < 4000; i++) {
+            dummyValue.append('A');
+        }
         ClientEndpointConfig clientEndpointConfig =
                 ClientEndpointConfig.Builder.create().configurator(new Configurator() {
                     @Override
                     public void beforeRequest(Map<String, List<String>> headers) {
-                        headers.put("Dummy", Collections.singletonList(
-                                String.join("", Collections.nCopies(4000, "A"))));
+                        headers.put("Dummy", Collections.singletonList(dummyValue.toString()));
                         super.beforeRequest(headers);
                     }
                 }).build();

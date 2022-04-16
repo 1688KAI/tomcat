@@ -18,7 +18,7 @@ package org.apache.catalina.webresources;
 
 import java.io.File;
 
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,6 +40,6 @@ public class TestFileResource extends TomcatBaseTest {
 
         // Build the expected location the same way the webapp base dir is built
         File f = new File("test/webapp/WEB-INF/classes");
-        Assert.assertEquals(f.getCanonicalFile().toURI().toURL().toString(), out.toString().trim());
+        Assert.assertEquals(f.toURI().toURL().toString(), out.toString().trim());
     }
 }

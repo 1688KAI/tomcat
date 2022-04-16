@@ -24,9 +24,9 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
-import jakarta.websocket.Extension;
-import jakarta.websocket.Extension.Parameter;
-import jakarta.websocket.SendHandler;
+import javax.websocket.Extension;
+import javax.websocket.Extension.Parameter;
+import javax.websocket.SendHandler;
 
 import org.apache.tomcat.util.res.StringManager;
 
@@ -98,7 +98,7 @@ public class PerMessageDeflate implements Transformation {
                                     SERVER_MAX_WINDOW_BITS,
                                     Integer.valueOf(serverMaxWindowBits)));
                         }
-                        // Java SE API (as of Java 11) does not expose the API to
+                        // Java SE API (as of Java 8) does not expose the API to
                         // control the Window size. It is effectively hard-coded
                         // to 15
                         if (isServer && serverMaxWindowBits != 15) {
@@ -119,7 +119,7 @@ public class PerMessageDeflate implements Transformation {
                     if (clientMaxWindowBits == -1) {
                         if (param.getValue() == null) {
                             // Hint to server that the client supports this
-                            // option. Java SE API (as of Java 11) does not
+                            // option. Java SE API (as of Java 8) does not
                             // expose the API to control the Window size. It is
                             // effectively hard-coded to 15
                             clientMaxWindowBits = 15;
@@ -132,7 +132,7 @@ public class PerMessageDeflate implements Transformation {
                                         Integer.valueOf(clientMaxWindowBits)));
                             }
                         }
-                        // Java SE API (as of Java 11) does not expose the API to
+                        // Java SE API (as of Java 8) does not expose the API to
                         // control the Window size. It is effectively hard-coded
                         // to 15
                         if (!isServer && clientMaxWindowBits != 15) {

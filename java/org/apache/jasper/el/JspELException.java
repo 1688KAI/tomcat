@@ -16,7 +16,7 @@
  */
 package org.apache.jasper.el;
 
-import jakarta.el.ELException;
+import javax.el.ELException;
 
 public class JspELException extends ELException {
 

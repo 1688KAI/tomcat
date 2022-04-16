@@ -29,11 +29,11 @@
 # -----------------------------------------------------------------------------
 
 # ----- Version Control Flags -----
-version.major=10
-version.minor=1
-version.build=0
+version.major=8
+version.minor=5
+version.build=79
 version.patch=0
-version.suffix=-M15-dev
+version.suffix=-dev
 
 # ----- Reproducible builds -----
 # Uncomment and set to current time for reproducible builds
@@ -42,15 +42,16 @@ version.suffix=-M15-dev
 #ant.tstamp.now=1648728000
 
 # ----- Source control flags -----
-git.branch=main
+git.branch=8.5.x
 
 # ----- Build control flags -----
 # Note enabling validation uses Checkstyle which is LGPL licensed
-ant.version.required=1.9.10
 execute.validate=false
 execute.download=true
 execute.test.nio=true
 execute.test.nio2=true
+# Still requires APR/native library to be present
+execute.test.apr=true
 # Stop testing if a failure occurs
 test.haltonfailure=false
 # Activate AccessLog during testing
@@ -72,6 +73,10 @@ execute.spotbugs=false
 # Some platforms (e.g. OSX El Capitan) require IPv4 to be the default for the
 # multicast tests to work
 java.net.preferIPv4Stack=false
+
+# Specify the default (true) else the empty string will be used which
+# effectively changes the setting to false
+org.apache.tomcat.util.net.NioSelectorShared=true
 
 # Location of GPG executable (used only for releases)
 gpg.exec=/path/to/gpg
@@ -132,18 +137,21 @@ wsdl4j-lib.home=${base.path}/wsdl4j-${wsdl4j-lib.version}
 wsdl4j-lib.jar=${wsdl4j-lib.home}/wsdl4j-${wsdl4j-lib.version}.jar
 wsdl4j-lib.loc=${base-maven.loc}/wsdl4j/wsdl4j/${wsdl4j-lib.version}/wsdl4j-${wsdl4j-lib.version}.jar
 
-# ----- Eclipse JDT, version 4.7 or later -----#
+# ----- Eclipse JDT, version 4.5.1 or later -----#
 # See https://cwiki.apache.org/confluence/display/TOMCAT/Managing+Tomcat%27s+Dependency+on+the+Eclipse+JDT+Core+Batch+Compiler
 #
-# Checksum is from "SHA512 Checksums for 4.23" link at
-# https://download.eclipse.org/eclipse/downloads/drops4/R-4.23-202203080310/
-# https://download.eclipse.org/eclipse/downloads/drops4/R-4.23-202203080310/checksum/eclipse-4.23-SUMSSHA512
+# 4.6.3 is the latest release that runs on Java 7
+# Later versions can be used but the official builds need to use 4.6.3
 #
-jdt.version=4.23
-jdt.release=R-4.23-202203080310
+# Checksum is from "SHA512 Checksums for 4.6.3" link at
+# http://archive.eclipse.org/eclipse/downloads/drops4/R-4.6.3-201703010400/
+# http://archive.eclipse.org/eclipse/downloads/drops4/R-4.6.3-201703010400/checksum/eclipse-4.6.3-SUMSSHA512
+#
+jdt.version=4.6.3
+jdt.release=R-4.6.3-201703010400
 jdt.checksum.enabled=true
 jdt.checksum.algorithm=SHA-512
-jdt.checksum.value=2f8c6c7bc2e2c738c853f3c977ffb7a258b9f92e260e3affdf9c8fd54ac7b70e404944d0e434eb83a14b8bf01b201effaaf9930ea4b5fdfb1a752b6abf1ae1ec
+jdt.checksum.value=372da97d5f37095a3616c730170dc541b93acb8f50370cd9b0d81fba4583e865f0c933dc012155f26638306b82a402eaab209123cd0a979fa7c86313c0fca477
 jdt.home=${base.path}/ecj-${jdt.version}
 jdt.jar=${jdt.home}/ecj-${jdt.version}.jar
 # The download will be moved to the archive area eventually. We are taking care of that in advance.
@@ -290,43 +298,6 @@ spotbugs.home=${base.path}/spotbugs-${spotbugs.version}
 spotbugs.jar=${spotbugs.home}/lib/spotbugs-ant.jar
 spotbugs.loc=${base-maven.loc}/com/github/spotbugs/spotbugs/${spotbugs.version}/spotbugs-${spotbugs.version}.tgz
 
-# ----- bnd, version 6.0.0 or later  -----
-# ----- provides OSGI metadata for JARs       -----
-bnd.version=6.2.0
-
-# checksums for biz.aQute.bnd-6.2.0.jar
-bnd.checksum.enabled=true
-bnd.checksum.algorithm=MD5|SHA-1
-bnd.checksum.value=4ebce64639ebe72f5b665faebd8dea30|28eaa28c9b5382687e0b83cc69aa540de1f6f56e
-
-bnd.home=${base.path}/bnd-${bnd.version}
-bnd.jar=${bnd.home}/biz.aQute.bnd-${bnd.version}.jar
-bnd.loc=${base-maven.loc}/biz/aQute/bnd/biz.aQute.bnd/${bnd.version}/biz.aQute.bnd-${bnd.version}.jar
-
-# ----- Tomcat Migration Tool for Jakarta EE -----
-migration-lib.version=1.0.0
-
-# checksums for jakartaee-migration-1.0.0-shaded.jar
-migration-lib.checksum.enabled=true
-migration-lib.checksum.algorithm=MD5|SHA-1
-migration-lib.checksum.value=cecc0fa3b5947dd52465ed395ba3f23f|19a3e36dec08bbc60ab511651887375c0a7e4d1b
-
-migration-lib.home=${base.path}/migration-${migration-lib.version}
-migration-lib.jar=${migration-lib.home}/jakartaee-migration-${migration-lib.version}-shaded.jar
-migration-lib.loc=${base-maven.loc}/org/apache/tomcat/jakartaee-migration/${migration-lib.version}/jakartaee-migration-${migration-lib.version}-shaded.jar
-
-# ----- Tomcat OpenSSL -----
-openssl-lib.version=0.1
-
-# checksums for tomcat-coyote-openssl-java17-0.1.jar
-openssl-lib.checksum.enabled=true
-openssl-lib.checksum.algorithm=MD5|SHA-1
-openssl-lib.checksum.value=xxx|xxx
-
-openssl-lib.home=${base.path}/tomcat-coyote-openssl-java17-${openssl-lib.version}
-openssl-lib.jar=${openssl-lib.home}/tomcat-coyote-openssl-java17-${openssl-lib.version}.jar
-openssl-lib.loc=${base-maven.loc}/org/apache/tomcat/tomcat-coyote-openssl-java17/${openssl-lib.version}/tomcat-coyote-openssl-java17-${openssl-lib.version}.jar
-
 # ----- JSign, version 4.0 or later -----
 jsign.version=4.0
 
@@ -338,27 +309,5 @@ jsign.checksum.value=50982facf864df4f08a051b43f7d2e42|3d203fbffdc45e837f98b7c9c5
 jsign.home=${base.path}/jsign-${jsign.version}
 jsign.jar=${jsign.home}/jsign-${jsign.version}.jar
 jsign.loc=${base-maven.loc}/net/jsign/jsign/${jsign.version}/jsign-${jsign.version}.jar
-
-# ----- Derby, used by unit tests -----
-derby.version=10.15.2.0
-
-# checksums for Derby 10.15.2.0
-derby.checksum.enabled=true
-derby.checksum.algorithm=MD5|SHA-1
-derby.checksum.value=abff01351b19bc62a188bac08a8bb58b|b64da6681994f33ba5783ffae55cdb44885b9e70
-derby-shared.checksum.enabled=true
-derby-shared.checksum.algorithm=MD5|SHA-1
-derby-shared.checksum.value=2cb9ab8b9cfb06c2da5a1d3825d04344|ff2dfb3e2a92d593cf111baad242d156947abbc1
-derby-tools.checksum.enabled=true
-derby-tools.checksum.algorithm=MD5|SHA-1
-derby-tools.checksum.value=d41578eeb336b0e479be8f30bfd9ab9b|d63722381e0e893d797e4d531e219e2917898364
-
-derby.home=${base.path}/derby-${derby.version}
-derby.jar=${derby.home}/derby-${derby.version}.jar
-derby.loc=${base-maven.loc}/org/apache/derby/derby/${derby.version}/derby-${derby.version}.jar
-derby-shared.jar=${derby.home}/derby-shared-${derby.version}.jar
-derby-shared.loc=${base-maven.loc}/org/apache/derby/derbyshared/${derby.version}/derbyshared-${derby.version}.jar
-derby-tools.jar=${derby.home}/derby-tools-${derby.version}.jar
-derby-tools.loc=${base-maven.loc}/org/apache/derby/derbytools/${derby.version}/derbytools-${derby.version}.jar
 
 

@@ -27,18 +27,18 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import jakarta.el.ELException;
-import jakarta.el.ExpressionFactory;
-import jakarta.el.FunctionMapper;
-import jakarta.servlet.jsp.JspFactory;
-import jakarta.servlet.jsp.tagext.FunctionInfo;
-import jakarta.servlet.jsp.tagext.PageData;
-import jakarta.servlet.jsp.tagext.TagAttributeInfo;
-import jakarta.servlet.jsp.tagext.TagData;
-import jakarta.servlet.jsp.tagext.TagExtraInfo;
-import jakarta.servlet.jsp.tagext.TagInfo;
-import jakarta.servlet.jsp.tagext.TagLibraryInfo;
-import jakarta.servlet.jsp.tagext.ValidationMessage;
+import javax.el.ELException;
+import javax.el.ExpressionFactory;
+import javax.el.FunctionMapper;
+import javax.servlet.jsp.JspFactory;
+import javax.servlet.jsp.tagext.FunctionInfo;
+import javax.servlet.jsp.tagext.PageData;
+import javax.servlet.jsp.tagext.TagAttributeInfo;
+import javax.servlet.jsp.tagext.TagData;
+import javax.servlet.jsp.tagext.TagExtraInfo;
+import javax.servlet.jsp.tagext.TagInfo;
+import javax.servlet.jsp.tagext.TagLibraryInfo;
+import javax.servlet.jsp.tagext.ValidationMessage;
 
 import org.apache.jasper.JasperException;
 import org.apache.jasper.compiler.ELNode.Text;
@@ -82,7 +82,6 @@ class Validator {
             new JspUtil.ValidAttribute("contentType"),
             new JspUtil.ValidAttribute("pageEncoding"),
             new JspUtil.ValidAttribute("isELIgnored"),
-            new JspUtil.ValidAttribute("errorOnELNotFound"),
             new JspUtil.ValidAttribute("deferredSyntaxAllowedAsLiteral"),
             new JspUtil.ValidAttribute("trimDirectiveWhitespaces")
         };
@@ -174,13 +173,6 @@ class Validator {
                     } else if (!pageInfo.getIsELIgnored().equals(value)) {
                         err.jspError(n, "jsp.error.page.conflict.iselignored",
                                 pageInfo.getIsELIgnored(), value);
-                    }
-                } else if ("errorOnELNotFound".equals(attr)) {
-                    if (pageInfo.getErrorOnELNotFound() == null) {
-                        pageInfo.setErrorOnELNotFound(value, n, err, true);
-                    } else if (!pageInfo.getErrorOnELNotFound().equals(value)) {
-                        err.jspError(n, "jsp.error.page.conflict.errorOnELNotFound",
-                                pageInfo.getErrorOnELNotFound(), value);
                     }
                 } else if ("isErrorPage".equals(attr)) {
                     if (pageInfo.getIsErrorPage() == null) {
@@ -277,13 +269,6 @@ class Validator {
                     } else if (!pageInfo.getIsELIgnored().equals(value)) {
                         err.jspError(n, "jsp.error.tag.conflict.iselignored",
                                 pageInfo.getIsELIgnored(), value);
-                    }
-                } else if ("errorOnELNotFound".equals(attr)) {
-                    if (pageInfo.getErrorOnELNotFound() == null) {
-                        pageInfo.setErrorOnELNotFound(value, n, err, false);
-                    } else if (!pageInfo.getErrorOnELNotFound().equals(value)) {
-                        err.jspError(n, "jsp.error.tag.conflict.errorOnELNotFound",
-                                pageInfo.getErrorOnELNotFound(), value);
                     }
                 } else if ("pageEncoding".equals(attr)) {
                     if (pageEncodingSeen) {
@@ -550,8 +535,7 @@ class Validator {
             String version = n.getTextAttribute("version");
             if (!version.equals("1.2") && !version.equals("2.0") &&
                     !version.equals("2.1") && !version.equals("2.2") &&
-                    !version.equals("2.3") && !version.equals("3.0") &&
-                    !version.equals("3.1")) {
+                    !version.equals("2.3")) {
                 err.jspError(n, "jsp.error.jsproot.version.invalid", version);
             }
             visitBody(n);

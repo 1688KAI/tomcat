@@ -24,7 +24,6 @@ import java.util.Hashtable;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.res.StringManager;
 import org.apache.tomcat.util.security.PermissionCheck;
 
 /**
@@ -33,7 +32,6 @@ import org.apache.tomcat.util.security.PermissionCheck;
 public final class IntrospectionUtils {
 
     private static final Log log = LogFactory.getLog(IntrospectionUtils.class);
-    private static final StringManager sm = StringManager.getManager(IntrospectionUtils.class);
 
     /**
      * Find a method with the right name If found, call the method ( if param is
@@ -45,24 +43,15 @@ public final class IntrospectionUtils {
      * @return <code>true</code> if operation was successful
      */
     public static boolean setProperty(Object o, String name, String value) {
-        return setProperty(o, name, value, true, null);
-    }
-
-    public static boolean setProperty(Object o, String name, String value,
-            boolean invokeSetProperty) {
-        return setProperty(o, name, value, invokeSetProperty, null);
+        return setProperty(o,name,value,true);
     }
 
     @SuppressWarnings("null") // setPropertyMethodVoid is not null when used
     public static boolean setProperty(Object o, String name, String value,
-            boolean invokeSetProperty, StringBuilder actualMethod) {
+            boolean invokeSetProperty) {
         if (log.isDebugEnabled()) {
             log.debug("IntrospectionUtils: setProperty(" +
                     o.getClass() + " " + name + "=" + value + ")");
-        }
-
-        if (actualMethod == null && XReflectionIntrospectionUtils.isEnabled()) {
-            return XReflectionIntrospectionUtils.setPropertyInternal(o, name, value, invokeSetProperty);
         }
 
         String setter = "set" + capitalize(name);
@@ -77,10 +66,8 @@ public final class IntrospectionUtils {
                 Class<?> paramT[] = item.getParameterTypes();
                 if (setter.equals(item.getName()) && paramT.length == 1
                         && "java.lang.String".equals(paramT[0].getName())) {
+
                     item.invoke(o, new Object[]{value});
-                    if (actualMethod != null) {
-                        actualMethod.append(item.getName()).append("(\"").append(escape(value)).append("\")");
-                    }
                     return true;
                 }
             }
@@ -103,9 +90,6 @@ public final class IntrospectionUtils {
                         } catch (NumberFormatException ex) {
                             ok = false;
                         }
-                        if (actualMethod != null) {
-                            actualMethod.append(method.getName()).append("(Integer.valueOf(\"").append(value).append("\"))");
-                        }
                         // Try a setFoo ( long )
                     } else if ("java.lang.Long".equals(paramType.getName())
                             || "long".equals(paramType.getName())) {
@@ -114,16 +98,12 @@ public final class IntrospectionUtils {
                         } catch (NumberFormatException ex) {
                             ok = false;
                         }
-                        if (actualMethod != null) {
-                            actualMethod.append(method.getName()).append("(Long.valueOf(\"").append(value).append("\"))");
-                        }
+
                         // Try a setFoo ( boolean )
                     } else if ("java.lang.Boolean".equals(paramType.getName())
                             || "boolean".equals(paramType.getName())) {
                         params[0] = Boolean.valueOf(value);
-                        if (actualMethod != null) {
-                            actualMethod.append(method.getName()).append("(Boolean.valueOf(\"").append(value).append("\"))");
-                        }
+
                         // Try a setFoo ( InetAddress )
                     } else if ("java.net.InetAddress".equals(paramType
                             .getName())) {
@@ -135,9 +115,7 @@ public final class IntrospectionUtils {
                             }
                             ok = false;
                         }
-                        if (actualMethod != null) {
-                            actualMethod.append(method.getName()).append("(InetAddress.getByName(\"").append(value).append("\"))");
-                        }
+
                         // Unknown type
                     } else {
                         if (log.isDebugEnabled()) {
@@ -166,9 +144,6 @@ public final class IntrospectionUtils {
             // Ok, no setXXX found, try a setProperty("name", "value")
             if (invokeSetProperty && (setPropertyMethodBool != null ||
                     setPropertyMethodVoid != null)) {
-                if (actualMethod != null) {
-                    actualMethod.append("setProperty(\"").append(name).append("\", \"").append(escape(value)).append("\")");
-                }
                 Object params[] = new Object[2];
                 params[0] = name;
                 params[1] = value;
@@ -192,48 +167,23 @@ public final class IntrospectionUtils {
                 }
             }
 
-        } catch (IllegalArgumentException | SecurityException | IllegalAccessException e) {
-            log.warn(sm.getString("introspectionUtils.setPropertyError", name, value, o.getClass()), e);
-        } catch (InvocationTargetException e) {
-            ExceptionUtils.handleThrowable(e.getCause());
-            log.warn(sm.getString("introspectionUtils.setPropertyError", name, value, o.getClass()), e);
+        } catch (IllegalArgumentException ex2) {
+            log.warn("IAE " + o + " " + name + " " + value, ex2);
+        } catch (SecurityException ex1) {
+            log.warn("IntrospectionUtils: SecurityException for " +
+                    o.getClass() + " " + name + "=" + value + ")", ex1);
+        } catch (IllegalAccessException iae) {
+            log.warn("IntrospectionUtils: IllegalAccessException for " +
+                    o.getClass() + " " + name + "=" + value + ")", iae);
+        } catch (InvocationTargetException ie) {
+            ExceptionUtils.handleThrowable(ie.getCause());
+            log.warn("IntrospectionUtils: InvocationTargetException for " +
+                    o.getClass() + " " + name + "=" + value + ")", ie);
         }
         return false;
     }
 
-    /**
-     * @param s
-     *            the input string
-     * @return escaped string, per Java rule
-     */
-    public static String escape(String s) {
-
-        if (s == null) {
-            return "";
-        }
-
-        StringBuilder b = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '"') {
-                b.append('\\').append('"');
-            } else if (c == '\\') {
-                b.append('\\').append('\\');
-            } else if (c == '\n') {
-                b.append('\\').append('n');
-            } else if (c == '\r') {
-                b.append('\\').append('r');
-            } else {
-                b.append(c);
-            }
-        }
-        return b.toString();
-    }
-
     public static Object getProperty(Object o, String name) {
-        if (XReflectionIntrospectionUtils.isEnabled()) {
-            return XReflectionIntrospectionUtils.getPropertyInternal(o, name);
-        }
         String getter = "get" + capitalize(name);
         String isGetter = "is" + capitalize(name);
 
@@ -263,15 +213,22 @@ public final class IntrospectionUtils {
                 return getPropertyMethod.invoke(o, params);
             }
 
-        } catch (IllegalArgumentException | SecurityException | IllegalAccessException e) {
-            log.warn(sm.getString("introspectionUtils.getPropertyError", name, o.getClass()), e);
-        } catch (InvocationTargetException e) {
-            if (e.getCause() instanceof NullPointerException) {
+        } catch (IllegalArgumentException ex2) {
+            log.warn("IAE " + o + " " + name, ex2);
+        } catch (SecurityException ex1) {
+            log.warn("IntrospectionUtils: SecurityException for " +
+                    o.getClass() + " " + name + ")", ex1);
+        } catch (IllegalAccessException iae) {
+            log.warn("IntrospectionUtils: IllegalAccessException for " +
+                    o.getClass() + " " + name + ")", iae);
+        } catch (InvocationTargetException ie) {
+            if (ie.getCause() instanceof NullPointerException) {
                 // Assume the underlying object uses a storage to represent an unset property
                 return null;
             }
-            ExceptionUtils.handleThrowable(e.getCause());
-            log.warn(sm.getString("introspectionUtils.getPropertyError", name, o.getClass()), e);
+            ExceptionUtils.handleThrowable(ie.getCause());
+            log.warn("IntrospectionUtils: InvocationTargetException for " +
+                    o.getClass() + " " + name + ")", ie);
         }
         return null;
     }
@@ -289,6 +246,20 @@ public final class IntrospectionUtils {
      * @param value The value
      * @param staticProp Replacement properties
      * @param dynamicProp Replacement properties
+     * @return the replacement value
+     * @deprecated Use {@link #replaceProperties(String, Hashtable, PropertySource[], ClassLoader)}
+     */
+    @Deprecated
+    public static String replaceProperties(String value,
+            Hashtable<Object,Object> staticProp, PropertySource dynamicProp[]) {
+        return replaceProperties(value, staticProp, dynamicProp, null);
+    }
+
+    /**
+     * Replace ${NAME} with the property value.
+     * @param value The value
+     * @param staticProp Replacement properties
+     * @param dynamicProp Replacement properties
      * @param classLoader Class loader associated with the code requesting the
      *                    property
      *
@@ -297,17 +268,8 @@ public final class IntrospectionUtils {
     public static String replaceProperties(String value,
             Hashtable<Object,Object> staticProp, PropertySource dynamicProp[],
             ClassLoader classLoader) {
-            return replaceProperties(value, staticProp, dynamicProp, classLoader, 0);
-    }
 
-    private static String replaceProperties(String value,
-            Hashtable<Object,Object> staticProp, PropertySource dynamicProp[],
-            ClassLoader classLoader, int iterationCount) {
-        if (value == null || value.indexOf("${") < 0) {
-            return value;
-        }
-        if (iterationCount >=20) {
-            log.warn("System property failed to update and remains [" + value + "]");
+        if (value == null || value.indexOf('$') < 0) {
             return value;
         }
         StringBuilder sb = new StringBuilder();
@@ -354,17 +316,7 @@ public final class IntrospectionUtils {
         if (prev < value.length()) {
             sb.append(value.substring(prev));
         }
-        String newval = sb.toString();
-        if (newval.indexOf("${") < 0) {
-            return newval;
-        }
-        if (newval.equals(value)) {
-            return value;
-        }
-        if (log.isDebugEnabled()) {
-            log.debug("IntrospectionUtils.replaceProperties iter on: " + newval);
-        }
-        return replaceProperties(newval, staticProp, dynamicProp, classLoader, iterationCount+1);
+        return sb.toString();
     }
 
     private static String getProperty(String name, Hashtable<Object, Object> staticProp,
@@ -450,8 +402,10 @@ public final class IntrospectionUtils {
 
     public static Object callMethod1(Object target, String methodN,
             Object param1, String typeParam1, ClassLoader cl) throws Exception {
-        if (target == null || methodN == null || param1 == null) {
-            throw new IllegalArgumentException(sm.getString("introspectionUtils.nullParameter"));
+        if (target == null || param1 == null) {
+            throw new IllegalArgumentException(
+                    "IntrospectionUtils: Assert: Illegal params " +
+                    target + " " + param1);
         }
         if (log.isDebugEnabled()) {
             log.debug("IntrospectionUtils: callMethod1 " +
@@ -548,7 +502,7 @@ public final class IntrospectionUtils {
             }
         }
         if (result == null) {
-            throw new IllegalArgumentException(sm.getString("introspectionUtils.conversionError", object, paramType.getName()));
+            throw new IllegalArgumentException("Can't convert argument: " + object);
         }
         return result;
     }

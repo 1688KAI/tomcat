@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.cert.X509Certificate;
@@ -29,8 +30,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import jakarta.servlet.annotation.ServletSecurity.TransportGuarantee;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.annotation.ServletSecurity.TransportGuarantee;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Container;
 import org.apache.catalina.Context;
@@ -39,7 +40,6 @@ import org.apache.catalina.Engine;
 import org.apache.catalina.Host;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleState;
-import org.apache.catalina.Realm;
 import org.apache.catalina.Server;
 import org.apache.catalina.Service;
 import org.apache.catalina.Wrapper;
@@ -47,11 +47,11 @@ import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 import org.apache.catalina.util.LifecycleMBeanBase;
 import org.apache.catalina.util.SessionConfig;
-import org.apache.catalina.util.ToStringUtil;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.IntrospectionUtils;
 import org.apache.tomcat.util.buf.B2CConverter;
+import org.apache.tomcat.util.buf.HexUtils;
 import org.apache.tomcat.util.descriptor.web.SecurityCollection;
 import org.apache.tomcat.util.descriptor.web.SecurityConstraint;
 import org.apache.tomcat.util.res.StringManager;
@@ -69,7 +69,8 @@ import org.ietf.jgss.GSSName;
  *
  * @author Craig R. McClanahan
  */
-public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
+@SuppressWarnings("deprecation")
+public abstract class RealmBase extends LifecycleMBeanBase implements org.apache.catalina.GSSRealm {
 
     private static final Log log = LogFactory.getLog(RealmBase.class);
 
@@ -409,7 +410,8 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         try {
             valueBytes = serverDigestValue.getBytes(getDigestCharset());
         } catch (UnsupportedEncodingException uee) {
-            throw new IllegalArgumentException(sm.getString("realmBase.invalidDigestEncoding", getDigestEncoding()), uee);
+            log.error("Illegal digestEncoding: " + getDigestEncoding(), uee);
+            throw new IllegalArgumentException(uee.getMessage());
         }
 
         String serverDigest = MD5Encoder.encode(ConcurrentMessageDigest.digestMD5(valueBytes));
@@ -1098,6 +1100,11 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
 
 
     @Override
+    public boolean isAvailable() {
+        return true;
+    }
+
+    @Override
     protected void initInternal() throws LifecycleException {
 
         super.initInternal();
@@ -1147,7 +1154,10 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
      */
     @Override
     public String toString() {
-        return ToStringUtil.toString(this);
+        StringBuilder sb = new StringBuilder("Realm[");
+        sb.append(getName());
+        sb.append(']');
+        return sb.toString();
     }
 
 
@@ -1181,7 +1191,8 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         try {
             valueBytes = digestValue.getBytes(getDigestCharset());
         } catch (UnsupportedEncodingException uee) {
-            throw new IllegalArgumentException(sm.getString("realmBase.invalidDigestEncoding", getDigestEncoding()), uee);
+            log.error("Illegal digestEncoding: " + getDigestEncoding(), uee);
+            throw new IllegalArgumentException(uee.getMessage());
         }
 
         return MD5Encoder.encode(ConcurrentMessageDigest.digestMD5(valueBytes));
@@ -1208,6 +1219,17 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
 
 
     /**
+     * @return a short name for this Realm implementation, for use in
+     * log messages.
+     *
+     * @deprecated This will be removed in Tomcat 9 onwards. Use
+     *             {@link Class#getSimpleName()} instead.
+     */
+    @Deprecated
+    protected abstract String getName();
+
+
+    /**
      * Get the password for the specified user.
      * @param username The user name
      * @return the password associated with the given principal's user name.
@@ -1227,7 +1249,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
             log.debug(sm.getString("realmBase.gotX509Username", username));
         }
 
-        return getPrincipal(username);
+        return(getPrincipal(username));
     }
 
 
@@ -1237,6 +1259,28 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
      * @return the Principal associated with the given user name.
      */
     protected abstract Principal getPrincipal(String username);
+
+
+    /**
+     * Get the principal associated with the specified user name.
+     *
+     * @param username The user name
+     * @param gssCredential the GSS credential of the principal
+     * @return the principal associated with the given user name.
+     * @deprecated This will be removed in Tomcat 10 onwards. Use
+     *             {@link #getPrincipal(GSSName, GSSCredential)} instead.
+     */
+    @Deprecated
+    protected Principal getPrincipal(String username,
+            GSSCredential gssCredential) {
+        Principal p = getPrincipal(username);
+
+        if (p instanceof GenericPrincipal) {
+            ((GenericPrincipal) p).setGssCredential(gssCredential);
+        }
+
+        return p;
+    }
 
 
     /**
@@ -1294,6 +1338,47 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
 
 
     // --------------------------------------------------------- Static Methods
+
+    /**
+     * Digest password using the algorithm specified and convert the result to a
+     * corresponding hex string.
+     *
+     * @param credentials Password or other credentials to use in authenticating
+     *                    this username
+     * @param algorithm   Algorithm used to do the digest
+     * @param encoding    Character encoding of the string to digest
+     *
+     * @return The digested credentials as a hex string or the original plain
+     *         text credentials if an error occurs.
+     *
+     * @deprecated  Unused. This will be removed in Tomcat 9.
+     */
+    @Deprecated
+    public static final String Digest(String credentials, String algorithm,
+                                      String encoding) {
+
+        try {
+            // Obtain a new message digest with "digest" encryption
+            MessageDigest md =
+                (MessageDigest) MessageDigest.getInstance(algorithm).clone();
+
+            // encode the credentials
+            // Should use the digestEncoding, but that's not a static field
+            if (encoding == null) {
+                md.update(credentials.getBytes());
+            } else {
+                md.update(credentials.getBytes(encoding));
+            }
+
+            // Digest the credentials and return as hexadecimal
+            return (HexUtils.toHexString(md.digest()));
+        } catch(Exception ex) {
+            log.error(ex);
+            return credentials;
+        }
+
+    }
+
 
     /**
      * Generate a stored credential string for the given password and associated
@@ -1507,8 +1592,7 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
             } else if (name.equalsIgnoreCase(STRICT_AUTH_ONLY_MODE.name)) {
                 mode = STRICT_AUTH_ONLY_MODE;
             } else {
-                throw new IllegalStateException(
-                        sm.getString("realmBase.unknownAllRolesMode", name));
+                throw new IllegalStateException("Unknown mode, must be one of: strict, authOnly, strictAuthOnly");
             }
             return mode;
         }
@@ -1553,5 +1637,16 @@ public abstract class RealmBase extends LifecycleMBeanBase implements Realm {
         } catch (ClassCastException e) {
             throw new LifecycleException(sm.getString("realmBase.createUsernameRetriever.ClassCastException", className), e);
         }
+    }
+
+
+    @Override
+    public String[] getRoles(Principal principal) {
+        if (principal instanceof GenericPrincipal) {
+            return ((GenericPrincipal) principal).getRoles();
+        }
+
+        String className = principal.getClass().getSimpleName();
+        throw new IllegalStateException(sm.getString("realmBase.cannotGetRoles", className));
     }
 }

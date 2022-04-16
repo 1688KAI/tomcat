@@ -17,22 +17,14 @@
 package org.apache.tomcat.util.net;
 
 import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 
 import javax.net.ssl.SSLException;
 
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
 
 import org.apache.catalina.connector.Connector;
-import org.apache.catalina.core.AprLifecycleListener;
-import org.apache.catalina.core.StandardServer;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.coyote.ProtocolHandler;
@@ -44,31 +36,7 @@ import org.apache.tomcat.util.buf.ByteChunk;
  * generated using a test CA the files for which are in the Tomcat PMC private
  * repository since not all of them are AL2 licensed.
  */
-@RunWith(Parameterized.class)
 public class TestCustomSslTrustManager extends TomcatBaseTest {
-
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<Object[]> parameters() {
-        List<Object[]> parameterSets = new ArrayList<>();
-        parameterSets.add(new Object[] {
-                "JSSE", Boolean.FALSE, "org.apache.tomcat.util.net.jsse.JSSEImplementation"});
-        parameterSets.add(new Object[] {
-                "OpenSSL", Boolean.TRUE, "org.apache.tomcat.util.net.openssl.OpenSSLImplementation"});
-        parameterSets.add(new Object[] {
-                "OpenSSL-Panama", Boolean.FALSE, "org.apache.tomcat.util.net.openssl.panama.OpenSSLImplementation"});
-
-        return parameterSets;
-    }
-
-    @Parameter(0)
-    public String connectorName;
-
-    @Parameter(1)
-    public boolean needApr;
-
-    @Parameter(2)
-    public String sslImplementationName;
-
 
     private enum TrustType {
         ALL,
@@ -96,17 +64,12 @@ public class TestCustomSslTrustManager extends TomcatBaseTest {
 
         Tomcat tomcat = getTomcatInstance();
 
+        Assume.assumeTrue("SSL renegotiation has to be supported for this test",
+                TesterSupport.isRenegotiationSupported(tomcat));
+
         TesterSupport.configureClientCertContext(tomcat);
 
         Connector connector = tomcat.getConnector();
-        TesterSupport.configureSSLImplementation(tomcat, sslImplementationName);
-
-        if (needApr) {
-            AprLifecycleListener listener = new AprLifecycleListener();
-            Assume.assumeTrue(AprLifecycleListener.isAprAvailable());
-            StandardServer server = (StandardServer) tomcat.getServer();
-            server.addLifecycleListener(listener);
-        }
 
         // Override the defaults
         ProtocolHandler handler = connector.getProtocolHandler();
@@ -160,7 +123,8 @@ public class TestCustomSslTrustManager extends TomcatBaseTest {
 
         if (trustType.equals(TrustType.NONE)) {
             Assert.assertTrue(rc != 200);
-            Assert.assertNull(res.toString());
+            Assert.assertNotNull(res);
+            Assert.assertTrue(res.toString().isEmpty());
         } else {
             Assert.assertEquals(200, rc);
             Assert.assertEquals("OK-" + TesterSupport.ROLE, res.toString());

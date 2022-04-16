@@ -16,7 +16,7 @@
  */
 package org.apache.jasper.compiler;
 
-import jakarta.servlet.jsp.tagext.TagSupport;
+import javax.servlet.jsp.tagext.TagSupport;
 
 /**
  * A tag for test purpose

@@ -38,6 +38,7 @@ import javax.net.ssl.SSLSession;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.ByteBufferUtils;
+import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.net.NioEndpoint.NioSocketWrapper;
 import org.apache.tomcat.util.net.TLSClientHelloExtractor.ExtractorResult;
 import org.apache.tomcat.util.net.openssl.ciphers.Cipher;
@@ -174,8 +175,9 @@ public class SecureNioChannel extends NioChannel {
                         if (sslEngine instanceof SSLUtil.ProtocolInfo) {
                             socketWrapper.setNegotiatedProtocol(
                                     ((SSLUtil.ProtocolInfo) sslEngine).getNegotiatedProtocol());
-                        } else {
-                            socketWrapper.setNegotiatedProtocol(sslEngine.getApplicationProtocol());
+                        } else if (JreCompat.isAlpnSupported()) {
+                            socketWrapper.setNegotiatedProtocol(
+                                    JreCompat.getInstance().getApplicationProtocol(sslEngine));
                         }
                     }
                     //we are complete if we have delivered the last package
@@ -688,11 +690,13 @@ public class SecureNioChannel extends NioChannel {
         int read = 0;
         //the SSL engine result
         SSLEngineResult unwrap;
-        OverflowState overflowState = OverflowState.NONE;
+        boolean processOverflow = false;
         do {
-            if (overflowState == OverflowState.PROCESSING) {
-                overflowState = OverflowState.DONE;
+            boolean useOverflow = false;
+            if (processOverflow) {
+                useOverflow = true;
             }
+            processOverflow = false;
             //prepare the buffer
             netInBuffer.flip();
             //unwrap the data
@@ -703,7 +707,7 @@ public class SecureNioChannel extends NioChannel {
             if (unwrap.getStatus() == Status.OK || unwrap.getStatus() == Status.BUFFER_UNDERFLOW) {
                 //we did receive some data, add it to our total
                 read += unwrap.bytesProduced();
-                if (overflowState == OverflowState.DONE) {
+                if (useOverflow) {
                     // Remove the data read into the overflow buffer
                     read -= getBufHandler().getReadBuffer().position();
                 }
@@ -763,15 +767,14 @@ public class SecureNioChannel extends NioChannel {
                         dsts = dsts2;
                         length++;
                         getBufHandler().configureReadBufferForWrite();
-                        overflowState = OverflowState.PROCESSING;
+                        processOverflow = true;
                     }
                 }
             } else {
                 // Something else went wrong
                 throw new IOException(sm.getString("channel.nio.ssl.unwrapFail", unwrap.getStatus()));
             }
-        } while ((netInBuffer.position() != 0 || overflowState == OverflowState.PROCESSING) &&
-                overflowState != OverflowState.DONE);
+        } while (netInBuffer.position() != 0 || processOverflow); //continue to unwrapping as long as the input buffer has stuff
         return read;
     }
 
@@ -892,12 +895,5 @@ public class SecureNioChannel extends NioChannel {
 
     public ByteBuffer getEmptyBuf() {
         return emptyBuf;
-    }
-
-
-    private enum OverflowState {
-        NONE,
-        PROCESSING,
-        DONE;
     }
 }

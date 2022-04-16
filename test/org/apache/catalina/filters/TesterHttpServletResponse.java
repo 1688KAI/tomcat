@@ -25,13 +25,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
-import java.util.function.Supplier;
 
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.connector.Connector;
@@ -217,8 +215,16 @@ public class TesterHttpServletResponse implements HttpServletResponse {
     public boolean containsHeader(String name) { return false; }
     @Override
     public String encodeRedirectURL(String url) { return null; }
+    /** @deprecated Do not use */
+    @Override
+    @Deprecated
+    public String encodeRedirectUrl(String url) { return null; }
     @Override
     public String encodeURL(String url) { return null; }
+    /** @deprecated Do not use */
+    @Override
+    @Deprecated
+    public String encodeUrl(String url) { return null; }
     /**
      *
      * @throws IOException Never happens
@@ -236,10 +242,10 @@ public class TesterHttpServletResponse implements HttpServletResponse {
     public void setDateHeader(String name, long value) {/* NOOP */}
     @Override
     public void setIntHeader(String name, int value) {/* NOOP */}
+    /** @deprecated Do not use */
+    @Override
+    @Deprecated
+    public void setStatus(int status, String message) {/* NOOP */}
     @Override
     public void setContentLengthLong(long length) {/* NOOP */}
-    @Override
-    public void setTrailerFields(Supplier<Map<String, String>> supplier) { /* NOOP */ }
-    @Override
-    public Supplier<Map<String, String>> getTrailerFields() { return null; }
 }

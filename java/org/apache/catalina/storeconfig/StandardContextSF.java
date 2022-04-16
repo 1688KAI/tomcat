@@ -126,10 +126,15 @@ public class StandardContextSF extends StoreFactoryBase {
                         config.getPath());
             }
             if( (!config.isFile()) || (!config.canWrite())) {
-                throw new IOException(sm.getString("standardContextSF.cannotWriteFile", configFile));
+                log.error("Cannot write context output file at "
+                            + configFile + ", not saving.");
+                throw new IOException("Context save file at "
+                                      + configFile
+                                      + " not a file, or not writable.");
             }
             if (log.isInfoEnabled()) {
-                log.info(sm.getString("standardContextSF.storeContext", aContext.getPath(), config));
+                log.info("Store Context " + aContext.getPath()
+                        + " separate at file " + config);
             }
             try (FileOutputStream fos = new FileOutputStream(config);
                     PrintWriter writer = new PrintWriter(new OutputStreamWriter(
@@ -156,16 +161,25 @@ public class StandardContextSF extends StoreFactoryBase {
                     || (mover.getConfigOld().isDirectory())
                     || (mover.getConfigOld().exists() &&
                             !mover.getConfigOld().canWrite())) {
-                throw new IOException(sm.getString("standardContextSF.moveFailed", mover.getConfigOld()));
+                log.error("Cannot move orignal context output file at "
+                        + mover.getConfigOld());
+                throw new IOException("Context original file at "
+                        + mover.getConfigOld()
+                        + " is null, not a file or not writable.");
             }
             File dir = mover.getConfigSave().getParentFile();
             if (dir != null && dir.isDirectory() && (!dir.canWrite())) {
-                throw new IOException(sm.getString("standardContextSF.cannotWriteFile", mover.getConfigSave()));
+                log.error("Cannot save context output file at "
+                        + mover.getConfigSave());
+                throw new IOException("Context save file at "
+                        + mover.getConfigSave() + " is not writable.");
             }
             if (log.isInfoEnabled()) {
-                log.info(sm.getString("standardContextSF.storeContextWithBackup",
-                        aContext.getPath(), mover.getConfigSave()));
+                log.info("Store Context " + aContext.getPath()
+                        + " separate with backup (at file "
+                        + mover.getConfigSave() + " )");
             }
+
             try (PrintWriter writer = mover.getWriter()) {
                 storeXMLHead(writer);
                 super.store(writer, -2, aContext);
@@ -214,7 +228,7 @@ public class StandardContextSF extends StoreFactoryBase {
             StandardContext context = (StandardContext) aContext;
             // Store nested <Listener> elements
             LifecycleListener listeners[] = context.findLifecycleListeners();
-            List<LifecycleListener> listenersArray = new ArrayList<>();
+            ArrayList<LifecycleListener> listenersArray = new ArrayList<>();
             for (LifecycleListener listener : listeners) {
                 if (!(listener instanceof ThreadLocalLeakPreventionListener)) {
                     listenersArray.add(listener);
@@ -306,7 +320,7 @@ public class StandardContextSF extends StoreFactoryBase {
             try {
                 file = file.getCanonicalFile();
             } catch (IOException e) {
-                log.error(sm.getString("standardContextSF.canonicalPathError"), e);
+                log.error(e);
             }
         }
         return file;
@@ -335,8 +349,7 @@ public class StandardContextSF extends StoreFactoryBase {
         String confHostDefault = new File(configBase, "context.xml.default")
                 .getCanonicalPath();
         String configFile = (context.getConfigFile() != null ? new File(context.getConfigFile().toURI()).getCanonicalPath() : null);
-        String webxml = "WEB-INF/web.xml";
-        String tomcatwebxml = "WEB-INF/tomcat-web.xml";
+        String webxml = "WEB-INF/web.xml" ;
 
         List<String> resource = new ArrayList<>();
         for (String wresource : wresources) {
@@ -353,9 +366,6 @@ public class StandardContextSF extends StoreFactoryBase {
                 continue;
             }
             if (wresource.equals(webxml)) {
-                continue;
-            }
-            if (wresource.equals(tomcatwebxml)) {
                 continue;
             }
             resource.add(wresource);

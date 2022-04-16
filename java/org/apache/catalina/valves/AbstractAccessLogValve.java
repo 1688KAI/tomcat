@@ -30,13 +30,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpSession;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpSession;
 
 import org.apache.catalina.AccessLog;
 import org.apache.catalina.Globals;
@@ -88,9 +87,9 @@ import org.apache.tomcat.util.net.IPv6Utils;
  * <li><b><code>%u</code></b> - Remote user that was authenticated
  * <li><b><code>%U</code></b> - Requested URL path
  * <li><b><code>%v</code></b> - Local server name
- * <li><b><code>%D</code></b> - Time taken to process the request, in microseconds
+ * <li><b><code>%D</code></b> - Time taken to process the request, in millis
  * <li><b><code>%T</code></b> - Time taken to process the request, in seconds
- * <li><b><code>%F</code></b> - Time taken to commit the response, in milliseconds
+ * <li><b><code>%F</code></b> - Time taken to commit the response, in millis
  * <li><b><code>%I</code></b> - current Request thread name (can compare later with stacktraces)
  * <li><b><code>%X</code></b> - Connection status when response is completed:
  *   <ul>
@@ -121,8 +120,6 @@ import org.apache.tomcat.util.net.IPv6Utils;
  * <li><code>%{xxx}s</code> xxx is an attribute in the HttpSession
  * <li><code>%{xxx}t</code> xxx is an enhanced SimpleDateFormat pattern
  * (see Configuration Reference document for details on supported time patterns)
- * <li><code>%{xxx}T</code> xxx is the unit for the time taken to process the request
- * (see Configuration Reference document for details on supported units)
  * </ul>
  *
  * <p>
@@ -416,14 +413,25 @@ public abstract class AbstractAccessLogValve extends ValveBase implements Access
      * Thread local date format cache.
      */
     private static final ThreadLocal<DateFormatCache> localDateCache =
-            ThreadLocal.withInitial(() -> new DateFormatCache(localCacheSize, Locale.getDefault(), globalDateCache));
+            new ThreadLocal<DateFormatCache>() {
+        @Override
+        protected DateFormatCache initialValue() {
+            return new DateFormatCache(localCacheSize, Locale.getDefault(), globalDateCache);
+        }
+    };
 
 
     /**
      * The system time when we last updated the Date that this valve
      * uses for log lines.
      */
-    private static final ThreadLocal<Date> localDate = ThreadLocal.withInitial(Date::new);
+    private static final ThreadLocal<Date> localDate =
+            new ThreadLocal<Date>() {
+        @Override
+        protected Date initialValue() {
+            return new Date();
+        }
+    };
 
     /**
      * Are we doing conditional logging. default null.
@@ -701,8 +709,14 @@ public abstract class AbstractAccessLogValve extends ValveBase implements Access
             return;
         }
 
-        // Date for access log should be the beginning of the request
-        Date date = getDate(request.getCoyoteRequest().getStartTime());
+        /**
+         * XXX This is a bit silly, but we want to have start and stop time and
+         * duration consistent. It would be better to keep start and stop
+         * simply in the request and/or response object and remove time
+         * (duration) from the interface.
+         */
+        long start = request.getCoyoteRequest().getStartTime();
+        Date date = getDate(start + time);
 
         CharArrayWriter result = charArrayWriters.pop();
         if (result == null) {
@@ -1144,8 +1158,8 @@ public abstract class AbstractAccessLogValve extends ValveBase implements Access
                 Response response, long time) {
             long timestamp = date.getTime();
             long frac;
-            if (!usesBegin) {
-                timestamp += TimeUnit.NANOSECONDS.toMillis(time);
+            if (usesBegin) {
+                timestamp -= time;
             }
             /*  Implementation note: This is deliberately not implemented using
              *  switch. If a switch is used the compiler (at least the Oracle
@@ -1365,29 +1379,30 @@ public abstract class AbstractAccessLogValve extends ValveBase implements Access
      * write time taken to process the request - %D, %T
      */
     protected static class ElapsedTimeElement implements AccessLogElement {
-        private final boolean micros;
         private final boolean millis;
 
         /**
-         * @param micros <code>true</code>, write time in microseconds - %D
-         * @param millis <code>true</code>, write time in milliseconds,
-         * if both arguments are <code>false</code>, write time in seconds - %T
+         * @param millis <code>true</code>, write time in millis - %D,
+         * if <code>false</code>, write time in seconds - %T
          */
-        public ElapsedTimeElement(boolean micros, boolean millis) {
-            this.micros = micros;
+        public ElapsedTimeElement(boolean millis) {
             this.millis = millis;
         }
 
         @Override
         public void addElement(CharArrayWriter buf, Date date, Request request,
                 Response response, long time) {
-            if (micros) {
-                buf.append(Long.toString(TimeUnit.NANOSECONDS.toMicros(time)));
-            } else if (millis) {
-                buf.append(Long.toString(TimeUnit.NANOSECONDS.toMillis(time)));
+            if (millis) {
+                buf.append(Long.toString(time));
             } else {
                 // second
-                buf.append(Long.toString(TimeUnit.NANOSECONDS.toSeconds(time)));
+                buf.append(Long.toString(time / 1000));
+                buf.append('.');
+                int remains = (int) (time % 1000);
+                buf.append(Long.toString(remains / 100));
+                remains = remains % 100;
+                buf.append(Long.toString(remains / 10));
+                buf.append(Long.toString(remains % 10));
             }
         }
     }
@@ -1398,12 +1413,12 @@ public abstract class AbstractAccessLogValve extends ValveBase implements Access
     protected static class FirstByteTimeElement implements AccessLogElement {
         @Override
         public void addElement(CharArrayWriter buf, Date date, Request request, Response response, long time) {
-            long commitTime = response.getCoyoteResponse().getCommitTimeNanos();
+            long commitTime = response.getCoyoteResponse().getCommitTime();
             if (commitTime == -1) {
                 buf.append('-');
             } else {
-                long delta = commitTime - request.getCoyoteRequest().getStartTimeNanos();
-                buf.append(Long.toString(TimeUnit.NANOSECONDS.toMillis(delta)));
+                long delta = commitTime - request.getCoyoteRequest().getStartTime();
+                buf.append(Long.toString(delta));
             }
         }
     }
@@ -1783,15 +1798,6 @@ public abstract class AbstractAccessLogValve extends ValveBase implements Access
             return new SessionAttributeElement(name);
         case 't':
             return new DateAndTimeElement(name);
-        case 'T':
-            // ms for milliseconds, us for microseconds, and s for seconds
-            if ("ms".equals(name)) {
-                return new ElapsedTimeElement(false, true);
-            } else if ("us".equals(name)) {
-                return new ElapsedTimeElement(true, false);
-            } else {
-                return new ElapsedTimeElement(false, false);
-            }
         default:
             return new StringElement("???");
         }
@@ -1813,7 +1819,7 @@ public abstract class AbstractAccessLogValve extends ValveBase implements Access
         case 'B':
             return new ByteSentElement(false);
         case 'D':
-            return new ElapsedTimeElement(true, false);
+            return new ElapsedTimeElement(true);
         case 'F':
             return new FirstByteTimeElement();
         case 'h':
@@ -1837,7 +1843,7 @@ public abstract class AbstractAccessLogValve extends ValveBase implements Access
         case 't':
             return new DateAndTimeElement();
         case 'T':
-            return new ElapsedTimeElement(false, false);
+            return new ElapsedTimeElement(false);
         case 'u':
             return new UserElement();
         case 'U':

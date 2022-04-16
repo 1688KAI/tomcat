@@ -19,12 +19,12 @@ package org.apache.coyote.http2;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.WriteListener;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.AsyncContext;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.WriteListener;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -113,7 +113,7 @@ public class TestAsyncFlush extends Http2TestBase {
         }
 
         @Override
-        protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        protected void doGet(final HttpServletRequest request, final HttpServletResponse response)
                 throws IOException {
 
             final AsyncContext asyncContext = request.startAsync();

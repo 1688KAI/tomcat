@@ -16,8 +16,8 @@
  */
 package org.apache.tomcat.websocket.server;
 
-import jakarta.servlet.http.HttpSessionEvent;
-import jakarta.servlet.http.HttpSessionListener;
+import javax.servlet.http.HttpSessionEvent;
+import javax.servlet.http.HttpSessionListener;
 
 public class WsSessionListener implements HttpSessionListener{
 
@@ -26,6 +26,12 @@ public class WsSessionListener implements HttpSessionListener{
 
     public WsSessionListener(WsServerContainer wsServerContainer) {
         this.wsServerContainer = wsServerContainer;
+    }
+
+
+    @Override
+    public void sessionCreated(HttpSessionEvent se) {
+        // NO-OP
     }
 
 

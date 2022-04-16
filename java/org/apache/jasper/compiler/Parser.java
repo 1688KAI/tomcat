@@ -20,10 +20,10 @@ import java.io.CharArrayWriter;
 import java.io.FileNotFoundException;
 import java.util.Collection;
 
-import jakarta.servlet.jsp.tagext.TagAttributeInfo;
-import jakarta.servlet.jsp.tagext.TagFileInfo;
-import jakarta.servlet.jsp.tagext.TagInfo;
-import jakarta.servlet.jsp.tagext.TagLibraryInfo;
+import javax.servlet.jsp.tagext.TagAttributeInfo;
+import javax.servlet.jsp.tagext.TagFileInfo;
+import javax.servlet.jsp.tagext.TagInfo;
+import javax.servlet.jsp.tagext.TagLibraryInfo;
 
 import org.apache.jasper.JasperException;
 import org.apache.jasper.JspCompilationContext;
@@ -76,6 +76,13 @@ class Parser implements TagConstants {
     private static final String JAVAX_BODY_CONTENT_TEMPLATE_TEXT =
         "JAVAX_BODY_CONTENT_TEMPLATE_TEXT";
 
+    /* System property that controls if the strict white space rules are
+     * applied.
+     */
+    private static final boolean STRICT_WHITESPACE = Boolean.parseBoolean(
+            System.getProperty(
+                    "org.apache.jasper.compiler.Parser.STRICT_WHITESPACE",
+                    "true"));
     /**
      * The constructor
      */
@@ -119,8 +126,7 @@ class Parser implements TagConstants {
 
         Parser parser = new Parser(pc, reader, isTagFile, directivesOnly, jar);
 
-        Node.Root root = new Node.Root(reader.mark(), parent, false,
-                pc.getJspCompilationContext().getOptions().getTempVariableNamePrefix());
+        Node.Root root = new Node.Root(reader.mark(), parent, false);
         root.setPageEncoding(pageEnc);
         root.setJspConfigPageEncoding(jspConfigPageEnc);
         root.setIsDefaultPageEncoding(isDefaultPageEncoding);
@@ -160,7 +166,7 @@ class Parser implements TagConstants {
 
         try {
             while (parseAttribute(attrs)) {
-                if (ws == 0 && ctxt.getOptions().getStrictWhitespace()) {
+                if (ws == 0 && STRICT_WHITESPACE) {
                     err.jspError(reader.mark(),
                             "jsp.error.attribute.nowhitespace");
                 }

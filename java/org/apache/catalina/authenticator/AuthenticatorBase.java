@@ -20,26 +20,25 @@ import java.io.IOException;
 import java.security.Principal;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
-
-import jakarta.security.auth.message.AuthException;
-import jakarta.security.auth.message.AuthStatus;
-import jakarta.security.auth.message.MessageInfo;
-import jakarta.security.auth.message.config.AuthConfigFactory;
-import jakarta.security.auth.message.config.AuthConfigProvider;
-import jakarta.security.auth.message.config.RegistrationListener;
-import jakarta.security.auth.message.config.ServerAuthConfig;
-import jakarta.security.auth.message.config.ServerAuthContext;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.security.auth.message.AuthException;
+import javax.security.auth.message.AuthStatus;
+import javax.security.auth.message.MessageInfo;
+import javax.security.auth.message.config.AuthConfigFactory;
+import javax.security.auth.message.config.AuthConfigProvider;
+import javax.security.auth.message.config.ClientAuthConfig;
+import javax.security.auth.message.config.RegistrationListener;
+import javax.security.auth.message.config.ServerAuthConfig;
+import javax.security.auth.message.config.ServerAuthContext;
+import javax.servlet.DispatcherType;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Authenticator;
 import org.apache.catalina.Contained;
@@ -99,6 +98,8 @@ public abstract class AuthenticatorBase extends ValveBase
      * "Expires" header always set to Date(1), so generate once only
      */
     private static final String DATE_ONE = FastHttpDateFormat.formatDate(1);
+
+    private static final AuthConfigProvider NO_PROVIDER_AVAILABLE = new NoOpAuthConfigProvider();
 
     /**
      * The string manager for this package.
@@ -245,7 +246,7 @@ public abstract class AuthenticatorBase extends ValveBase
     private AllowCorsPreflight allowCorsPreflight = AllowCorsPreflight.NEVER;
 
     private volatile String jaspicAppContextID = null;
-    private volatile Optional<AuthConfigProvider> jaspicProvider = null;
+    private volatile AuthConfigProvider jaspicProvider = null;
     private volatile CallbackHandler jaspicCallbackHandler = null;
 
 
@@ -911,11 +912,11 @@ public abstract class AuthenticatorBase extends ValveBase
                 @SuppressWarnings("rawtypes") // JASPIC API uses raw types
                 Map map = state.messageInfo.getMap();
 
-                String registerValue = (String) map.get("jakarta.servlet.http.registerSession");
+                String registerValue = (String) map.get("javax.servlet.http.registerSession");
                 if (registerValue != null) {
                     register = Boolean.valueOf(registerValue);
                 }
-                String authTypeValue = (String) map.get("jakarta.servlet.http.authType");
+                String authTypeValue = (String) map.get("javax.servlet.http.authType");
                 if (authTypeValue != null) {
                     authType = authTypeValue;
                 }
@@ -1022,7 +1023,7 @@ public abstract class AuthenticatorBase extends ValveBase
                     if (log.isDebugEnabled()) {
                         log.debug(sm.getString("authenticator.check.authorizeFail", username));
                     }
-                    authorized = new GenericPrincipal(username);
+                    authorized = new GenericPrincipal(username, null, null);
                 }
                 String authType = request.getAuthType();
                 if (authType == null || authType.length() == 0) {
@@ -1384,22 +1385,25 @@ public abstract class AuthenticatorBase extends ValveBase
 
 
     private AuthConfigProvider getJaspicProvider() {
-        Optional<AuthConfigProvider> provider = jaspicProvider;
+        AuthConfigProvider provider = jaspicProvider;
         if (provider == null) {
             provider = findJaspicProvider();
         }
-        return provider.orElse(null);
+        if (provider == NO_PROVIDER_AVAILABLE) {
+            return null;
+        }
+        return provider;
     }
 
 
-    private Optional<AuthConfigProvider> findJaspicProvider() {
+    private AuthConfigProvider findJaspicProvider() {
         AuthConfigFactory factory = AuthConfigFactory.getFactory();
-        Optional<AuthConfigProvider> provider;
-        if (factory == null) {
-            provider = Optional.empty();
-        } else {
-            provider = Optional.ofNullable(
-                    factory.getConfigProvider("HttpServlet", jaspicAppContextID, this));
+        AuthConfigProvider provider = null;
+        if (factory != null) {
+            provider = factory.getConfigProvider("HttpServlet", jaspicAppContextID, this);
+        }
+        if (provider == null) {
+            provider = NO_PROVIDER_AVAILABLE;
         }
         jaspicProvider = provider;
         return provider;
@@ -1415,6 +1419,26 @@ public abstract class AuthenticatorBase extends ValveBase
     private static class JaspicState {
         public MessageInfo messageInfo = null;
         public ServerAuthContext serverAuthContext = null;
+    }
+
+
+    private static class NoOpAuthConfigProvider implements AuthConfigProvider {
+
+        @Override
+        public ClientAuthConfig getClientAuthConfig(String layer, String appContext, CallbackHandler handler)
+                throws AuthException {
+            return null;
+        }
+
+        @Override
+        public ServerAuthConfig getServerAuthConfig(String layer, String appContext, CallbackHandler handler)
+                throws AuthException {
+            return null;
+        }
+
+        @Override
+        public void refresh() {
+        }
     }
 
 

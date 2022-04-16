@@ -21,9 +21,9 @@ import java.util.Enumeration;
 import java.util.Map;
 import java.util.Properties;
 
-import jakarta.servlet.ServletConfig;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.jsp.tagext.TagLibraryInfo;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.jsp.tagext.TagLibraryInfo;
 
 import org.apache.jasper.compiler.JspConfig;
 import org.apache.jasper.compiler.Localizer;
@@ -62,9 +62,9 @@ public final class EmbeddedServletOptions implements Options {
     private boolean keepGenerated = true;
 
     /**
-     * How should template text that consists entirely of whitespace be handled?
+     * Should template text that consists entirely of whitespace be removed?
      */
-    private TrimSpacesOption trimSpaces = TrimSpacesOption.FALSE;
+    private boolean trimSpaces = false;
 
     /**
      * Determines whether tag handler pooling is enabled.
@@ -131,12 +131,12 @@ public final class EmbeddedServletOptions implements Options {
     /**
      * Compiler target VM.
      */
-    private String compilerTargetVM = "11";
+    private String compilerTargetVM = "1.7";
 
     /**
      * The compiler source VM.
      */
-    private String compilerSourceVM = "11";
+    private String compilerSourceVM = "1.7";
 
     /**
      * The compiler class name.
@@ -210,32 +210,6 @@ public final class EmbeddedServletOptions implements Options {
      */
     private boolean quoteAttributeEL = true;
 
-    private String variableForExpressionFactory = "_el_expressionfactory";
-
-    private String variableForInstanceManager = "_jsp_instancemanager";
-
-    private boolean poolTagsWithExtends = false;
-
-    private boolean strictGetProperty = true;
-
-    private boolean strictWhitespace = true;
-
-    private String jspServletBase = "org.apache.jasper.runtime.HttpJspBase";
-
-    private String serviceMethodName = "_jspService";
-
-    private String servletClasspathAttribute = "org.apache.catalina.jsp_classpath";
-
-    private String jspPrecompilationQueryParameter = "jsp_precompile";
-
-    private String generatedJspPackageName = "org.apache.jsp";
-
-    private String generatedTagFilePackageName = "org.apache.jsp.tag";
-
-    private String tempVariableNamePrefix = "_jspx_temp";
-
-    private boolean useInstanceManagerForTags = false;
-
     public String getProperty(String name ) {
         return settings.getProperty( name );
     }
@@ -263,8 +237,11 @@ public final class EmbeddedServletOptions implements Options {
         return keepGenerated;
     }
 
+    /**
+     * Should template text that consists entirely of whitespace be removed?
+     */
     @Override
-    public TrimSpacesOption getTrimSpaces() {
+    public boolean getTrimSpaces() {
         return trimSpaces;
     }
 
@@ -490,78 +467,14 @@ public final class EmbeddedServletOptions implements Options {
         return strictQuoteEscaping;
     }
 
-    @Override
-    public String getVariableForExpressionFactory() {
-        return variableForExpressionFactory;
-    }
-
-    @Override
-    public String getVariableForInstanceManager() {
-        return variableForInstanceManager;
-    }
-
-    @Override
-    public boolean getPoolTagsWithExtends() {
-        return poolTagsWithExtends;
-    }
-
-    @Override
-    public boolean getStrictGetProperty() {
-        return strictGetProperty;
-    }
-
-    @Override
-    public boolean getStrictWhitespace() {
-        return strictWhitespace;
-    }
-
-    @Override
-    public String getJspServletBase() {
-        return jspServletBase;
-    }
-
-    @Override
-    public String getServiceMethodName() {
-        return serviceMethodName;
-    }
-
-    @Override
-    public String getServletClasspathAttribute() {
-        return servletClasspathAttribute;
-    }
-
-    @Override
-    public String getJspPrecompilationQueryParameter() {
-        return jspPrecompilationQueryParameter;
-    }
-
-    @Override
-    public String getGeneratedJspPackageName() {
-        return generatedJspPackageName;
-    }
-
-    @Override
-    public String getGeneratedTagFilePackageName() {
-        return generatedTagFilePackageName;
-    }
-
-    @Override
-    public String getTempVariableNamePrefix() {
-        return tempVariableNamePrefix;
-    }
-
-    @Override
-    public boolean getUseInstanceManagerForTags() {
-        return useInstanceManagerForTags;
-    }
-
     /**
      * Create an EmbeddedServletOptions object using data available from
      * ServletConfig and ServletContext.
      * @param config The Servlet config
      * @param context The Servlet context
      */
-    public EmbeddedServletOptions(ServletConfig config, ServletContext context) {
+    public EmbeddedServletOptions(ServletConfig config,
+            ServletContext context) {
 
         Enumeration<String> enumeration=config.getInitParameterNames();
         while( enumeration.hasMoreElements() ) {
@@ -586,17 +499,20 @@ public final class EmbeddedServletOptions implements Options {
 
         String trimsp = config.getInitParameter("trimSpaces");
         if (trimsp != null) {
-            try {
-                trimSpaces = TrimSpacesOption.valueOf(trimsp.toUpperCase());
-            } catch (IllegalArgumentException iae) {
+            if (trimsp.equalsIgnoreCase("true")) {
+                trimSpaces = true;
+            } else if (trimsp.equalsIgnoreCase("false")) {
+                trimSpaces = false;
+            } else {
                 if (log.isWarnEnabled()) {
-                    log.warn(Localizer.getMessage("jsp.warning.trimspaces"), iae);
+                    log.warn(Localizer.getMessage("jsp.warning.trimspaces"));
                 }
             }
         }
 
         this.isPoolingEnabled = true;
-        String poolingEnabledParam = config.getInitParameter("enablePooling");
+        String poolingEnabledParam
+        = config.getInitParameter("enablePooling");
         if (poolingEnabledParam != null
                 && !poolingEnabledParam.equalsIgnoreCase("true")) {
             if (poolingEnabledParam.equalsIgnoreCase("false")) {
@@ -720,7 +636,8 @@ public final class EmbeddedServletOptions implements Options {
             }
         }
 
-        String errBeanClass = config.getInitParameter("errorOnUseBeanInvalidClassAttribute");
+        String errBeanClass =
+            config.getInitParameter("errorOnUseBeanInvalidClassAttribute");
         if (errBeanClass != null) {
             if (errBeanClass.equalsIgnoreCase("true")) {
                 errorOnUseBeanInvalidClassAttribute = true;
@@ -872,103 +789,6 @@ public final class EmbeddedServletOptions implements Options {
             } else {
                 if (log.isWarnEnabled()) {
                     log.warn(Localizer.getMessage("jsp.warning.quoteAttributeEL"));
-                }
-            }
-        }
-
-        String variableForExpressionFactory = config.getInitParameter("variableForExpressionFactory");
-        if (variableForExpressionFactory != null) {
-            this.variableForExpressionFactory = variableForExpressionFactory;
-        }
-
-        String variableForInstanceManager = config.getInitParameter("variableForInstanceManager");
-        if (variableForInstanceManager != null) {
-            this.variableForInstanceManager = variableForInstanceManager;
-        }
-
-        String poolTagsWithExtends = config.getInitParameter("poolTagsWithExtends");
-        if (poolTagsWithExtends != null) {
-            if (poolTagsWithExtends.equalsIgnoreCase("true")) {
-                this.poolTagsWithExtends = true;
-            } else if (poolTagsWithExtends.equalsIgnoreCase("false")) {
-                this.poolTagsWithExtends = false;
-            } else {
-                if (log.isWarnEnabled()) {
-                    log.warn(Localizer.getMessage("jsp.warning.poolTagsWithExtends"));
-                }
-            }
-        }
-
-        String strictGetProperty = config.getInitParameter("strictGetProperty");
-        if (strictGetProperty != null) {
-            if (strictGetProperty.equalsIgnoreCase("true")) {
-                this.strictGetProperty = true;
-            } else if (strictGetProperty.equalsIgnoreCase("false")) {
-                this.strictGetProperty = false;
-            } else {
-                if (log.isWarnEnabled()) {
-                    log.warn(Localizer.getMessage("jsp.warning.strictGetProperty"));
-                }
-            }
-        }
-
-        String strictWhitespace = config.getInitParameter("strictWhitespace");
-        if (strictWhitespace != null) {
-            if (strictWhitespace.equalsIgnoreCase("true")) {
-                this.strictWhitespace = true;
-            } else if (strictWhitespace.equalsIgnoreCase("false")) {
-                this.strictWhitespace = false;
-            } else {
-                if (log.isWarnEnabled()) {
-                    log.warn(Localizer.getMessage("jsp.warning.strictWhitespace"));
-                }
-            }
-        }
-
-        String jspServletBase = config.getInitParameter("jspServletBase");
-        if (jspServletBase != null) {
-            this.jspServletBase = jspServletBase;
-        }
-
-        String serviceMethodName = config.getInitParameter("serviceMethodName");
-        if (serviceMethodName != null) {
-            this.serviceMethodName = serviceMethodName;
-        }
-
-        String servletClasspathAttribute = config.getInitParameter("servletClasspathAttribute");
-        if (servletClasspathAttribute != null) {
-            this.servletClasspathAttribute = servletClasspathAttribute;
-        }
-
-        String jspPrecompilationQueryParameter = config.getInitParameter("jspPrecompilationQueryParameter");
-        if (jspPrecompilationQueryParameter != null) {
-            this.jspPrecompilationQueryParameter = jspPrecompilationQueryParameter;
-        }
-
-        String generatedJspPackageName = config.getInitParameter("generatedJspPackageName");
-        if (generatedJspPackageName != null) {
-            this.generatedJspPackageName = generatedJspPackageName;
-        }
-
-        String generatedTagFilePackageName = config.getInitParameter("generatedTagFilePackageName");
-        if (generatedTagFilePackageName != null) {
-            this.generatedTagFilePackageName = generatedTagFilePackageName;
-        }
-
-        String tempVariableNamePrefix = config.getInitParameter("tempVariableNamePrefix");
-        if (tempVariableNamePrefix != null) {
-            this.tempVariableNamePrefix = tempVariableNamePrefix;
-        }
-
-        String useInstanceManagerForTags = config.getInitParameter("useInstanceManagerForTags");
-        if (useInstanceManagerForTags != null) {
-            if (useInstanceManagerForTags.equalsIgnoreCase("true")) {
-                this.useInstanceManagerForTags = true;
-            } else if (useInstanceManagerForTags.equalsIgnoreCase("false")) {
-                this.useInstanceManagerForTags = false;
-            } else {
-                if (log.isWarnEnabled()) {
-                    log.warn(Localizer.getMessage("jsp.warning.useInstanceManagerForTags"));
                 }
             }
         }

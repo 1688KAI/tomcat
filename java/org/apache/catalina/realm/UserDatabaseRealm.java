@@ -30,6 +30,7 @@ import org.apache.catalina.LifecycleException;
 import org.apache.catalina.Role;
 import org.apache.catalina.User;
 import org.apache.catalina.UserDatabase;
+import org.apache.catalina.users.MemoryUserDatabase;
 import org.apache.naming.ContextBindings;
 import org.apache.tomcat.util.ExceptionUtils;
 
@@ -55,6 +56,14 @@ public class UserDatabaseRealm extends RealmBase {
     private final Object databaseLock = new Object();
 
     /**
+     * Descriptive information about this Realm implementation.
+     * @deprecated This will be removed in Tomcat 9 onwards.
+     */
+    @Deprecated
+    protected static final String name = "UserDatabaseRealm";
+
+
+    /**
      * The global JNDI name of the <code>UserDatabase</code> resource we will be
      * utilizing.
      */
@@ -64,13 +73,6 @@ public class UserDatabaseRealm extends RealmBase {
      * Obtain the UserDatabase from the context (rather than global) JNDI.
      */
     private boolean localJndiResource = false;
-
-    /**
-     * Use a static principal disconnected from the database. This prevents live
-     * updates to users and roles having an effect on authenticated principals,
-     * but reduces use of the database.
-     */
-    private boolean useStaticPrincipal = false;
 
 
     // ------------------------------------------------------------- Properties
@@ -92,23 +94,6 @@ public class UserDatabaseRealm extends RealmBase {
      */
     public void setResourceName(String resourceName) {
         this.resourceName = resourceName;
-    }
-
-
-    /**
-     * @return the useStaticPrincipal flag
-     */
-    public boolean getUseStaticPrincipal() {
-        return this.useStaticPrincipal;
-    }
-
-
-    /**
-     * Allows using a static principal disconnected from the user database.
-     * @param useStaticPrincipal the new value
-     */
-    public void setUseStaticPrincipal(boolean useStaticPrincipal) {
-        this.useStaticPrincipal = useStaticPrincipal;
     }
 
 
@@ -140,10 +125,17 @@ public class UserDatabaseRealm extends RealmBase {
     // ------------------------------------------------------ Protected Methods
 
     @Override
+    @Deprecated
+    protected String getName() {
+        return name;
+    }
+
+
+    @Override
     public void backgroundProcess() {
         UserDatabase database = getUserDatabase();
-        if (database != null) {
-            database.backgroundProcess();
+        if (database instanceof MemoryUserDatabase) {
+            ((MemoryUserDatabase) database).backgroundProcess();
         }
     }
 
@@ -168,26 +160,6 @@ public class UserDatabaseRealm extends RealmBase {
     }
 
 
-    public static String[] getRoles(User user) {
-        Set<String> roles = new HashSet<>();
-        Iterator<Role> uroles = user.getRoles();
-        while (uroles.hasNext()) {
-            Role role = uroles.next();
-            roles.add(role.getName());
-        }
-        Iterator<Group> groups = user.getGroups();
-        while (groups.hasNext()) {
-            Group group = groups.next();
-            uroles = group.getRoles();
-            while (uroles.hasNext()) {
-                Role role = uroles.next();
-                roles.add(role.getName());
-            }
-        }
-        return roles.toArray(new String[0]);
-    }
-
-
     /**
      * Return the Principal associated with the given user name.
      */
@@ -201,11 +173,7 @@ public class UserDatabaseRealm extends RealmBase {
         if (user == null) {
             return null;
         } else {
-            if (useStaticPrincipal) {
-                return new GenericPrincipal(username, Arrays.asList(getRoles(user)));
-            } else {
-                return new UserDatabasePrincipal(user, database);
-            }
+            return new UserDatabasePrincipal(user, database);
         }
     }
 
@@ -279,30 +247,19 @@ public class UserDatabaseRealm extends RealmBase {
     }
 
 
-    @Override
-    public boolean isAvailable() {
-        return (database == null) ? false : database.isAvailable();
-    }
-
-
     public static final class UserDatabasePrincipal extends GenericPrincipal {
         private static final long serialVersionUID = 1L;
+        private final transient User user;
         private final transient UserDatabase database;
 
         public UserDatabasePrincipal(User user, UserDatabase database) {
-            super(user.getName());
+            super(user.getName(), null, null);
+            this.user = user;
             this.database = database;
         }
 
         @Override
         public String[] getRoles() {
-            if (database == null) {
-                return new String[0];
-            }
-            User user = database.findUser(name);
-            if (user == null) {
-                return new String[0];
-            }
             Set<String> roles = new HashSet<>();
             Iterator<Role> uroles = user.getRoles();
             while (uroles.hasNext()) {
@@ -335,10 +292,6 @@ public class UserDatabaseRealm extends RealmBase {
             if (dbrole == null) {
                 return false;
             }
-            User user = database.findUser(name);
-            if (user == null) {
-                return false;
-            }
             if (user.isInRole(dbrole)) {
                 return true;
             }
@@ -361,7 +314,7 @@ public class UserDatabaseRealm extends RealmBase {
          */
         private Object writeReplace() throws ObjectStreamException {
             // Replace with a static principal disconnected from the database
-            return new GenericPrincipal(getName(), Arrays.asList(getRoles()));
+            return new GenericPrincipal(getName(), null, Arrays.asList(getRoles()));
         }
     }
 }

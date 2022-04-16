@@ -16,8 +16,6 @@
  */
 package org.apache.coyote;
 
-import java.util.concurrent.TimeUnit;
-
 import javax.management.ObjectName;
 
 
@@ -131,11 +129,11 @@ public class RequestInfo  {
     public long getRequestProcessingTime() {
         // Not perfect, but good enough to avoid returning strange values due to
         // concurrent updates.
-        long startTime = req.getStartTimeNanos();
+        long startTime = req.getStartTime();
         if (getStage() == org.apache.coyote.Constants.STAGE_ENDED || startTime < 0) {
             return 0;
         } else {
-            return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+            return System.currentTimeMillis() - startTime;
         }
     }
 
@@ -159,24 +157,25 @@ public class RequestInfo  {
     private long lastRequestProcessingTime = 0;
 
 
-    /**
-     * Called by the processor before recycling the request. It'll collect
+    /** Called by the processor before recycling the request. It'll collect
      * statistic information.
      */
     void updateCounters() {
-        bytesReceived += req.getBytesRead();
-        bytesSent += req.getResponse().getContentWritten();
+        bytesReceived+=req.getBytesRead();
+        bytesSent+=req.getResponse().getContentWritten();
 
         requestCount++;
-        if (req.getResponse().getStatus() >= 400) {
+        if( req.getResponse().getStatus() >=400 ) {
             errorCount++;
         }
-        long time = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - req.getStartTimeNanos());
+        long t0=req.getStartTime();
+        long t1=System.currentTimeMillis();
+        long time=t1-t0;
         this.lastRequestProcessingTime = time;
-        processingTime += time;
-        if (maxTime < time) {
-            maxTime = time;
-            maxRequestUri = req.requestURI().toString();
+        processingTime+=time;
+        if( maxTime < time ) {
+            maxTime=time;
+            maxRequestUri=req.requestURI().toString();
         }
     }
 

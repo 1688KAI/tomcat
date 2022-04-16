@@ -16,7 +16,7 @@
  */
 package org.apache.jasper.el;
 
-import jakarta.el.MethodNotFoundException;
+import javax.el.MethodNotFoundException;
 
 public class JspMethodNotFoundException extends MethodNotFoundException {
 

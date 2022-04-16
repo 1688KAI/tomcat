@@ -43,7 +43,7 @@ public final class SecurityClassLoad {
         loadServletsPackage(loader);
         loadSessionPackage(loader);
         loadUtilPackage(loader);
-        loadJakartaPackage(loader);
+        loadJavaxPackage(loader);
         loadConnectorPackage(loader);
         loadTomcatPackage(loader);
     }
@@ -120,8 +120,8 @@ public final class SecurityClassLoad {
     }
 
 
-    private static final void loadJakartaPackage(ClassLoader loader) throws Exception {
-        loader.loadClass("jakarta.servlet.http.Cookie");
+    private static final void loadJavaxPackage(ClassLoader loader) throws Exception {
+        loader.loadClass("javax.servlet.http.Cookie");
     }
 
 
@@ -143,17 +143,11 @@ public final class SecurityClassLoad {
         loader.loadClass(basePackage + "ResponseFacade$DateHeaderPrivilegedAction");
         loader.loadClass(basePackage + "RequestFacade$GetSessionPrivilegedAction");
         loader.loadClass(basePackage + "ResponseFacade$FlushBufferPrivilegedAction");
-        loader.loadClass(basePackage + "OutputBuffer$PrivilegedCreateConverter");
-        loader.loadClass(basePackage + "CoyoteInputStream$PrivilegedAvailable");
-        loader.loadClass(basePackage + "CoyoteInputStream$PrivilegedClose");
-        loader.loadClass(basePackage + "CoyoteInputStream$PrivilegedRead");
-        loader.loadClass(basePackage + "CoyoteInputStream$PrivilegedReadArray");
-        loader.loadClass(basePackage + "CoyoteInputStream$PrivilegedReadBuffer");
+        loadAnonymousInnerClasses(loader, basePackage + "OutputBuffer");
+        loadAnonymousInnerClasses(loader, basePackage + "CoyoteInputStream");
         loader.loadClass(basePackage + "CoyoteOutputStream");
-        loader.loadClass(basePackage + "InputBuffer$PrivilegedCreateConverter");
-        loader.loadClass(basePackage + "Response$PrivilegedDoIsEncodable");
-        loader.loadClass(basePackage + "Response$PrivilegedGenerateCookieString");
-        loader.loadClass(basePackage + "Response$PrivilegedEncodeUrl");
+        loadAnonymousInnerClasses(loader, basePackage + "InputBuffer");
+        loadAnonymousInnerClasses(loader, basePackage + "Response");
     }
 
 
@@ -169,7 +163,9 @@ public final class SecurityClassLoad {
         loader.loadClass(basePackage + "util.buf.StringCache$CharEntry");
         loader.loadClass(basePackage + "util.buf.UriUtil");
         // collections
-        loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap");
+        Class<?> clazz = loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap");
+        // Ensure StringManager is configured
+        clazz.getConstructor().newInstance();
         loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap$EntryImpl");
         loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap$EntryIterator");
         loader.loadClass(basePackage + "util.collections.CaseInsensitiveKeyMap$EntrySet");
@@ -178,7 +174,7 @@ public final class SecurityClassLoad {
         loader.loadClass(basePackage + "util.http.CookieProcessor");
         loader.loadClass(basePackage + "util.http.NamesEnumerator");
         // Make sure system property is read at this point
-        Class<?> clazz = loader.loadClass(basePackage + "util.http.FastHttpDateFormat");
+        clazz = loader.loadClass(basePackage + "util.http.FastHttpDateFormat");
         clazz.getConstructor().newInstance();
         loader.loadClass(basePackage + "util.http.parser.HttpParser");
         loader.loadClass(basePackage + "util.http.parser.MediaType");
@@ -187,6 +183,7 @@ public final class SecurityClassLoad {
         // net
         loader.loadClass(basePackage + "util.net.Constants");
         loader.loadClass(basePackage + "util.net.DispatchType");
+        loader.loadClass(basePackage + "util.net.AprEndpoint$AprSocketWrapper$AprOperationState");
         loader.loadClass(basePackage + "util.net.NioEndpoint$NioSocketWrapper$NioOperationState");
         loader.loadClass(basePackage + "util.net.Nio2Endpoint$Nio2SocketWrapper$Nio2OperationState");
         loader.loadClass(basePackage + "util.net.SocketWrapperBase$BlockingMode");
@@ -200,5 +197,15 @@ public final class SecurityClassLoad {
         loader.loadClass(basePackage + "util.security.PrivilegedGetTccl");
         loader.loadClass(basePackage + "util.security.PrivilegedSetTccl");
         loader.loadClass(basePackage + "util.security.PrivilegedSetAccessControlContext");
+    }
+
+    private static final void loadAnonymousInnerClasses(ClassLoader loader, String enclosingClass) {
+        try {
+            for (int i = 1;; i++) {
+                loader.loadClass(enclosingClass + '$' + i);
+            }
+        } catch (ClassNotFoundException ignored) {
+            //
+        }
     }
 }

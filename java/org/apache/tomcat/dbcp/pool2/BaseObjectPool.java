@@ -30,7 +30,45 @@ package org.apache.tomcat.dbcp.pool2;
  */
 public abstract class BaseObjectPool<T> extends BaseObject implements ObjectPool<T> {
 
-    private volatile boolean closed;
+    @Override
+    public abstract T borrowObject() throws Exception;
+
+    @Override
+    public abstract void returnObject(T obj) throws Exception;
+
+    @Override
+    public abstract void invalidateObject(T obj) throws Exception;
+
+    /**
+     * Not supported in this base implementation.
+     *
+     * @return a negative value.
+     */
+    @Override
+    public int getNumIdle() {
+        return -1;
+    }
+
+    /**
+     * Not supported in this base implementation.
+     *
+     * @return a negative value.
+     */
+    @Override
+    public int getNumActive() {
+        return -1;
+    }
+
+    /**
+     * Not supported in this base implementation.
+     *
+     * @throws UnsupportedOperationException if the pool does not implement this
+     *          method
+     */
+    @Override
+    public void clear() throws Exception, UnsupportedOperationException {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Not supported in this base implementation. Subclasses should override
@@ -42,6 +80,44 @@ public abstract class BaseObjectPool<T> extends BaseObject implements ObjectPool
     @Override
     public void addObject() throws Exception, UnsupportedOperationException {
         throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Calls {@link ObjectPool#addObject()} <code>count</code>
+     * number of times.
+     *
+     * @param count
+     *            the number of idle objects to add.
+     * @throws Exception
+     *             when {@link ObjectPool#addObject()} fails.
+     * @since 2.8.0
+     */
+    @Override
+    public void addObjects(final int count) throws Exception {
+        for (int i = 0; i < count; i++) {
+            addObject();
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This affects the behavior of {@code isClosed} and
+     * {@code assertOpen}.
+     * </p>
+     */
+    @Override
+    public void close() {
+        closed = true;
+    }
+
+    /**
+     * Has this pool instance been closed.
+     *
+     * @return {@code true} when this pool has been closed.
+     */
+    public final boolean isClosed() {
+        return closed;
     }
 
     /**
@@ -58,66 +134,7 @@ public abstract class BaseObjectPool<T> extends BaseObject implements ObjectPool
         }
     }
 
-    @Override
-    public abstract T borrowObject() throws Exception;
-
-    /**
-     * Not supported in this base implementation.
-     *
-     * @throws UnsupportedOperationException if the pool does not implement this
-     *          method
-     */
-    @Override
-    public void clear() throws Exception, UnsupportedOperationException {
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This affects the behavior of {@code isClosed} and
-     * {@code assertOpen}.
-     * </p>
-     */
-    @Override
-    public void close() {
-        closed = true;
-    }
-
-    /**
-     * Not supported in this base implementation.
-     *
-     * @return a negative value.
-     */
-    @Override
-    public int getNumActive() {
-        return -1;
-    }
-
-    /**
-     * Not supported in this base implementation.
-     *
-     * @return a negative value.
-     */
-    @Override
-    public int getNumIdle() {
-        return -1;
-    }
-
-    @Override
-    public abstract void invalidateObject(T obj) throws Exception;
-
-    /**
-     * Has this pool instance been closed.
-     *
-     * @return {@code true} when this pool has been closed.
-     */
-    public final boolean isClosed() {
-        return closed;
-    }
-
-    @Override
-    public abstract void returnObject(T obj) throws Exception;
+    private volatile boolean closed = false;
 
     @Override
     protected void toStringAppendFields(final StringBuilder builder) {

@@ -18,8 +18,8 @@ package org.apache.catalina.filters;
 
 import java.util.Enumeration;
 
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletContext;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletContext;
 
 import org.apache.tomcat.unittest.TesterServletContext;
 

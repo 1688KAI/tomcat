@@ -68,7 +68,7 @@ public interface Host extends Container {
 
     /**
      * @return the XML root for this Host.  This can be an absolute
-     * pathname or a relative pathname.
+     * pathname, a relative pathname, or a URL.
      * If null, the base path defaults to
      * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
      */
@@ -76,7 +76,7 @@ public interface Host extends Container {
 
     /**
      * Set the Xml root for this Host.  This can be an absolute
-     * pathname or a relative pathname.
+     * pathname, a relative pathname, or a URL.
      * If null, the base path defaults to
      * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
      * @param xmlBase The new XML root
@@ -111,30 +111,6 @@ public interface Host extends Container {
      * @param appBase The new application root
      */
     public void setAppBase(String appBase);
-
-
-    /**
-     * @return the legacy (Java EE) application root for this Host.  This can be
-     * an absolute pathname, a relative pathname, or a URL.
-     */
-    public String getLegacyAppBase();
-
-
-    /**
-     * @return an absolute {@link File} for the legacy (Java EE) appBase of this
-     * Host. The file will be canonical if possible. There is no guarantee that
-     * that the appBase exists.
-     */
-    public File getLegacyAppBaseFile();
-
-
-    /**
-     * Set the legacy (Java EE) application root for this Host.  This can be an
-     * absolute pathname, a relative pathname, or a URL.
-     *
-     * @param legacyAppBase The new legacy application root
-     */
-    public void setLegacyAppBase(String legacyAppBase);
 
 
     /**

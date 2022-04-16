@@ -16,7 +16,7 @@
  */
 package org.apache.tomcat;
 
-import jakarta.servlet.ServletContext;
+import javax.servlet.ServletContext;
 
 /**
  * Scans a web application and classloader hierarchy for JAR files. Uses

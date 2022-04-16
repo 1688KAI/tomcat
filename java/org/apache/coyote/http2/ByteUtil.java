@@ -16,8 +16,6 @@
  */
 package org.apache.coyote.http2;
 
-import java.nio.ByteBuffer;
-
 /**
  * Utility class for extracting values from byte arrays.
  */
@@ -39,12 +37,6 @@ class ByteUtil {
     }
 
 
-    static int get31Bits(ByteBuffer input, int firstByte) {
-        return ((input.get(firstByte) & 0x7F) << 24) + ((input.get(firstByte + 1) & 0xFF) << 16) +
-                ((input.get(firstByte + 2) & 0xFF) << 8) + (input.get(firstByte + 3) & 0xFF);
-    }
-
-
     static void set31Bits(byte[] output, int firstByte, int value) {
         output[firstByte] = (byte) ((value & 0x7F000000) >> 24);
         output[firstByte + 1] = (byte) ((value & 0xFF0000) >> 16);
@@ -58,11 +50,6 @@ class ByteUtil {
     }
 
 
-    static int getOneByte(ByteBuffer input, int pos) {
-        return (input.get(pos) & 0xFF);
-    }
-
-
     static int getTwoBytes(byte[] input, int firstByte) {
         return ((input[firstByte] & 0xFF) << 8) +  (input[firstByte + 1] & 0xFF);
     }
@@ -71,12 +58,6 @@ class ByteUtil {
     static int getThreeBytes(byte[] input, int firstByte) {
         return ((input[firstByte] & 0xFF) << 16) + ((input[firstByte + 1] & 0xFF) << 8) +
                 (input[firstByte + 2] & 0xFF);
-    }
-
-
-    static int getThreeBytes(ByteBuffer input, int firstByte) {
-        return ((input.get(firstByte) & 0xFF) << 16) + ((input.get(firstByte + 1) & 0xFF) << 8) +
-                (input.get(firstByte + 2) & 0xFF);
     }
 
 

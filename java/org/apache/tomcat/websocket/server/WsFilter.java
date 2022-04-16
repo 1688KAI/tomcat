@@ -18,27 +18,26 @@ package org.apache.tomcat.websocket.server;
 
 import java.io.IOException;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.GenericFilter;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * Handles the initial HTTP connection for WebSocket connections.
  */
-public class WsFilter extends GenericFilter {
+public class WsFilter implements Filter {
 
-    private static final long serialVersionUID = 1L;
-
-    private transient WsServerContainer sc;
+    private WsServerContainer sc;
 
 
     @Override
-    public void init() throws ServletException {
-        sc = (WsServerContainer) getServletContext().getAttribute(
+    public void init(FilterConfig filterConfig) throws ServletException {
+        sc = (WsServerContainer) filterConfig.getServletContext().getAttribute(
                 Constants.SERVER_CONTAINER_SERVLET_CONTEXT_ATTRIBUTE);
     }
 
@@ -77,5 +76,11 @@ public class WsFilter extends GenericFilter {
 
         UpgradeUtil.doUpgrade(sc, req, resp, mappingResult.getConfig(),
                 mappingResult.getPathParams());
+    }
+
+
+    @Override
+    public void destroy() {
+        // NO-OP
     }
 }

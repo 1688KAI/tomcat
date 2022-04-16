@@ -31,11 +31,10 @@ import javax.management.ObjectName;
 import javax.management.OperationsException;
 import javax.management.ReflectionException;
 import javax.management.openmbean.CompositeData;
-
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.mbeans.MBeanDumper;
 import org.apache.tomcat.util.modeler.Registry;
@@ -89,7 +88,7 @@ public class JMXProxyServlet extends HttpServlet {
     @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
-        response.setContentType("text/plain;charset=" + Constants.CHARSET);
+        response.setContentType("text/plain");
         // Stop older versions of IE thinking they know best. We set text/plain
         // in the line above for a reason. IE's behaviour is unwanted at best
         // and dangerous at worst.

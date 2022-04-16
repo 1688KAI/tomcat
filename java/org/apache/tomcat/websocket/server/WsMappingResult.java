@@ -18,7 +18,7 @@ package org.apache.tomcat.websocket.server;
 
 import java.util.Map;
 
-import jakarta.websocket.server.ServerEndpointConfig;
+import javax.websocket.server.ServerEndpointConfig;
 
 class WsMappingResult {
 

@@ -20,22 +20,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
-import jakarta.el.ELContext;
-import jakarta.el.ELException;
-import jakarta.el.ExpressionFactory;
-import jakarta.servlet.jsp.tagext.BodyTag;
-import jakarta.servlet.jsp.tagext.DynamicAttributes;
-import jakarta.servlet.jsp.tagext.IterationTag;
-import jakarta.servlet.jsp.tagext.JspIdConsumer;
-import jakarta.servlet.jsp.tagext.SimpleTag;
-import jakarta.servlet.jsp.tagext.TagAttributeInfo;
-import jakarta.servlet.jsp.tagext.TagData;
-import jakarta.servlet.jsp.tagext.TagFileInfo;
-import jakarta.servlet.jsp.tagext.TagInfo;
-import jakarta.servlet.jsp.tagext.TagVariableInfo;
-import jakarta.servlet.jsp.tagext.TryCatchFinally;
-import jakarta.servlet.jsp.tagext.VariableInfo;
+import javax.el.ELContext;
+import javax.el.ELException;
+import javax.el.ExpressionFactory;
+import javax.servlet.jsp.tagext.BodyTag;
+import javax.servlet.jsp.tagext.DynamicAttributes;
+import javax.servlet.jsp.tagext.IterationTag;
+import javax.servlet.jsp.tagext.JspIdConsumer;
+import javax.servlet.jsp.tagext.SimpleTag;
+import javax.servlet.jsp.tagext.TagAttributeInfo;
+import javax.servlet.jsp.tagext.TagData;
+import javax.servlet.jsp.tagext.TagFileInfo;
+import javax.servlet.jsp.tagext.TagInfo;
+import javax.servlet.jsp.tagext.TagVariableInfo;
+import javax.servlet.jsp.tagext.TryCatchFinally;
+import javax.servlet.jsp.tagext.VariableInfo;
 
+import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.compiler.tagplugin.TagPluginContext;
 import org.xml.sax.Attributes;
@@ -411,8 +412,6 @@ abstract class Node implements TagConstants {
 
         private final boolean isXmlSyntax;
 
-        private final String variablePrefix;
-
         // Source encoding of the page containing this Root
         private String pageEnc;
 
@@ -453,10 +452,9 @@ abstract class Node implements TagConstants {
         /*
          * Constructor.
          */
-        Root(Mark start, Node parent, boolean isXmlSyntax, String variablePrefix) {
+        Root(Mark start, Node parent, boolean isXmlSyntax) {
             super(start, parent);
             this.isXmlSyntax = isXmlSyntax;
-            this.variablePrefix = variablePrefix;
             this.qName = JSP_ROOT_ACTION;
             this.localName = ROOT_ACTION;
 
@@ -532,7 +530,7 @@ abstract class Node implements TagConstants {
          */
         public String nextTemporaryVariableName() {
             if (parentRoot == null) {
-                return variablePrefix + (tempSequenceNumber++);
+                return Constants.TEMP_VARIABLE_NAME_PREFIX + (tempSequenceNumber++);
             } else {
                 return parentRoot.nextTemporaryVariableName();
             }

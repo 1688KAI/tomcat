@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.URI;
@@ -43,7 +44,6 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.digester.AbstractObjectCreationFactory;
 import org.apache.tomcat.util.digester.Digester;
 import org.apache.tomcat.util.file.ConfigFileLoader;
-import org.apache.tomcat.util.file.ConfigurationSource;
 import org.apache.tomcat.util.res.StringManager;
 import org.xml.sax.Attributes;
 
@@ -424,8 +424,15 @@ public class MemoryUserDatabase implements UserDatabase {
             roles.clear();
 
             String pathName = getPathname();
-            try (ConfigurationSource.Resource resource = ConfigFileLoader.getSource().getResource(pathName)) {
-                lastModified = resource.getLastModified();
+            URI uri = ConfigFileLoader.getURI(pathName);
+            URLConnection uConn = null;
+
+            try {
+                URL url = uri.toURL();
+                uConn = url.openConnection();
+
+                InputStream is = uConn.getInputStream();
+                this.lastModified = uConn.getLastModified();
 
                 // Construct a digester to read the XML input file
                 Digester digester = new Digester();
@@ -443,7 +450,7 @@ public class MemoryUserDatabase implements UserDatabase {
                         new MemoryUserCreationFactory(this), true);
 
                 // Parse the XML input to load this database
-                digester.parse(resource.getInputStream());
+                digester.parse(is);
             } catch (IOException ioe) {
                 log.error(sm.getString("memoryUserDatabase.fileNotFound", pathName));
             } catch (Exception e) {
@@ -452,6 +459,15 @@ public class MemoryUserDatabase implements UserDatabase {
                 groups.clear();
                 roles.clear();
                 throw e;
+            } finally {
+                if (uConn != null) {
+                    try {
+                        // Can't close a uConn directly. Have to do it like this.
+                        uConn.getInputStream().close();
+                    } catch (IOException ioe) {
+                        log.warn(sm.getString("memoryUserDatabase.fileClose", pathname), ioe);
+                    }
+                }
             }
         } finally {
             writeLock.unlock();
@@ -519,6 +535,21 @@ public class MemoryUserDatabase implements UserDatabase {
         } finally {
             readLock.unlock();
         }
+    }
+
+
+    /**
+     * Check for permissions to save this user database to persistent storage
+     * location.
+     *
+     * @return <code>true</code> if the database is writable
+     *
+     * @deprecated Use {@link #isWritable()}. This method will be removed in
+     *             Tomcat 10.1.x onwards.
+     */
+    @Deprecated
+    public boolean isWriteable() {
+        return isWritable();
     }
 
 
@@ -649,13 +680,12 @@ public class MemoryUserDatabase implements UserDatabase {
     }
 
 
-    @Override
     public void backgroundProcess() {
         if (!watchSource) {
             return;
         }
 
-        URI uri = ConfigFileLoader.getSource().getURI(getPathname());
+        URI uri = ConfigFileLoader.getURI(getPathname());
         URLConnection uConn = null;
         try {
             URL url = uri.toURL();

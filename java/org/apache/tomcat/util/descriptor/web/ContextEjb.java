@@ -33,6 +33,7 @@ public class ContextEjb extends ResourceBase {
     // ------------------------------------------------------------- Properties
 
 
+
     /**
      * The name of the EJB home implementation class.
      */
@@ -48,7 +49,7 @@ public class ContextEjb extends ResourceBase {
 
 
     /**
-     * The link to a Jakarta EE EJB definition.
+     * The link to a J2EE EJB definition.
      */
     private String link = null;
 

@@ -16,6 +16,7 @@
  */
 package org.apache.tomcat.util.digester;
 
+
 /**
  * <p>Public interface defining a shorthand means of configuring a complete
  * set of related <code>Rule</code> definitions, possibly associated with
@@ -32,7 +33,25 @@ package org.apache.tomcat.util.digester;
  *     your RuleSet to configure the necessary rules.</li>
  * </ul>
  */
+
 public interface RuleSet {
+
+
+    // ------------------------------------------------------------- Properties
+
+
+    /**
+     * @return the namespace URI that will be applied to all Rule instances
+     * created from this RuleSet.
+     *
+     * @deprecated Unused. Will be removed in Tomcat 9
+     */
+    @Deprecated
+    public String getNamespaceURI();
+
+
+    // --------------------------------------------------------- Public Methods
+
 
     /**
      * Add the set of Rule instances defined in this RuleSet to the
@@ -43,5 +62,7 @@ public interface RuleSet {
      * @param digester Digester instance to which the new Rule instances
      *  should be added.
      */
-    void addRuleInstances(Digester digester);
+    public void addRuleInstances(Digester digester);
+
+
 }

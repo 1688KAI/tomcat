@@ -35,12 +35,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -56,6 +56,8 @@ import org.apache.catalina.Service;
 import org.apache.catalina.Session;
 import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.connector.Connector;
+import org.apache.catalina.core.AprLifecycleListener;
+import org.apache.catalina.core.StandardServer;
 import org.apache.catalina.session.ManagerBase;
 import org.apache.catalina.session.StandardManager;
 import org.apache.catalina.util.IOTools;
@@ -177,6 +179,14 @@ public abstract class TomcatBaseTest extends LoggingBaseTest {
         Assert.assertTrue(connector.setProperty("connectionTimeout", "3000"));
         tomcat.getService().addConnector(connector);
         tomcat.setConnector(connector);
+
+        // Add AprLifecycleListener if we are using the Apr connector
+        if (protocol.contains("Apr")) {
+            StandardServer server = (StandardServer) tomcat.getServer();
+            AprLifecycleListener listener = new AprLifecycleListener();
+            listener.setSSLRandomSeed("/dev/urandom");
+            server.addLifecycleListener(listener);
+        }
 
         File catalinaBase = getTemporaryDirectory();
         tomcat.setBaseDir(catalinaBase.getAbsolutePath());

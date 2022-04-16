@@ -30,19 +30,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import jakarta.websocket.CloseReason;
-import jakarta.websocket.DecodeException;
-import jakarta.websocket.Decoder;
-import jakarta.websocket.DeploymentException;
-import jakarta.websocket.EndpointConfig;
-import jakarta.websocket.MessageHandler;
-import jakarta.websocket.OnClose;
-import jakarta.websocket.OnError;
-import jakarta.websocket.OnMessage;
-import jakarta.websocket.OnOpen;
-import jakarta.websocket.PongMessage;
-import jakarta.websocket.Session;
-import jakarta.websocket.server.PathParam;
+import javax.websocket.CloseReason;
+import javax.websocket.DecodeException;
+import javax.websocket.Decoder;
+import javax.websocket.DeploymentException;
+import javax.websocket.EndpointConfig;
+import javax.websocket.MessageHandler;
+import javax.websocket.OnClose;
+import javax.websocket.OnError;
+import javax.websocket.OnMessage;
+import javax.websocket.OnOpen;
+import javax.websocket.PongMessage;
+import javax.websocket.Session;
+import javax.websocket.server.PathParam;
 
 import org.apache.tomcat.InstanceManager;
 import org.apache.tomcat.util.res.StringManager;
@@ -52,7 +52,7 @@ import org.apache.tomcat.websocket.Util.DecoderMatch;
 
 /**
  * For a POJO class annotated with
- * {@link jakarta.websocket.server.ServerEndpoint}, an instance of this class
+ * {@link javax.websocket.server.ServerEndpoint}, an instance of this class
  * creates and caches the method handler, method information and parameter
  * information for the onXXX calls.
  */
@@ -69,6 +69,25 @@ public class PojoMethodMapping {
     private final PojoPathParam[] onErrorParams;
     private final List<MessageHandlerInfo> onMessage = new ArrayList<>();
     private final String wsPath;
+
+
+    /**
+     * Create a method mapping for the given POJO
+     *
+     * @param clazzPojo         POJO implementation class
+     * @param decoderClazzes    Set of potential decoder classes
+     * @param wsPath            Path at which the endpoint will be deployed
+     *
+     * @throws DeploymentException If the mapping cannot be completed
+     *
+     * @deprecated Will be removed in Tomcat 10.1.x
+     *             Use (@link {@link #PojoMethodMapping(Class, List, String, InstanceManager)}
+     */
+    @Deprecated
+    public PojoMethodMapping(Class<?> clazzPojo, List<Class<? extends Decoder>> decoderClazzes, String wsPath)
+            throws DeploymentException {
+        this(clazzPojo, decoderClazzes, wsPath, null);
+    }
 
 
     /**

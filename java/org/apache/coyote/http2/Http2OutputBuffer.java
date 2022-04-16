@@ -23,6 +23,7 @@ import org.apache.coyote.Response;
 import org.apache.coyote.http11.HttpOutputBuffer;
 import org.apache.coyote.http11.OutputFilter;
 import org.apache.coyote.http2.Stream.StreamOutputBuffer;
+import org.apache.tomcat.util.buf.ByteChunk;
 
 public class Http2OutputBuffer implements HttpOutputBuffer {
 
@@ -75,5 +76,12 @@ public class Http2OutputBuffer implements HttpOutputBuffer {
     @Override
     public void flush() throws IOException {
         next.flush();
+    }
+
+
+    @Override
+    @Deprecated
+    public int doWrite(ByteChunk chunk) throws IOException {
+        return next.doWrite(chunk);
     }
 }

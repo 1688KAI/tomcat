@@ -18,14 +18,12 @@ package org.apache.catalina.valves;
 
 import java.io.IOException;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.AsyncContext;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -35,7 +33,6 @@ import org.apache.catalina.Wrapper;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.ByteChunk;
-import org.apache.tomcat.util.descriptor.web.ErrorPage;
 
 public class TestErrorReportValve extends TomcatBaseTest {
 
@@ -214,53 +211,4 @@ public class TestErrorReportValve extends TomcatBaseTest {
             }
         }
     }
-
-    private static final class ExceptionServlet extends HttpServlet {
-
-        private static final long serialVersionUID = 1L;
-        @Override
-        public void service(ServletRequest request, ServletResponse response)
-                throws IOException {
-            throw new RuntimeException();
-        }
-    }
-
-
-    private static final class ErrorPageServlet extends HttpServlet {
-
-        private static final long serialVersionUID = 1L;
-        @Override
-        public void service(ServletRequest request, ServletResponse response)
-                throws IOException {
-            response.getWriter().print("OK");
-        }
-    }
-
-
-    @Test
-    public void testErrorPageServlet() throws Exception {
-        Tomcat tomcat = getTomcatInstance();
-
-        // No file system docBase required
-        Context ctx = tomcat.addContext("", null);
-
-        Tomcat.addServlet(ctx, "exception", new ExceptionServlet());
-        ctx.addServletMappingDecoded("/exception", "exception");
-        Tomcat.addServlet(ctx, "erropage", new ErrorPageServlet());
-        ctx.addServletMappingDecoded("/erropage", "erropage");
-        ErrorPage errorPage = new ErrorPage();
-        errorPage.setErrorCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        errorPage.setLocation("/erropage");
-        ctx.addErrorPage(errorPage);
-
-        tomcat.start();
-
-        ByteChunk res = new ByteChunk();
-        int rc = getUrl("http://localhost:" + getPort() + "/exception", res, null);
-
-        Assert.assertEquals(res.toString(), "OK");
-        Assert.assertEquals(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, rc);
-    }
-
-
 }

@@ -43,14 +43,12 @@ import org.apache.coyote.UpgradeProtocol;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.http.CookieProcessor;
-import org.apache.tomcat.util.res.StringManager;
 
 /**
  * Central StoreRegistry for all server.xml elements
  */
 public class StoreRegistry {
     private static Log log = LogFactory.getLog(StoreRegistry.class);
-    private static StringManager sm = StringManager.getManager(StoreRegistry.class);
 
     private Map<String, StoreDescription> descriptors = new HashMap<>();
 
@@ -72,28 +70,30 @@ public class StoreRegistry {
             CookieProcessor.class };
 
     /**
-     * @return the name
+     * @return Returns the name.
      */
     public String getName() {
         return name;
     }
 
     /**
-     * @param name The name to set.
+     * @param name
+     *            The name to set.
      */
     public void setName(String name) {
         this.name = name;
     }
 
     /**
-     * @return the version
+     * @return Returns the version.
      */
     public String getVersion() {
         return version;
     }
 
     /**
-     * @param version The version to set
+     * @param version
+     *            The version to set.
      */
     public void setVersion(String version) {
         this.version = version;
@@ -104,7 +104,7 @@ public class StoreRegistry {
      * found.
      *
      * @param id The class name
-     * @return the description
+     * @return The description
      */
     public StoreDescription findDescription(String id) {
         if (log.isDebugEnabled()) {
@@ -114,9 +114,10 @@ public class StoreRegistry {
         if (desc == null) {
             Class<?> aClass = null;
             try {
-                aClass = Class.forName(id, true, this.getClass().getClassLoader());
+                aClass = Class.forName(id, true, this.getClass()
+                        .getClassLoader());
             } catch (ClassNotFoundException e) {
-                log.error(sm.getString("registry.loadClassFailed", id), e);
+                log.error("ClassName:" + id, e);
             }
             if (aClass != null) {
                 desc = descriptors.get(aClass.getName());
@@ -142,7 +143,7 @@ public class StoreRegistry {
      * Find Description by class.
      *
      * @param aClass The class
-     * @return the description
+     * @return The description
      */
     public StoreDescription findDescription(Class<?> aClass) {
         return findDescription(aClass.getName());
@@ -152,7 +153,7 @@ public class StoreRegistry {
      * Find factory from class name.
      *
      * @param aClassName The class name
-     * @return the factory
+     * @return The factory
      */
     public IStoreFactory findStoreFactory(String aClassName) {
         StoreDescription desc = findDescription(aClassName);
@@ -168,7 +169,7 @@ public class StoreRegistry {
      * Find factory from class.
      *
      * @param aClass The class
-     * @return the factory
+     * @return The factory
      */
     public IStoreFactory findStoreFactory(Class<?> aClass) {
         return findStoreFactory(aClass.getName());
@@ -208,7 +209,7 @@ public class StoreRegistry {
     // Attributes
 
     /**
-     * @return the encoding
+     * @return The encoding
      */
     public String getEncoding() {
         return encoding;

@@ -216,7 +216,7 @@ public class StoreAppender {
             throws Exception {
 
         // Render a className attribute if requested
-        if (include && !desc.isStandard()) {
+        if (include && desc != null && !desc.isStandard()) {
             writer.print(" className=\"");
             writer.print(bean.getClass().getName());
             writer.print("\"");
@@ -365,6 +365,36 @@ public class StoreAppender {
         writer.print("\"");
     }
 
+    /**
+     * Given a string, this method replaces all occurrences of '&lt;', '&gt;',
+     * '&amp;', and '"'.
+     * @param input The string to escape
+     * @return the escaped string
+     * @deprecated This method will be removed in Tomcat 9
+     */
+    @Deprecated
+    public String convertStr(String input) {
+
+        StringBuffer filtered = new StringBuffer(input.length());
+        char c;
+        for (int i = 0; i < input.length(); i++) {
+            c = input.charAt(i);
+            if (c == '<') {
+                filtered.append("&lt;");
+            } else if (c == '>') {
+                filtered.append("&gt;");
+            } else if (c == '\'') {
+                filtered.append("&apos;");
+            } else if (c == '"') {
+                filtered.append("&quot;");
+            } else if (c == '&') {
+                filtered.append("&amp;");
+            } else {
+                filtered.append(c);
+            }
+        }
+        return filtered.toString();
+    }
 
     /**
      * Is the specified property type one for which we should generate a

@@ -26,7 +26,7 @@ import java.security.AccessControlException;
 public final class CallStackUtils {
 
     /**
-     * Tests whether the caller can create a security manager in the current environment.
+     * Returns whether the caller can create a security manager in the current environment.
      *
      * @return {@code true} if it is able to create a security manager in the current environment, {@code false}
      *         otherwise.

@@ -46,7 +46,6 @@ import org.apache.catalina.SessionIdGenerator;
 import org.apache.catalina.util.LifecycleMBeanBase;
 import org.apache.catalina.util.SessionIdGeneratorBase;
 import org.apache.catalina.util.StandardSessionIdGenerator;
-import org.apache.catalina.util.ToStringUtil;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
@@ -194,19 +193,12 @@ public abstract class ManagerBase extends LifecycleMBeanBase implements Manager 
 
     private boolean warnOnSessionAttributeFilterFailure;
 
-    private boolean notifyBindingListenerOnUnchangedValue;
-
-    private boolean notifyAttributeListenerOnUnchangedValue = true;
-
     /**
      * Determines whether sessions managed by this manager shall persist (serialize)
      * authentication information or not.
      */
     private boolean persistAuthentication = false;
 
-    private boolean sessionActivityCheck = Globals.STRICT_SERVLET_COMPLIANCE;
-
-    private boolean sessionLastAccessAtStart = Globals.STRICT_SERVLET_COMPLIANCE;
 
     // ------------------------------------------------------------ Constructors
 
@@ -225,55 +217,6 @@ public abstract class ManagerBase extends LifecycleMBeanBase implements Manager 
 
 
     // -------------------------------------------------------------- Properties
-
-    @Override
-    public boolean getNotifyAttributeListenerOnUnchangedValue() {
-        return notifyAttributeListenerOnUnchangedValue;
-    }
-
-
-
-    @Override
-    public void setNotifyAttributeListenerOnUnchangedValue(boolean notifyAttributeListenerOnUnchangedValue) {
-        this.notifyAttributeListenerOnUnchangedValue = notifyAttributeListenerOnUnchangedValue;
-    }
-
-
-    @Override
-    public boolean getNotifyBindingListenerOnUnchangedValue() {
-        return notifyBindingListenerOnUnchangedValue;
-    }
-
-
-    @Override
-    public void setNotifyBindingListenerOnUnchangedValue(boolean notifyBindingListenerOnUnchangedValue) {
-        this.notifyBindingListenerOnUnchangedValue = notifyBindingListenerOnUnchangedValue;
-    }
-
-
-    @Override
-    public boolean getSessionActivityCheck() {
-        return sessionActivityCheck;
-    }
-
-
-    @Override
-    public void setSessionActivityCheck(boolean sessionActivityCheck) {
-        this.sessionActivityCheck = sessionActivityCheck;
-    }
-
-
-    @Override
-    public boolean getSessionLastAccessAtStart() {
-        return sessionLastAccessAtStart;
-    }
-
-
-    @Override
-    public void setSessionLastAccessAtStart(boolean sessionLastAccessAtStart) {
-        this.sessionLastAccessAtStart = sessionLastAccessAtStart;
-    }
-
 
     /**
      * Obtain the regular expression used to filter session attribute based on
@@ -818,6 +761,11 @@ public abstract class ManagerBase extends LifecycleMBeanBase implements Manager 
 
 
     @Override
+    public void changeSessionId(Session session) {
+        rotateSessionId(session);
+    }
+
+
     public String rotateSessionId(Session session) {
         String newId = generateSessionId();
         changeSessionId(session, newId, true, true);
@@ -1312,7 +1260,15 @@ public abstract class ManagerBase extends LifecycleMBeanBase implements Manager 
 
     @Override
     public String toString() {
-        return ToStringUtil.toString(this, context);
+        StringBuilder sb = new StringBuilder(this.getClass().getName());
+        sb.append('[');
+        if (context == null) {
+            sb.append("Context is null");
+        } else {
+            sb.append(context.getName());
+        }
+        sb.append(']');
+        return sb.toString();
     }
 
 

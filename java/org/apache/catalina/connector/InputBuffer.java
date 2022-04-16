@@ -25,10 +25,10 @@ import java.nio.charset.Charset;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-import jakarta.servlet.ReadListener;
+import javax.servlet.ReadListener;
 
 import org.apache.catalina.security.SecurityUtil;
 import org.apache.coyote.ActionCode;
@@ -71,7 +71,7 @@ public class InputBuffer extends Reader
     /**
      * Encoder cache.
      */
-    private static final Map<Charset, SynchronizedStack<B2CConverter>> encoders = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<Charset, SynchronizedStack<B2CConverter>> encoders = new ConcurrentHashMap<>();
 
     // ----------------------------------------------------- Instance Variables
 
@@ -97,6 +97,12 @@ public class InputBuffer extends Reader
      * Flag which indicates if the input buffer is closed.
      */
     private boolean closed = false;
+
+
+    /**
+     * Encoding to use.
+     */
+    private String enc;
 
 
     /**
@@ -198,6 +204,8 @@ public class InputBuffer extends Reader
             encoders.get(conv.getCharset()).push(conv);
             conv = null;
         }
+
+        enc = null;
     }
 
 
@@ -374,6 +382,18 @@ public class InputBuffer extends Reader
 
     // ------------------------------------------------- Chars Handling Methods
 
+
+    /**
+     * @param s     New encoding value
+     *
+     * @deprecated This method will be removed in Tomcat 9.0.x
+     */
+    @Deprecated
+    public void setEncoding(String s) {
+        enc = s;
+    }
+
+
     public int realReadChars() throws IOException {
         checkConverter();
 
@@ -540,7 +560,11 @@ public class InputBuffer extends Reader
         }
 
         if (charset == null) {
-            charset = org.apache.coyote.Constants.DEFAULT_BODY_CHARSET;
+            if (enc == null) {
+                charset = org.apache.coyote.Constants.DEFAULT_BODY_CHARSET;
+            } else {
+                charset = B2CConverter.getCharset(enc);
+            }
         }
 
         SynchronizedStack<B2CConverter> stack = encoders.get(charset);
@@ -557,10 +581,16 @@ public class InputBuffer extends Reader
     }
 
 
-    private static B2CConverter createConverter(Charset charset) throws IOException {
+    private static B2CConverter createConverter(final Charset charset) throws IOException {
         if (SecurityUtil.isPackageProtectionEnabled()) {
             try {
-                return AccessController.doPrivileged(new PrivilegedCreateConverter(charset));
+                return AccessController.doPrivileged(new PrivilegedExceptionAction<B2CConverter>() {
+
+                    @Override
+                    public B2CConverter run() throws IOException {
+                        return new B2CConverter(charset);
+                    }
+                });
             } catch (PrivilegedActionException ex) {
                 Exception e = ex.getException();
                 if (e instanceof IOException) {
@@ -645,21 +675,5 @@ public class InputBuffer extends Reader
         tmp.position(oldPosition);
         cb = tmp;
         tmp = null;
-    }
-
-
-    private static class PrivilegedCreateConverter
-            implements PrivilegedExceptionAction<B2CConverter> {
-
-        private final Charset charset;
-
-        public PrivilegedCreateConverter(Charset charset) {
-            this.charset = charset;
-        }
-
-        @Override
-        public B2CConverter run() throws IOException {
-            return new B2CConverter(charset);
-        }
     }
 }

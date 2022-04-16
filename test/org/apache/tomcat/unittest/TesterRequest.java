@@ -25,8 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.SessionTrackingMode;
+import javax.servlet.ServletContext;
+import javax.servlet.SessionTrackingMode;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.connector.Request;
@@ -44,7 +44,6 @@ public class TesterRequest extends Request {
 
 
     public TesterRequest(boolean withSession) {
-        super(null);
         context = new TesterContext();
         servletContext = new TesterServletContext();
         context.setServletContext(servletContext);
@@ -138,10 +137,5 @@ public class TesterRequest extends Request {
     @Override
     public Enumeration<String> getHeaderNames() {
         return Collections.enumeration(headers.keySet());
-    }
-
-    @Override
-    public String getRemoteAddr() {
-        return "127.0.0.1";
     }
 }

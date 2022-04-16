@@ -28,7 +28,6 @@ public class ContextEnvironment extends ResourceBase {
 
     private static final long serialVersionUID = 1L;
 
-
     // ------------------------------------------------------------- Properties
 
 

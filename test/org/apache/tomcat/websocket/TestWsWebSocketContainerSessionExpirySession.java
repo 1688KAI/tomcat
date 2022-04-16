@@ -18,8 +18,8 @@ package org.apache.tomcat.websocket;
 
 import java.util.Set;
 
-import jakarta.websocket.ContainerProvider;
-import jakarta.websocket.Session;
+import javax.websocket.ContainerProvider;
+import javax.websocket.Session;
 
 import org.junit.Assert;
 import org.junit.Test;

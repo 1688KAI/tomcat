@@ -23,10 +23,10 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.HttpSessionBindingEvent;
-import jakarta.servlet.http.HttpSessionBindingListener;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpSession;
+import javax.servlet.http.HttpSessionBindingEvent;
+import javax.servlet.http.HttpSessionBindingListener;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.Host;
@@ -283,9 +283,14 @@ public class CrawlerSessionManagerValve extends ValveBase {
         }
 
         @Override
+        public void valueBound(HttpSessionBindingEvent event) {
+            // NO-OP
+        }
+
+        @Override
         public void valueUnbound(HttpSessionBindingEvent event) {
             if (clientIdentifier != null && clientIdSessionId != null) {
-                clientIdSessionId.remove(clientIdentifier, event.getSession().getId());
+                clientIdSessionId.remove(clientIdentifier);
             }
         }
     }

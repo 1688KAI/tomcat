@@ -17,19 +17,19 @@
 package org.apache.catalina.filters;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Enumeration;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.GenericFilter;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -48,20 +48,24 @@ import org.apache.juli.logging.LogFactory;
  *
  * @author Craig R. McClanahan
  */
-public class RequestDumperFilter extends GenericFilter {
-
-    private static final long serialVersionUID = 1L;
+public class RequestDumperFilter implements Filter {
 
     private static final String NON_HTTP_REQ_MSG =
         "Not available. Non-http request.";
     private static final String NON_HTTP_RES_MSG =
         "Not available. Non-http response.";
 
-    private static final ThreadLocal<Timestamp> timestamp = ThreadLocal.withInitial(Timestamp::new);
+    private static final ThreadLocal<Timestamp> timestamp =
+            new ThreadLocal<Timestamp>() {
+        @Override
+        protected Timestamp initialValue() {
+            return new Timestamp();
+        }
+    };
 
     // Log must be non-static as loggers are created per class-loader and this
     // Filter may be used in multiple class loaders
-    private transient Log log = LogFactory.getLog(RequestDumperFilter.class);
+    private final Log log = LogFactory.getLog(RequestDumperFilter.class); // must not be static
 
 
     /**
@@ -260,14 +264,15 @@ public class RequestDumperFilter extends GenericFilter {
     }
 
 
-    /*
-     * Log objects are not Serializable but this Filter is because it extends
-     * GenericFilter. Tomcat won't serialize a Filter but in case something else
-     * does...
-     */
-    private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-        ois.defaultReadObject();
-        log = LogFactory.getLog(RequestDumperFilter.class);
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+        // NOOP
+    }
+
+
+    @Override
+    public void destroy() {
+        // NOOP
     }
 
 

@@ -17,6 +17,7 @@
 package org.apache.catalina.authenticator;
 
 public class Constants {
+
     // Authentication methods for login configuration
     // Servlet spec schemes are defined in HttpServletRequest
     // Vendor specific schemes
@@ -33,9 +34,15 @@ public class Constants {
     public static final String JAAS_CONF_PROPERTY = "java.security.auth.login.config";
     public static final String DEFAULT_JAAS_CONF = "conf/jaas.conf";
     public static final String DEFAULT_LOGIN_MODULE_NAME = "com.sun.security.jgss.krb5.accept";
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 9.
+     */
+    @Deprecated
+    public static final String USE_SUBJECT_CREDS_ONLY_PROPERTY = "javax.security.auth.useSubjectCredsOnly";
 
     // Cookie name for single sign on support
-    public static final String SINGLE_SIGN_ON_COOKIE = "JSESSIONIDSSO";
+    public static final String SINGLE_SIGN_ON_COOKIE = System.getProperty(
+            "org.apache.catalina.authenticator.Constants.SSO_SESSION_COOKIE_NAME", "JSESSIONIDSSO");
 
 
     // --------------------------------------------------------- Request Notes
@@ -79,6 +86,14 @@ public class Constants {
      * The following note keys are used during form login processing to
      * cache required information prior to the completion of authentication.
      */
+
+    /**
+     * The previously authenticated principal (if caching is disabled).
+     *
+     * @deprecated Unused. Will be removed in Tomcat 10.
+     */
+    @Deprecated
+    public static final String FORM_PRINCIPAL_NOTE = "org.apache.catalina.authenticator.PRINCIPAL";
 
     /**
      * The original request information, to which the user will be

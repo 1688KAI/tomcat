@@ -46,7 +46,6 @@ import org.apache.catalina.util.LifecycleMBeanBase;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.UriUtil;
-import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.http.RequestUtil;
 import org.apache.tomcat.util.res.StringManager;
 
@@ -81,7 +80,7 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
 
     private boolean trackLockedFiles = false;
     private final Set<TrackedWebResource> trackedResources =
-            Collections.newSetFromMap(new ConcurrentHashMap<>());
+            Collections.newSetFromMap(new ConcurrentHashMap<TrackedWebResource,Boolean>());
 
     // Constructs to make iteration over all WebResourceSets simpler
     private final List<WebResourceSet> mainResources = new ArrayList<>();
@@ -142,7 +141,7 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         path = validate(path);
 
         // Set because we don't want duplicates
-        Set<String> result = new HashSet<>();
+        HashSet<String> result = new HashSet<>();
         for (List<WebResourceSet> list : allResources) {
             for (WebResourceSet webResourceSet : list) {
                 if (!webResourceSet.getClassLoaderOnly()) {
@@ -498,17 +497,6 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
         return cachingAllowed;
     }
 
-
-    @Override
-    public CacheStrategy getCacheStrategy() {
-        return cache.getCacheStrategy();
-    }
-
-    @Override
-    public void setCacheStrategy(CacheStrategy strategy) {
-        cache.setCacheStrategy(strategy);
-    }
-
     @Override
     public long getCacheTtl() {
         return cache.getTtl();
@@ -705,11 +693,9 @@ public class StandardRoot extends LifecycleMBeanBase implements WebResourceRoot 
     }
 
     protected void registerURLStreamHandlerFactory() {
-        if (!JreCompat.isGraalAvailable()) {
-            // Ensure support for jar:war:file:/ URLs will be available (required
-            // for resource JARs in packed WAR files).
-            TomcatURLStreamHandlerFactory.register();
-        }
+        // Ensure support for jar:war:file:/ URLs will be available (required
+        // for resource JARs in packed WAR files).
+        TomcatURLStreamHandlerFactory.register();
     }
 
     @Override

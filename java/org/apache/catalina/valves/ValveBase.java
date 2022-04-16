@@ -23,7 +23,6 @@ import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Pipeline;
 import org.apache.catalina.Valve;
 import org.apache.catalina.util.LifecycleMBeanBase;
-import org.apache.catalina.util.ToStringUtil;
 import org.apache.juli.logging.Log;
 import org.apache.tomcat.util.res.StringManager;
 
@@ -184,7 +183,15 @@ public abstract class ValveBase extends LifecycleMBeanBase implements Contained,
      */
     @Override
     public String toString() {
-        return ToStringUtil.toString(this);
+        StringBuilder sb = new StringBuilder(this.getClass().getName());
+        sb.append('[');
+        if (container == null) {
+            sb.append("Container is null");
+        } else {
+            sb.append(container.getName());
+        }
+        sb.append(']');
+        return sb.toString();
     }
 
 

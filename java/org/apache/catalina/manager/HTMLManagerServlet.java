@@ -33,11 +33,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.Part;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.servlet.http.Part;
 
 import org.apache.catalina.Container;
 import org.apache.catalina.Context;
@@ -60,7 +60,7 @@ import org.apache.tomcat.util.security.Escape;
 * relaxed during testing.
 * <p>
 * The difference between the <code>ManagerServlet</code> and this
-* Servlet is that this Servlet prints out an HTML interface which
+* Servlet is that this Servlet prints out a HTML interface which
 * makes it easier to administrate.
 * <p>
 * However if you use a software that parses the output of
@@ -132,7 +132,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
                 doSessions(cn, request, response, smClient);
                 return;
             } catch (Exception e) {
-                log(sm.getString("htmlManagerServlet.error.sessions", cn), e);
+                log("HTMLManagerServlet.sessions[" + cn + "]", e);
                 message = smClient.getString("managerServlet.exception",
                         e.toString());
             }
@@ -183,19 +183,14 @@ public final class HTMLManagerServlet extends ManagerServlet {
         if (path != null) {
             cn = new ContextName(path, request.getParameter("version"));
         }
-
         String deployPath = request.getParameter("deployPath");
-        String deployWar = request.getParameter("deployWar");
-        String deployConfig = request.getParameter("deployConfig");
         ContextName deployCn = null;
-        if (deployPath != null && deployPath.length() > 0) {
-            deployCn = new ContextName(deployPath, request.getParameter("deployVersion"));
-        } else if (deployConfig != null && deployConfig.length() > 0) {
-            deployCn = ContextName.extractFromPath(deployConfig);
-        } else if (deployWar != null && deployWar.length() > 0) {
-            deployCn = ContextName.extractFromPath(deployWar);
+        if (deployPath != null) {
+            deployCn = new ContextName(deployPath,
+                    request.getParameter("deployVersion"));
         }
-
+        String deployConfig = request.getParameter("deployConfig");
+        String deployWar = request.getParameter("deployWar");
         String tlsHostName = request.getParameter("tlsHostName");
 
         // Prepare our output writer to generate the response message
@@ -325,7 +320,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
     }
 
     /**
-     * Render an HTML list of the currently active Contexts in our virtual host,
+     * Render a HTML list of the currently active Contexts in our virtual host,
      * and memory and server status information.
      *
      * @param request The request
@@ -537,15 +532,14 @@ public final class HTMLManagerServlet extends ManagerServlet {
         }
 
         // Deploy Section
-        args = new Object[8];
+        args = new Object[7];
         args[0] = smClient.getString("htmlManagerServlet.deployTitle");
         args[1] = smClient.getString("htmlManagerServlet.deployServer");
         args[2] = response.encodeURL(request.getContextPath() + "/html/deploy");
         args[3] = smClient.getString("htmlManagerServlet.deployPath");
-        args[4] = smClient.getString("htmlManagerServlet.deployVersion");
-        args[5] = smClient.getString("htmlManagerServlet.deployConfig");
-        args[6] = smClient.getString("htmlManagerServlet.deployWar");
-        args[7] = smClient.getString("htmlManagerServlet.deployButton");
+        args[4] = smClient.getString("htmlManagerServlet.deployConfig");
+        args[5] = smClient.getString("htmlManagerServlet.deployWar");
+        args[6] = smClient.getString("htmlManagerServlet.deployButton");
         writer.print(MessageFormat.format(DEPLOY_SECTION, args));
 
         args = new Object[4];
@@ -793,7 +787,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
 
 
     /**
-     * @see jakarta.servlet.Servlet#getServletInfo()
+     * @see javax.servlet.Servlet#getServletInfo()
      */
     @Override
     public String getServletInfo() {
@@ -801,7 +795,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
     }
 
     /**
-     * @see jakarta.servlet.GenericServlet#init()
+     * @see javax.servlet.GenericServlet#init()
      */
     @Override
     public void init() throws ServletException {
@@ -832,7 +826,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
             try {
                 idle = Integer.parseInt(idleParam);
             } catch (NumberFormatException e) {
-                log(sm.getString("managerServlet.error.idleParam", idleParam));
+                log("Could not parse idle parameter to an int: " + idleParam);
             }
         }
         return sessions(cn, idle, smClient);
@@ -958,13 +952,13 @@ public final class HTMLManagerServlet extends ManagerServlet {
                     orderBy = "DESC";
                 }
                 try {
-                    sessions.sort(comparator);
+                    Collections.sort(sessions, comparator);
                 } catch (IllegalStateException ise) {
                     // at least 1 of the sessions is invalidated
                     req.setAttribute(APPLICATION_ERROR, "Can't sort session list: one session is invalidated");
                 }
             } else {
-                log(sm.getString("htmlManagerServlet.error.sortOrder", sortBy));
+                log("WARNING: unknown sort order: " + sortBy);
             }
         }
         // keep sort order
@@ -1026,7 +1020,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
             if (null == session) {
                 // Shouldn't happen, but let's play nice...
                 if (debug >= 1) {
-                    log("Cannot invalidate null session " + sessionId);
+                    log("WARNING: can't invalidate null session " + sessionId);
                 }
                 continue;
             }
@@ -1038,7 +1032,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
                 }
             } catch (IllegalStateException ise) {
                 if (debug >= 1) {
-                    log("Cannot invalidate already invalidated session id " + sessionId);
+                    log("Can't invalidate already invalidated session id " + sessionId);
                 }
             }
         }
@@ -1061,7 +1055,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
         if (null == session) {
             // Shouldn't happen, but let's play nice...
             if (debug >= 1) {
-                log("Cannot remove attribute '" + attributeName + "' for null session " + sessionId);
+                log("WARNING: can't remove attribute '" + attributeName + "' for null session " + sessionId);
             }
             return false;
         }
@@ -1070,7 +1064,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
             session.removeAttribute(attributeName);
         } catch (IllegalStateException ise) {
             if (debug >= 1) {
-                log("Cannot remote attribute '" + attributeName + "' for invalidated session id " + sessionId);
+                log("Can't remote attribute '" + attributeName + "' for invalidated session id " + sessionId);
             }
         }
         return wasPresent;
@@ -1149,6 +1143,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
                 }
             };
         }
+        //TODO: complete this to TTL, etc.
         return comparator;
     }
 
@@ -1295,20 +1290,12 @@ public final class HTMLManagerServlet extends ManagerServlet {
         "  <small>{4}</small>\n" +
         " </td>\n" +
         " <td class=\"row-left\">\n" +
-        "  <input type=\"text\" name=\"deployVersion\" size=\"20\">\n" +
-        " </td>\n" +
-        "</tr>\n" +
-        "<tr>\n" +
-        " <td class=\"row-right\">\n" +
-        "  <small>{5}</small>\n" +
-        " </td>\n" +
-        " <td class=\"row-left\">\n" +
         "  <input type=\"text\" name=\"deployConfig\" size=\"20\">\n" +
         " </td>\n" +
         "</tr>\n" +
         "<tr>\n" +
         " <td class=\"row-right\">\n" +
-        "  <small>{6}</small>\n" +
+        "  <small>{5}</small>\n" +
         " </td>\n" +
         " <td class=\"row-left\">\n" +
         "  <input type=\"text\" name=\"deployWar\" size=\"40\">\n" +
@@ -1319,7 +1306,7 @@ public final class HTMLManagerServlet extends ManagerServlet {
         "  &nbsp;\n" +
         " </td>\n" +
         " <td class=\"row-left\">\n" +
-        "  <input type=\"submit\" value=\"{7}\">\n" +
+        "  <input type=\"submit\" value=\"{6}\">\n" +
         " </td>\n" +
         "</tr>\n" +
         "</table>\n" +

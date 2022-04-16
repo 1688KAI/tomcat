@@ -25,6 +25,8 @@ import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.SocketTimeoutException;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.catalina.tribes.Channel;
@@ -33,6 +35,7 @@ import org.apache.catalina.tribes.MembershipListener;
 import org.apache.catalina.tribes.MessageListener;
 import org.apache.catalina.tribes.io.ChannelData;
 import org.apache.catalina.tribes.io.XByteBuffer;
+import org.apache.catalina.tribes.util.ExecutorFactory;
 import org.apache.catalina.tribes.util.StringManager;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -46,7 +49,7 @@ import org.apache.juli.logging.LogFactory;
  * Need to fix this, could use java.nio and only need one thread to send and receive, or
  * just use a timeout on the receive
  */
-public class McastServiceImpl extends MembershipProviderBase {
+public class McastServiceImpl {
 
     private static final Log log = LogFactory.getLog(McastService.class);
 
@@ -91,7 +94,10 @@ public class McastServiceImpl extends MembershipProviderBase {
      * Reuse the receivePacket, no need to create a new one everytime
      */
     protected DatagramPacket receivePacket;
-
+    /**
+     * The membership, used so that we calculate memberships when they arrive or don't arrive
+     */
+    protected Membership membership;
     /**
      * The actual listener, for callback when stuff goes down
      */
@@ -136,6 +142,12 @@ public class McastServiceImpl extends MembershipProviderBase {
      * Add the ability to turn on/off recovery
      */
     protected boolean recoveryEnabled = true;
+
+    /**
+     * Dont interrupt the sender/receiver thread, but pass off to an executor
+     */
+    protected final ExecutorService executor =
+            ExecutorFactory.newThreadPool(0, 2, 2, TimeUnit.SECONDS);
 
     /**
      * disable/enable local loopback message
@@ -249,7 +261,6 @@ public class McastServiceImpl extends MembershipProviderBase {
      * @throws IOException if the service fails to start
      * @throws IllegalStateException if the service is already started
      */
-    @Override
     public synchronized void start(int level) throws IOException {
         boolean valid = false;
         if ( (level & Channel.MBR_RX_SEQ)==Channel.MBR_RX_SEQ ) {
@@ -312,7 +323,6 @@ public class McastServiceImpl extends MembershipProviderBase {
      * @return <code>true</code> if the stop is complete
      * @throws IOException if the service fails to disconnect from the sockets
      */
-    @Override
     public synchronized boolean stop(int level) throws IOException {
         boolean valid = false;
 
@@ -393,26 +403,32 @@ public class McastServiceImpl extends MembershipProviderBase {
                 log.debug("Member has shutdown:" + m);
             }
             membership.removeMember(m);
-            t = () -> {
-                String name = Thread.currentThread().getName();
-                try {
-                    Thread.currentThread().setName("Membership-MemberDisappeared");
-                    service.memberDisappeared(m);
-                }finally {
-                    Thread.currentThread().setName(name);
+            t = new Runnable() {
+                @Override
+                public void run() {
+                    String name = Thread.currentThread().getName();
+                    try {
+                        Thread.currentThread().setName("Membership-MemberDisappeared.");
+                        service.memberDisappeared(m);
+                    }finally {
+                        Thread.currentThread().setName(name);
+                    }
                 }
             };
         } else if (membership.memberAlive(m)) {
             if (log.isDebugEnabled()) {
                 log.debug("Mcast add member " + m);
             }
-            t = () -> {
-                String name = Thread.currentThread().getName();
-                try {
-                    Thread.currentThread().setName("Membership-MemberAdded");
-                    service.memberAdded(m);
-                }finally {
-                    Thread.currentThread().setName(name);
+            t = new Runnable() {
+                @Override
+                public void run() {
+                    String name = Thread.currentThread().getName();
+                    try {
+                        Thread.currentThread().setName("Membership-MemberAdded.");
+                        service.memberAdded(m);
+                    }finally {
+                        Thread.currentThread().setName(name);
+                    }
                 }
             };
         } //end if
@@ -436,27 +452,30 @@ public class McastServiceImpl extends MembershipProviderBase {
                     log.debug("Unable to decode message.",ise);
                 }
             }
-            Runnable t = () -> {
-                String name = Thread.currentThread().getName();
-                try {
-                    Thread.currentThread().setName("Membership-MemberAdded");
-                    for (ChannelData datum : data) {
-                        try {
-                            if (datum != null && !member.equals(datum.getAddress())) {
-                                msgservice.messageReceived(datum);
+            Runnable t = new Runnable() {
+                @Override
+                public void run() {
+                    String name = Thread.currentThread().getName();
+                    try {
+                        Thread.currentThread().setName("Membership-MemberAdded.");
+                        for (ChannelData datum : data) {
+                            try {
+                                if (datum != null && !member.equals(datum.getAddress())) {
+                                    msgservice.messageReceived(datum);
+                                }
+                            } catch (Throwable t) {
+                                if (t instanceof ThreadDeath) {
+                                    throw (ThreadDeath) t;
+                                }
+                                if (t instanceof VirtualMachineError) {
+                                    throw (VirtualMachineError) t;
+                                }
+                                log.error(sm.getString("mcastServiceImpl.unableReceive.broadcastMessage"), t);
                             }
-                        } catch (Throwable t1) {
-                            if (t1 instanceof ThreadDeath) {
-                                throw (ThreadDeath) t1;
-                            }
-                            if (t1 instanceof VirtualMachineError) {
-                                throw (VirtualMachineError) t1;
-                            }
-                            log.error(sm.getString("mcastServiceImpl.unableReceive.broadcastMessage"), t1);
                         }
+                    }finally {
+                        Thread.currentThread().setName(name);
                     }
-                }finally {
-                    Thread.currentThread().setName(name);
                 }
             };
             executor.execute(t);
@@ -472,13 +491,17 @@ public class McastServiceImpl extends MembershipProviderBase {
                     log.debug("Mcast expire  member " + member);
                 }
                 try {
-                    Runnable t = () -> {
-                        String name = Thread.currentThread().getName();
-                        try {
-                            Thread.currentThread().setName("Membership-MemberExpired");
-                            service.memberDisappeared(member);
-                        } finally {
-                            Thread.currentThread().setName(name);
+                    Runnable t = new Runnable() {
+                        @Override
+                        public void run() {
+                            String name = Thread.currentThread().getName();
+                            try {
+                                Thread.currentThread().setName("Membership-MemberExpired.");
+                                service.memberDisappeared(member);
+                            } finally {
+                                Thread.currentThread().setName(name);
+                            }
+
                         }
                     };
                     executor.execute(t);

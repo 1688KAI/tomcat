@@ -22,8 +22,8 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
-import jakarta.servlet.ReadListener;
-import jakarta.servlet.ServletInputStream;
+import javax.servlet.ReadListener;
+import javax.servlet.ServletInputStream;
 
 import org.apache.catalina.security.SecurityUtil;
 import org.apache.tomcat.util.res.StringManager;
@@ -70,7 +70,16 @@ public class CoyoteInputStream extends ServletInputStream {
         if (SecurityUtil.isPackageProtectionEnabled()) {
 
             try {
-                Integer result = AccessController.doPrivileged(new PrivilegedRead(ib));
+                Integer result = AccessController
+                        .doPrivileged(new PrivilegedExceptionAction<Integer>() {
+
+                            @Override
+                            public Integer run() throws IOException {
+                                Integer integer = Integer.valueOf(ib.readByte());
+                                return integer;
+                            }
+
+                        });
                 return result.intValue();
             } catch (PrivilegedActionException pae) {
                 Exception e = pae.getException();
@@ -90,7 +99,16 @@ public class CoyoteInputStream extends ServletInputStream {
 
         if (SecurityUtil.isPackageProtectionEnabled()) {
             try {
-                Integer result = AccessController.doPrivileged(new PrivilegedAvailable(ib));
+                Integer result = AccessController
+                        .doPrivileged(new PrivilegedExceptionAction<Integer>() {
+
+                            @Override
+                            public Integer run() throws IOException {
+                                Integer integer = Integer.valueOf(ib.available());
+                                return integer;
+                            }
+
+                        });
                 return result.intValue();
             } catch (PrivilegedActionException pae) {
                 Exception e = pae.getException();
@@ -117,8 +135,16 @@ public class CoyoteInputStream extends ServletInputStream {
 
         if (SecurityUtil.isPackageProtectionEnabled()) {
             try {
-                Integer result = AccessController.doPrivileged(
-                        new PrivilegedReadArray(ib, b, off, len));
+                Integer result = AccessController
+                        .doPrivileged(new PrivilegedExceptionAction<Integer>() {
+
+                            @Override
+                            public Integer run() throws IOException {
+                                Integer integer = Integer.valueOf(ib.read(b, off, len));
+                                return integer;
+                            }
+
+                        });
                 return result.intValue();
             } catch (PrivilegedActionException pae) {
                 Exception e = pae.getException();
@@ -150,7 +176,16 @@ public class CoyoteInputStream extends ServletInputStream {
 
         if (SecurityUtil.isPackageProtectionEnabled()) {
             try {
-                Integer result = AccessController.doPrivileged(new PrivilegedReadBuffer(ib, b));
+                Integer result = AccessController
+                        .doPrivileged(new PrivilegedExceptionAction<Integer>() {
+
+                            @Override
+                            public Integer run() throws IOException {
+                                Integer integer = Integer.valueOf(ib.read(b));
+                                return integer;
+                            }
+
+                        });
                 return result.intValue();
             } catch (PrivilegedActionException pae) {
                 Exception e = pae.getException();
@@ -176,7 +211,15 @@ public class CoyoteInputStream extends ServletInputStream {
 
         if (SecurityUtil.isPackageProtectionEnabled()) {
             try {
-                AccessController.doPrivileged(new PrivilegedClose(ib));
+                AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
+
+                    @Override
+                    public Void run() throws IOException {
+                        ib.close();
+                        return null;
+                    }
+
+                });
             } catch (PrivilegedActionException pae) {
                 Exception e = pae.getException();
                 if (e instanceof IOException) {
@@ -214,93 +257,6 @@ public class CoyoteInputStream extends ServletInputStream {
     private void checkNonBlockingRead() {
         if (!ib.isBlocking() && !ib.isReady()) {
             throw new IllegalStateException(sm.getString("coyoteInputStream.nbNotready"));
-        }
-    }
-
-
-    private static class PrivilegedAvailable implements PrivilegedExceptionAction<Integer> {
-
-        private final InputBuffer inputBuffer;
-
-        public PrivilegedAvailable(InputBuffer inputBuffer) {
-            this.inputBuffer = inputBuffer;
-        }
-
-        @Override
-        public Integer run() throws IOException {
-            return Integer.valueOf(inputBuffer.available());
-        }
-    }
-
-
-    private static class PrivilegedClose implements PrivilegedExceptionAction<Void> {
-
-        private final InputBuffer inputBuffer;
-
-        public PrivilegedClose(InputBuffer inputBuffer) {
-            this.inputBuffer = inputBuffer;
-        }
-
-        @Override
-        public Void run() throws IOException {
-            inputBuffer.close();
-            return null;
-        }
-    }
-
-
-    private static class PrivilegedRead implements PrivilegedExceptionAction<Integer> {
-
-        private final InputBuffer inputBuffer;
-
-        public PrivilegedRead(InputBuffer inputBuffer) {
-            this.inputBuffer = inputBuffer;
-        }
-
-        @Override
-        public Integer run() throws IOException {
-            Integer integer = Integer.valueOf(inputBuffer.readByte());
-            return integer;
-        }
-    }
-
-
-    private static class PrivilegedReadArray implements PrivilegedExceptionAction<Integer> {
-
-        private final InputBuffer inputBuffer;
-        private final byte[] buf;
-        private final int off;
-        private final int len;
-
-        public PrivilegedReadArray(InputBuffer inputBuffer, byte[] buf, int off, int len) {
-            this.inputBuffer = inputBuffer;
-            this.buf = buf;
-            this.off = off;
-            this.len = len;
-        }
-
-        @Override
-        public Integer run() throws IOException {
-            Integer integer = Integer.valueOf(inputBuffer.read(buf, off, len));
-            return integer;
-        }
-    }
-
-
-    private static class PrivilegedReadBuffer implements PrivilegedExceptionAction<Integer> {
-
-        private final InputBuffer inputBuffer;
-        private final ByteBuffer bb;
-
-        public PrivilegedReadBuffer(InputBuffer inputBuffer, ByteBuffer bb) {
-            this.inputBuffer = inputBuffer;
-            this.bb = bb;
-        }
-
-        @Override
-        public Integer run() throws IOException {
-            Integer integer = Integer.valueOf(inputBuffer.read(bb));
-            return integer;
         }
     }
 }

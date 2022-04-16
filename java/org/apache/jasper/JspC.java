@@ -45,8 +45,8 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import jakarta.servlet.jsp.JspFactory;
-import jakarta.servlet.jsp.tagext.TagLibraryInfo;
+import javax.servlet.jsp.JspFactory;
+import javax.servlet.jsp.tagext.TagLibraryInfo;
 
 import org.apache.jasper.compiler.Compiler;
 import org.apache.jasper.compiler.JspConfig;
@@ -174,7 +174,7 @@ public class JspC extends Task implements Options {
 
     protected String classPath = null;
     protected ClassLoader loader = null;
-    protected TrimSpacesOption trimSpaces = TrimSpacesOption.FALSE;
+    protected boolean trimSpaces = false;
     protected boolean genStringAsCharArray = false;
     protected boolean validateTld;
     protected boolean validateXml;
@@ -201,8 +201,8 @@ public class JspC extends Task implements Options {
 
     protected String compiler = null;
 
-    protected String compilerTargetVM = "11";
-    protected String compilerSourceVM = "11";
+    protected String compilerTargetVM = "1.7";
+    protected String compilerSourceVM = "1.7";
 
     protected boolean classDebugInfo = true;
 
@@ -368,13 +368,7 @@ public class JspC extends Task implements Options {
             } else if (tok.equals(SWITCH_XPOWERED_BY)) {
                 xpoweredBy = true;
             } else if (tok.equals(SWITCH_TRIM_SPACES)) {
-                tok = nextArg();
-                if (TrimSpacesOption.SINGLE.toString().equalsIgnoreCase(tok)) {
-                    setTrimSpaces(TrimSpacesOption.SINGLE);
-                } else {
-                    setTrimSpaces(TrimSpacesOption.TRUE);
-                    argPos--;
-                }
+                setTrimSpaces(true);
             } else if (tok.equals(SWITCH_CACHE)) {
                 tok = nextArg();
                 if ("false".equals(tok)) {
@@ -457,33 +451,18 @@ public class JspC extends Task implements Options {
     }
 
     @Override
-    public TrimSpacesOption getTrimSpaces() {
+    public boolean getTrimSpaces() {
         return trimSpaces;
     }
 
-    public void setTrimSpaces(TrimSpacesOption trimSpaces) {
-        this.trimSpaces = trimSpaces;
-    }
-
     /**
-     * Sets the option to control handling of template text that consists
-     * entirely of whitespace.
+     * Sets the option to remove template text that consists entirely of
+     * whitespace.
      *
      * @param ts New value
      */
-    public void setTrimSpaces(String ts) {
-        this.trimSpaces = TrimSpacesOption.valueOf(ts);
-    }
-
-    /*
-     * Backwards compatibility with 8.5.x
-     */
-    public void setTrimSpaces(boolean trimSpaces) {
-        if (trimSpaces) {
-            setTrimSpaces(TrimSpacesOption.TRUE);
-        } else {
-            setTrimSpaces(TrimSpacesOption.FALSE);
-        }
+    public void setTrimSpaces(boolean ts) {
+        this.trimSpaces = ts;
     }
 
     /**
@@ -1037,6 +1016,18 @@ public class JspC extends Task implements Options {
     }
 
     /**
+     * File where we generate a web.xml fragment with the class definitions.
+     * @param s New value
+     * @deprecated Will be removed in Tomcat 10.
+     *             Use {@link #setWebXmlInclude(String)}
+     */
+    @Deprecated
+    public void setWebXmlFragment( String s ) {
+        webxmlFile=resolveFile(s).getAbsolutePath();
+        webxmlLevel=INC_WEBXML;
+    }
+
+    /**
      * File where we generate configuration with the class definitions to be
      * included in a web.xml file.
      * @param s New value
@@ -1124,19 +1115,6 @@ public class JspC extends Task implements Options {
     public TagPluginManager getTagPluginManager() {
         return tagPluginManager;
     }
-
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * Hard-coded to {@code false} for pre-compiled code to enable repeatable
-     * builds.
-     */
-    @Override
-    public boolean getGeneratedJavaAddTimestamp() {
-        return false;
-    }
-
 
     /**
      * Adds servlet declaration and mapping for the JSP page servlet to the
@@ -1343,7 +1321,7 @@ public class JspC extends Task implements Options {
                 targetClassName = null;
             }
             if (targetPackage != null) {
-                clctxt.setBasePackageName(targetPackage);
+                clctxt.setServletPackageName(targetPackage);
             }
 
             originalClassLoader = Thread.currentThread().getContextClassLoader();
@@ -1395,6 +1373,18 @@ public class JspC extends Task implements Options {
                 Thread.currentThread().setContextClassLoader(originalClassLoader);
             }
         }
+    }
+
+    /**
+     * Locate all jsp files in the webapp. Used if no explicit
+     * jsps are specified.
+     * @param base Base path
+     *
+     * @deprecated This will be removed in Tomcat 10. Use {@link #scanFiles()}
+     */
+    @Deprecated
+    public void scanFiles(File base) {
+        scanFiles();
     }
 
 

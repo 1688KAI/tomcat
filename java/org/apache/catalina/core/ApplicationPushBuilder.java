@@ -22,16 +22,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-import jakarta.servlet.SessionTrackingMode;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.PushBuilder;
+import javax.servlet.SessionTrackingMode;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.authenticator.AuthenticatorBase;
@@ -45,7 +45,7 @@ import org.apache.tomcat.util.http.CookieProcessor;
 import org.apache.tomcat.util.http.parser.HttpParser;
 import org.apache.tomcat.util.res.StringManager;
 
-public class ApplicationPushBuilder implements PushBuilder {
+public class ApplicationPushBuilder {
 
     private static final StringManager sm = StringManager.getManager(ApplicationPushBuilder.class);
     private static final Set<String> DISALLOWED_METHODS = new HashSet<>();
@@ -146,7 +146,13 @@ public class ApplicationPushBuilder implements PushBuilder {
             if (responseCookie.getMaxAge() < 0) {
                 // Path information not available so can only remove based on
                 // name.
-                cookies.removeIf(cookie -> cookie.getName().equals(responseCookie.getName()));
+                Iterator<Cookie> cookieIterator = cookies.iterator();
+                while (cookieIterator.hasNext()) {
+                    Cookie cookie = cookieIterator.next();
+                    if (cookie.getName().equals(responseCookie.getName())) {
+                        cookieIterator.remove();
+                    }
+                }
             } else {
                 cookies.add(new Cookie(responseCookie.getName(), responseCookie.getValue()));
             }
@@ -170,8 +176,8 @@ public class ApplicationPushBuilder implements PushBuilder {
         }
     }
 
-    @Override
-    public PushBuilder path(String path) {
+
+    public ApplicationPushBuilder path(String path) {
         if (path.startsWith("/")) {
             this.path = path;
         } else {
@@ -187,14 +193,12 @@ public class ApplicationPushBuilder implements PushBuilder {
     }
 
 
-    @Override
     public String getPath() {
         return path;
     }
 
 
-    @Override
-    public PushBuilder method(String method) {
+    public ApplicationPushBuilder method(String method) {
         String upperMethod = method.trim().toUpperCase(Locale.ENGLISH);
         if (DISALLOWED_METHODS.contains(upperMethod) || upperMethod.length() == 0) {
             throw new IllegalArgumentException(
@@ -209,40 +213,34 @@ public class ApplicationPushBuilder implements PushBuilder {
     }
 
 
-    @Override
     public String getMethod() {
         return method;
     }
 
 
-    @Override
-    public PushBuilder queryString(String queryString) {
+    public ApplicationPushBuilder queryString(String queryString) {
         this.queryString = queryString;
         return this;
     }
 
 
-    @Override
     public String getQueryString() {
         return queryString;
     }
 
 
-    @Override
-    public PushBuilder sessionId(String sessionId) {
+    public ApplicationPushBuilder sessionId(String sessionId) {
         this.sessionId = sessionId;
         return this;
     }
 
 
-    @Override
     public String getSessionId() {
         return sessionId;
     }
 
 
-    @Override
-    public PushBuilder addHeader(String name, String value) {
+    public ApplicationPushBuilder addHeader(String name, String value) {
         List<String> values = headers.get(name);
         if (values == null) {
             values = new ArrayList<>();
@@ -254,8 +252,7 @@ public class ApplicationPushBuilder implements PushBuilder {
     }
 
 
-    @Override
-    public PushBuilder setHeader(String name, String value) {
+    public ApplicationPushBuilder setHeader(String name, String value) {
         List<String> values = headers.get(name);
         if (values == null) {
             values = new ArrayList<>();
@@ -269,21 +266,18 @@ public class ApplicationPushBuilder implements PushBuilder {
     }
 
 
-    @Override
-    public PushBuilder removeHeader(String name) {
+    public ApplicationPushBuilder removeHeader(String name) {
         headers.remove(name);
 
         return this;
     }
 
 
-    @Override
     public Set<String> getHeaderNames() {
         return Collections.unmodifiableSet(headers.keySet());
     }
 
 
-    @Override
     public String getHeader(String name) {
         List<String> values = headers.get(name);
         if (values == null) {
@@ -294,7 +288,6 @@ public class ApplicationPushBuilder implements PushBuilder {
     }
 
 
-    @Override
     public void push() {
         if (path == null) {
             throw new IllegalStateException(sm.getString("pushBuilder.noPath"));

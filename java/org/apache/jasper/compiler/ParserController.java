@@ -16,9 +16,9 @@
  */
 package org.apache.jasper.compiler;
 
-import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Stack;
 
@@ -319,8 +319,8 @@ class ParserController implements TagConstants {
         } else {
             // XML syntax or unknown, (auto)detect encoding ...
             EncodingDetector encodingDetector;
-            try (BufferedInputStream bis = JspUtil.getInputStream(absFileName, jar, ctxt)) {
-                encodingDetector = new EncodingDetector(bis);
+            try (InputStream inStream = JspUtil.getInputStream(absFileName, jar, ctxt)) {
+                encodingDetector = new EncodingDetector(inStream);
             }
 
             sourceEnc = encodingDetector.getEncoding();

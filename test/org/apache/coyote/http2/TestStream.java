@@ -19,19 +19,16 @@ package org.apache.coyote.http2;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.startup.Tomcat;
-
-import trailers.ResponseTrailers;
-
 
 public class TestStream extends Http2TestBase {
 
@@ -74,54 +71,6 @@ public class TestStream extends Http2TestBase {
                 "3-Header-[date]-[Wed, 11 Nov 2015 19:18:42 GMT]\n" +
                 "3-HeadersEnd\n" +
                 "3-Body-2\n" +
-                "3-EndOfStream\n", output.getTrace());
-    }
-
-
-    @Test
-    public void testResponseTrailerFields() throws Exception {
-
-        enableHttp2();
-
-        Tomcat tomcat = getTomcatInstance();
-
-        Context ctxt = tomcat.addContext("", null);
-        Tomcat.addServlet(ctxt, "simple", new SimpleServlet());
-        ctxt.addServletMappingDecoded("/simple", "simple");
-        Tomcat.addServlet(ctxt, "trailers", new ResponseTrailers());
-        ctxt.addServletMappingDecoded("/trailers", "trailers");
-
-        tomcat.start();
-
-        openClientConnection();
-        doHttpUpgrade();
-        sendClientPreface();
-        validateHttp2InitialResponse();
-
-        byte[] frameHeader = new byte[9];
-        ByteBuffer headersPayload = ByteBuffer.allocate(128);
-        buildGetRequest(frameHeader, headersPayload, null, 3, "/trailers");
-        writeFrame(frameHeader, headersPayload);
-
-        // Headers
-        parser.readFrame(true);
-        // Body
-        parser.readFrame(true);
-        // Trailers
-        parser.readFrame(true);
-
-        Assert.assertEquals(
-                "3-HeadersStart\n" +
-                "3-Header-[:status]-[200]\n" +
-                "3-Header-[content-type]-[text/plain;charset=UTF-8]\n" +
-                "3-Header-[content-length]-[44]\n" +
-                "3-Header-[date]-[Wed, 11 Nov 2015 19:18:42 GMT]\n" +
-                "3-HeadersEnd\n" +
-                "3-Body-44\n" +
-                "3-HeadersStart\n" +
-                "3-Header-[x-trailer-2]-[Trailer value two]\n" +
-                "3-Header-[x-trailer-1]-[Trailer value one]\n" +
-                "3-HeadersEnd\n" +
                 "3-EndOfStream\n", output.getTrace());
     }
 

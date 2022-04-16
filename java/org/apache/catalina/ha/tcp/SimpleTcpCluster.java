@@ -20,6 +20,7 @@ import java.beans.PropertyChangeSupport;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,6 +45,7 @@ import org.apache.catalina.ha.ClusterValve;
 import org.apache.catalina.ha.session.ClusterSessionListener;
 import org.apache.catalina.ha.session.DeltaManager;
 import org.apache.catalina.ha.session.JvmRouteBinderValve;
+import org.apache.catalina.ha.session.SessionMessage;
 import org.apache.catalina.tribes.Channel;
 import org.apache.catalina.tribes.ChannelListener;
 import org.apache.catalina.tribes.Member;
@@ -52,7 +54,6 @@ import org.apache.catalina.tribes.group.GroupChannel;
 import org.apache.catalina.tribes.group.interceptors.MessageDispatchInterceptor;
 import org.apache.catalina.tribes.group.interceptors.TcpFailureDetector;
 import org.apache.catalina.util.LifecycleMBeanBase;
-import org.apache.catalina.util.ToStringUtil;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
@@ -340,14 +341,6 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
         this.channelSendOptions = channelSendOptions;
     }
 
-    public void setChannelSendOptions(String channelSendOptions) {
-
-        int value = Channel.parseSendOptions(channelSendOptions);
-        if (value > 0) {
-            this.setChannelSendOptions(value);
-        }
-    }
-
     /**
      * has members
      */
@@ -398,14 +391,6 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
 
     public int getChannelSendOptions() {
         return channelSendOptions;
-    }
-
-    /**
-     * returns the SendOptions as a comma separated list of names for use by JMX
-     * @return a comma separated list of the option names
-     */
-    public String getChannelSendOptionsName(){
-        return Channel.getSendOptionsAsString(channelSendOptions);
     }
 
     /**
@@ -505,6 +490,7 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
      * throwables will be caught and logged.
      * @see org.apache.catalina.ha.deploy.FarmWarDeployer#backgroundProcess()
      * @see org.apache.catalina.tribes.group.GroupChannel#heartbeat()
+     * @see org.apache.catalina.tribes.group.GroupChannel.HeartbeatThread#run()
      *
      */
     @Override
@@ -537,7 +523,6 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
             name.append(",component=Deployer");
             onameClusterDeployer = register(clusterDeployer, name.toString());
         }
-        channel.setUtilityExecutor(Container.getService(getContainer()).getServer().getUtilityExecutor());
     }
 
 
@@ -602,8 +587,8 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
      */
     protected void registerClusterValve() {
         if(container != null ) {
-            for (Valve v : valves) {
-                ClusterValve valve = (ClusterValve) v;
+            for (Iterator<Valve> iter = valves.iterator(); iter.hasNext();) {
+                ClusterValve valve = (ClusterValve) iter.next();
                 if (log.isDebugEnabled()) {
                     log.debug("Invoking addValve on " + getContainer()
                             + " with class=" + valve.getClass().getName());
@@ -620,8 +605,8 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
      * unregister all cluster valve to host or engine
      */
     protected void unregisterClusterValve() {
-        for (Valve v : valves) {
-            ClusterValve valve = (ClusterValve) v;
+        for (Iterator<Valve> iter = valves.iterator(); iter.hasNext();) {
+            ClusterValve valve = (ClusterValve) iter.next();
             if (log.isDebugEnabled()) {
                 log.debug("Invoking removeValve on " + getContainer()
                         + " with class=" + valve.getClass().getName());
@@ -680,7 +665,15 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
      */
     @Override
     public String toString() {
-        return ToStringUtil.toString(this);
+        StringBuilder sb = new StringBuilder(this.getClass().getName());
+        sb.append('[');
+        if (container == null) {
+            sb.append("Container is null");
+        } else {
+            sb.append(container.getName());
+        }
+        sb.append(']');
+        return sb.toString();
     }
 
 
@@ -705,13 +698,13 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
      */
     @Override
     public void send(ClusterMessage msg, Member dest) {
-        send(msg, dest, this.channelSendOptions);
-    }
-
-    @Override
-    public void send(ClusterMessage msg, Member dest, int sendOptions) {
         try {
             msg.setAddress(getLocalMember());
+            int sendOptions = channelSendOptions;
+            if (msg instanceof SessionMessage
+                    && ((SessionMessage)msg).getEventType() == SessionMessage.EVT_ALL_SESSION_DATA) {
+                sendOptions = Channel.SEND_OPTIONS_SYNCHRONIZED_ACK|Channel.SEND_OPTIONS_USE_ACK;
+            }
             if (dest != null) {
                 if (!getLocalMember().equals(dest)) {
                     channel.send(new Member[] {dest}, msg, sendOptions);
@@ -815,7 +808,9 @@ public class SimpleTcpCluster extends LifecycleMBeanBase
         //invoke all the listeners
         boolean accepted = false;
         if (message != null) {
-            for (ClusterListener listener : clusterListeners) {
+            for (Iterator<ClusterListener> iter = clusterListeners.iterator();
+                    iter.hasNext();) {
+                ClusterListener listener = iter.next();
                 if (listener.accept(message)) {
                     accepted = true;
                     listener.messageReceived(message);

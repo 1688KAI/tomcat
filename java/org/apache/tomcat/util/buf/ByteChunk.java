@@ -24,6 +24,8 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+import org.apache.tomcat.util.res.StringManager;
+
 /*
  * In a server it is very important to be able to operate on
  * the original byte[] without converting everything to chars.
@@ -117,6 +119,8 @@ public final class ByteChunk extends AbstractChunk {
     }
 
     // --------------------
+
+    private static final StringManager sm = StringManager.getManager(ByteChunk.class);
 
     /**
      * Default encoding used to convert to strings. It should be UTF8, as most
@@ -389,14 +393,15 @@ public final class ByteChunk extends AbstractChunk {
 
     // -------------------- Removing data from the buffer --------------------
 
-    public int subtract() throws IOException {
+    public int substract() throws IOException {
         if (checkEof()) {
             return -1;
         }
         return buff[start++] & 0xFF;
     }
 
-    public byte subtractB() throws IOException {
+
+    public byte substractB() throws IOException {
         if (checkEof()) {
             return -1;
         }
@@ -404,7 +409,7 @@ public final class ByteChunk extends AbstractChunk {
     }
 
 
-    public int subtract(byte dest[], int off, int len) throws IOException {
+    public int substract(byte dest[], int off, int len) throws IOException {
         if (checkEof()) {
             return -1;
         }
@@ -429,7 +434,7 @@ public final class ByteChunk extends AbstractChunk {
      *         the end of the stream is reached
      * @throws IOException if an input or output exception has occurred
      */
-    public int subtract(ByteBuffer to) throws IOException {
+    public int substract(ByteBuffer to) throws IOException {
         if (checkEof()) {
             return -1;
         }
@@ -529,7 +534,7 @@ public final class ByteChunk extends AbstractChunk {
 
     @Override
     public String toString() {
-        if (isNull()) {
+        if (null == buff) {
             return null;
         } else if (end - start == 0) {
             return "";

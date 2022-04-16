@@ -25,12 +25,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
-import jakarta.el.ExpressionFactory;
-import jakarta.servlet.jsp.tagext.TagLibraryInfo;
+import javax.el.ExpressionFactory;
+import javax.servlet.jsp.tagext.TagLibraryInfo;
 
 import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
-import org.apache.jasper.JspCompilationContext;
 
 /**
  * A repository for various info about the translation unit under compilation.
@@ -52,7 +51,7 @@ class PageInfo {
     private final String jspFile;
     private static final String defaultLanguage = "java";
     private String language;
-    private final String defaultExtends;
+    private final String defaultExtends = Constants.JSP_SERVLET_BASE;
     private String xtends;
     private String contentType = null;
     private String session;
@@ -100,16 +99,11 @@ class PageInfo {
     // JSP 2.2
     private boolean errorOnUndeclaredNamespace = false;
 
-    // JSP 3.1
-    private String errorOnELNotFoundValue;
-    private boolean errorOnELNotFound = false;
-
     private final boolean isTagFile;
 
-    PageInfo(BeanRepository beanRepository, JspCompilationContext ctxt) {
-        isTagFile = ctxt.isTagFile();
-        jspFile = ctxt.getJspFile();
-        defaultExtends = ctxt.getOptions().getJspServletBase();
+    PageInfo(BeanRepository beanRepository, String jspFile, boolean isTagFile) {
+        this.isTagFile = isTagFile;
+        this.jspFile = jspFile;
         this.beanRepository = beanRepository;
         this.varInfoNames = new HashSet<>();
         this.taglibsMap = new HashMap<>();
@@ -639,30 +633,6 @@ class PageInfo {
         isELIgnoredValue = value;
     }
 
-
-    /*
-     * errorOnELNotFound
-     */
-    public void setErrorOnELNotFound(String value, Node n, ErrorDispatcher err,
-                   boolean pagedir)
-        throws JasperException {
-
-        if ("true".equalsIgnoreCase(value)) {
-            errorOnELNotFound = true;
-        } else if ("false".equalsIgnoreCase(value)) {
-            errorOnELNotFound = false;
-        } else {
-            if (pagedir) {
-                err.jspError(n, "jsp.error.page.invalid.errorOnELNotFound");
-            } else {
-                err.jspError(n, "jsp.error.tag.invalid.errorOnELNotFound");
-            }
-        }
-
-        errorOnELNotFoundValue = value;
-    }
-
-
     /*
      * deferredSyntaxAllowedAsLiteral
      */
@@ -717,18 +687,6 @@ class PageInfo {
 
     public boolean isELIgnored() {
         return isELIgnored;
-    }
-
-    public void setErrorOnELNotFound(boolean s) {
-        errorOnELNotFound = s;
-    }
-
-    public String getErrorOnELNotFound() {
-        return errorOnELNotFoundValue;
-    }
-
-    public boolean isErrorOnELNotFound() {
-        return errorOnELNotFound;
     }
 
     public void putNonCustomTagPrefix(String prefix, Mark where) {

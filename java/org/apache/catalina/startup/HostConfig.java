@@ -16,12 +16,12 @@
  */
 package org.apache.catalina.startup;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -65,10 +65,8 @@ import org.apache.catalina.core.StandardContext;
 import org.apache.catalina.core.StandardHost;
 import org.apache.catalina.security.DeployXmlPermission;
 import org.apache.catalina.util.ContextName;
-import org.apache.catalina.util.IOTools;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.jakartaee.Migration;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.buf.UriUtil;
 import org.apache.tomcat.util.digester.Digester;
@@ -144,6 +142,16 @@ public class HostConfig implements LifecycleListener {
      */
     protected final Map<String, DeployedApplication> deployed =
             new ConcurrentHashMap<>();
+
+
+    /**
+     * List of applications which are being serviced, and shouldn't be
+     * deployed/undeployed/redeployed at the moment.
+     * @deprecated Unused. Will be removed in Tomcat 10.1.x onwards. Replaced
+     *             by the private <code>servicedSet</code> field.
+     */
+    @Deprecated
+    protected final ArrayList<String> serviced = new ArrayList<>();
 
 
     /**
@@ -229,7 +237,7 @@ public class HostConfig implements LifecycleListener {
                     }
                 } catch (MalformedURLException e) {
                     // Should never happen
-                    log.warn(sm.getString("hostConfig.docBaseUrlInvalid"), e);
+                    log.warn("hostConfig.docBaseUrlInvalid", e);
                 }
             }
         }
@@ -324,9 +332,47 @@ public class HostConfig implements LifecycleListener {
      */
     public boolean tryAddServiced(String name) {
         if (servicedSet.add(name)) {
+            synchronized (this) {
+                serviced.add(name);
+            }
             return true;
         }
         return false;
+    }
+
+
+    /**
+     * Add a serviced application to the list if it is not already present. If
+     * the application is already in the list of serviced applications this
+     * method is a NO-OP.
+     *
+     * @param name the context name
+     *
+     * @deprecated Unused. This method will be removed in Tomcat 10.1.x onwards.
+     *             Use {@link #tryAddServiced} instead.
+     */
+    @Deprecated
+    public void addServiced(String name) {
+        servicedSet.add(name);
+        synchronized (this) {
+            serviced.add(name);
+        }
+    }
+
+
+    /**
+     * Is application serviced ?
+     *
+     * @param name the context name
+     *
+     * @return state of the application
+     *
+     * @deprecated Unused. This method will be removed in Tomcat 10.1.x onwards.
+     *             Use {@link #tryAddServiced} instead.
+     */
+    @Deprecated
+    public boolean isServiced(String name) {
+        return servicedSet.contains(name);
     }
 
 
@@ -336,6 +382,9 @@ public class HostConfig implements LifecycleListener {
      */
     public void removeServiced(String name) {
         servicedSet.remove(name);
+        synchronized (this) {
+            serviced.remove(name);
+        }
     }
 
 
@@ -416,8 +465,6 @@ public class HostConfig implements LifecycleListener {
      * in our "application root" directory.
      */
     protected void deployApps() {
-        // Migrate legacy Java EE apps from legacyAppBase
-        migrateLegacyApps();
         File appBase = host.getAppBaseFile();
         File configBase = host.getConfigBaseFile();
         String[] filteredAppPaths = filterAppPaths(appBase.list());
@@ -592,11 +639,6 @@ public class HostConfig implements LifecycleListener {
                 }
             }
 
-            if (context.getPath() != null) {
-                log.warn(sm.getString("hostConfig.deployDescriptor.path", context.getPath(),
-                        contextXml.getAbsolutePath()));
-            }
-
             Class<?> clazz = Class.forName(host.getConfigClass());
             LifecycleListener listener = (LifecycleListener) clazz.getConstructor().newInstance();
             context.addLifecycleListener(listener);
@@ -620,17 +662,6 @@ public class HostConfig implements LifecycleListener {
                             docBase.getAbsolutePath(), Long.valueOf(docBase.lastModified()));
                     if (docBase.getAbsolutePath().toLowerCase(Locale.ENGLISH).endsWith(".war")) {
                         isExternalWar = true;
-                    }
-                    // Check that a WAR or DIR in the appBase is not 'hidden'
-                    File war = new File(host.getAppBaseFile(), cn.getBaseName() + ".war");
-                    if (war.exists()) {
-                        log.warn(sm.getString("hostConfig.deployDescriptor.hiddenWar",
-                                contextXml.getAbsolutePath(), war.getAbsolutePath()));
-                    }
-                    File dir = new File(host.getAppBaseFile(), cn.getBaseName());
-                    if (dir.exists()) {
-                        log.warn(sm.getString("hostConfig.deployDescriptor.hiddenDir",
-                                contextXml.getAbsolutePath(), dir.getAbsolutePath()));
                     }
                 } else {
                     log.warn(sm.getString("hostConfig.deployDescriptor.localDocBaseSpecified", docBase));
@@ -933,8 +964,17 @@ public class HostConfig implements LifecycleListener {
                 try (JarFile jar = new JarFile(war)) {
                     JarEntry entry = jar.getJarEntry(Constants.ApplicationContextXml);
                     try (InputStream istream = jar.getInputStream(entry);
-                            OutputStream ostream = new FileOutputStream(xml)) {
-                        IOTools.flow(istream, ostream);
+                            FileOutputStream fos = new FileOutputStream(xml);
+                            BufferedOutputStream ostream = new BufferedOutputStream(fos, 1024)) {
+                        byte buffer[] = new byte[1024];
+                        while (true) {
+                            int n = istream.read(buffer);
+                            if (n < 0) {
+                                break;
+                            }
+                            ostream.write(buffer, 0, n);
+                        }
+                        ostream.flush();
                     }
                 } catch (IOException e) {
                     /* Ignore */
@@ -1173,93 +1213,6 @@ public class HostConfig implements LifecycleListener {
         if( log.isInfoEnabled() ) {
             log.info(sm.getString("hostConfig.deployDir.finished",
                     dir.getAbsolutePath(), Long.valueOf(System.currentTimeMillis() - startTime)));
-        }
-    }
-
-
-    protected void migrateLegacyApps() {
-        File appBase = host.getAppBaseFile();
-        File legacyAppBase = host.getLegacyAppBaseFile();
-        if (!legacyAppBase.isDirectory()) {
-            return;
-        }
-
-        ExecutorService es = host.getStartStopExecutor();
-        List<Future<?>> results = new ArrayList<>();
-
-        // Should not be null as we test above if this is a directory
-        String[] migrationCandidates = legacyAppBase.list();
-        for (String migrationCandidate : migrationCandidates) {
-            File source = new File(legacyAppBase, migrationCandidate);
-            File destination = new File(appBase, migrationCandidate);
-
-            ContextName cn;
-            if (source.lastModified() > destination.lastModified()) {
-                if (source.isFile() && source.getName().toLowerCase(Locale.ENGLISH).endsWith(".war")) {
-                    cn = new ContextName(migrationCandidate, true);
-                } else if (source.isDirectory()) {
-                    cn = new ContextName(migrationCandidate, false);
-                } else {
-                    continue;
-                }
-
-                if (tryAddServiced(cn.getBaseName())) {
-                    try {
-                        // MigrateApp will call removeServiced
-                        results.add(es.submit(new MigrateApp(this, cn, source, destination)));
-                    } catch (Throwable t) {
-                        ExceptionUtils.handleThrowable(t);
-                        removeServiced(cn.getName());
-                        throw t;
-                    }
-                }
-            }
-        }
-
-        for (Future<?> result : results) {
-            try {
-                result.get();
-            } catch (Exception e) {
-                log.error(sm.getString("hostConfig.migrateApp.threaded.error"), e);
-            }
-        }
-    }
-
-
-    protected void migrateLegacyApp(File source, File destination) {
-        File tempNew = null;
-        File tempOld = null;
-        try {
-            tempNew = File.createTempFile("new", null, host.getLegacyAppBaseFile());
-            tempOld = File.createTempFile("old", null, host.getLegacyAppBaseFile());
-            // createTempFile is not directly compatible with directories, so cleanup
-            Files.delete(tempNew.toPath());
-            Files.delete(tempOld.toPath());
-
-            // The use of defaults is deliberate here to avoid having to
-            // recreate every configuration option on the host. Better to change
-            // the defaults if necessary than to start adding configuration
-            // options. Users that need non-default options can convert manually
-            // via migration.[sh|bat]
-            Migration migration = new Migration();
-            migration.setSource(source);
-            migration.setDestination(tempNew);
-            migration.execute();
-
-            // Use rename
-            if (destination.exists()) {
-                Files.move(destination.toPath(), tempOld.toPath());
-            }
-            Files.move(tempNew.toPath(), destination.toPath());
-            ExpandWar.delete(tempOld);
-
-        } catch (Throwable t) {
-            ExceptionUtils.handleThrowable(t);
-            log.warn(sm.getString("hostConfig.migrateError"), t);
-        } finally {
-            if (tempNew != null && tempNew.exists()) {
-                ExpandWar.delete(tempNew);
-            }
         }
     }
 
@@ -1970,31 +1923,6 @@ public class HostConfig implements LifecycleListener {
         public void run() {
             try {
                 config.deployDirectory(cn, dir);
-            } finally {
-                config.removeServiced(cn.getName());
-            }
-        }
-    }
-
-
-    private static class MigrateApp implements Runnable {
-
-        private HostConfig config;
-        private ContextName cn;
-        private File source;
-        private File destination;
-
-        public MigrateApp(HostConfig config, ContextName cn, File source, File destination) {
-            this.config = config;
-            this.cn = cn;
-            this.source = source;
-            this.destination = destination;
-        }
-
-        @Override
-        public void run() {
-            try {
-                config.migrateLegacyApp(source, destination);
             } finally {
                 config.removeServiced(cn.getName());
             }

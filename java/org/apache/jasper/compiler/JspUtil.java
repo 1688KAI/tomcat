@@ -16,7 +16,6 @@
  */
 package org.apache.jasper.compiler;
 
-import java.io.BufferedInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +23,7 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 
+import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.JspCompilationContext;
 import org.apache.tomcat.Jar;
@@ -60,8 +60,6 @@ public class JspUtil {
             "return", "short", "static", "strictfp", "super", "switch",
             "synchronized", "this", "throw", "throws", "transient", "try",
             "void", "volatile", "while" };
-
-    static final int JSP_INPUT_STREAM_BUFFER_SIZE = 1024;
 
     public static final int CHUNKSIZE = 1024;
 
@@ -209,6 +207,37 @@ public class JspUtil {
             }
         }
         // XXX *could* move EL-syntax validation here... (sb)
+    }
+
+    /**
+     * Escape the 5 entities defined by XML.
+     * @param s String to escape
+     * @return XML escaped string
+     * @deprecated This method will be removed in Tomcat 9
+     */
+    @Deprecated
+    public static String escapeXml(String s) {
+        if (s == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '<') {
+                sb.append("&lt;");
+            } else if (c == '>') {
+                sb.append("&gt;");
+            } else if (c == '\'') {
+                sb.append("&apos;");
+            } else if (c == '&') {
+                sb.append("&amp;");
+            } else if (c == '"') {
+                sb.append("&quot;");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     public static class ValidAttribute {
@@ -393,7 +422,7 @@ public class JspUtil {
                         + ") "
                         + "org.apache.jasper.runtime.PageContextImpl.proprietaryEvaluate"
                         + "(" + Generator.quote(expression) + ", " + targetType
-                        + ".class, " + "(jakarta.servlet.jsp.PageContext)" + jspCtxt + ", "
+                        + ".class, " + "(javax.servlet.jsp.PageContext)" + jspCtxt + ", "
                         + fnmapvar + ")");
 
         /*
@@ -632,7 +661,7 @@ public class JspUtil {
         }
     }
 
-    public static BufferedInputStream getInputStream(String fname, Jar jar,
+    public static InputStream getInputStream(String fname, Jar jar,
             JspCompilationContext ctxt) throws IOException {
 
         InputStream in = null;
@@ -649,7 +678,7 @@ public class JspUtil {
                     "jsp.error.file.not.found", fname));
         }
 
-        return new BufferedInputStream(in, JspUtil.JSP_INPUT_STREAM_BUFFER_SIZE);
+        return in;
     }
 
     public static InputSource getInputSource(String fname, Jar jar, JspCompilationContext ctxt)
@@ -671,7 +700,6 @@ public class JspUtil {
      * the given tag file path.
      *
      * @param path Tag file path
-     * @param packageName The package name
      * @param urn The tag identifier
      * @param err Error dispatcher
      *
@@ -679,7 +707,7 @@ public class JspUtil {
      *         the given tag file path
      * @throws JasperException Failed to generate a class name for the tag
      */
-    public static String getTagHandlerClassName(String path, String packageName, String urn,
+    public static String getTagHandlerClassName(String path, String urn,
             ErrorDispatcher err) throws JasperException {
 
 
@@ -704,12 +732,12 @@ public class JspUtil {
 
         index = path.indexOf(WEB_INF_TAGS);
         if (index != -1) {
-            className = packageName + ".web.";
+            className = Constants.TAG_FILE_PACKAGE_NAME + ".web.";
             begin = index + WEB_INF_TAGS.length();
         } else {
             index = path.indexOf(META_INF_TAGS);
             if (index != -1) {
-                className = getClassNameBase(packageName, urn);
+                className = getClassNameBase(urn);
                 begin = index + META_INF_TAGS.length();
             } else {
                 err.jspError("jsp.error.tagfile.illegalPath", path);
@@ -721,9 +749,9 @@ public class JspUtil {
         return className;
     }
 
-    private static String getClassNameBase(String packageName, String urn) {
+    private static String getClassNameBase(String urn) {
         StringBuilder base =
-                new StringBuilder(packageName + ".meta.");
+                new StringBuilder(Constants.TAG_FILE_PACKAGE_NAME + ".meta.");
         if (urn != null) {
             base.append(makeJavaPackage(urn));
             base.append('.');

@@ -22,20 +22,18 @@ import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.Servlet;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletRequestWrapper;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.ServletResponseWrapper;
-import jakarta.servlet.UnavailableException;
-import jakarta.servlet.http.HttpServletMapping;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.DispatcherType;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.Servlet;
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletRequestWrapper;
+import javax.servlet.ServletResponse;
+import javax.servlet.ServletResponseWrapper;
+import javax.servlet.UnavailableException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.AsyncDispatcher;
 import org.apache.catalina.Context;
@@ -56,12 +54,35 @@ import org.apache.tomcat.util.res.StringManager;
  * from this resource.  This implementation allows application level servlets
  * to wrap the request and/or response objects that are passed on to the
  * called resource, as long as the wrapping classes extend
- * <code>jakarta.servlet.ServletRequestWrapper</code> and
- * <code>jakarta.servlet.ServletResponseWrapper</code>.
+ * <code>javax.servlet.ServletRequestWrapper</code> and
+ * <code>javax.servlet.ServletResponseWrapper</code>.
  *
  * @author Craig R. McClanahan
  */
 final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher {
+
+    /* Servlet 4.0 constants */
+    public static final String ASYNC_MAPPING = "javax.servlet.async.mapping";
+    public static final String FORWARD_MAPPING = "javax.servlet.forward.mapping";
+    public static final String INCLUDE_MAPPING = "javax.servlet.include.mapping";
+
+    static final boolean STRICT_SERVLET_COMPLIANCE;
+
+    static final boolean WRAP_SAME_OBJECT;
+
+
+    static {
+        STRICT_SERVLET_COMPLIANCE = Globals.STRICT_SERVLET_COMPLIANCE;
+
+        String wrapSameObject = System.getProperty(
+                "org.apache.catalina.core.ApplicationDispatcher.WRAP_SAME_OBJECT");
+        if (wrapSameObject == null) {
+            WRAP_SAME_OBJECT = STRICT_SERVLET_COMPLIANCE;
+        } else {
+            WRAP_SAME_OBJECT = Boolean.parseBoolean(wrapSameObject);
+        }
+    }
+
 
     protected class PrivilegedForward
             implements PrivilegedExceptionAction<Void> {
@@ -189,7 +210,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
      */
     public ApplicationDispatcher
         (Wrapper wrapper, String requestURI, String servletPath,
-         String pathInfo, String queryString, HttpServletMapping mapping, String name) {
+         String pathInfo, String queryString, ApplicationMappingImpl mapping, String name) {
 
         super();
 
@@ -246,7 +267,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
     /**
      * The mapping for this RequestDispatcher.
      */
-    private final HttpServletMapping mapping;
+    private final ApplicationMappingImpl mapping;
 
 
     /**
@@ -314,7 +335,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
         // Set up to handle the specified request and response
         State state = new State(request, response, false);
 
-        if (context.getDispatcherWrapsSameObject()) {
+        if (WRAP_SAME_OBJECT) {
             // Check SRV.9.2 / RequestDispacther Javadoc
             checkSameObjects(request, response);
         }
@@ -351,7 +372,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
                                       hrequest.getPathInfo());
                 wrequest.setAttribute(RequestDispatcher.FORWARD_QUERY_STRING,
                                       hrequest.getQueryString());
-                wrequest.setAttribute(RequestDispatcher.FORWARD_MAPPING, hrequest.getHttpServletMapping());
+                wrequest.setAttribute(FORWARD_MAPPING, ApplicationMapping.getHttpServletMapping(hrequest));
             }
 
             wrequest.setContextPath(context.getEncodedPath());
@@ -506,7 +527,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
         // Set up to handle the specified request and response
         State state = new State(request, response, true);
 
-        if (context.getDispatcherWrapsSameObject()) {
+        if (WRAP_SAME_OBJECT) {
             // Check SRV.8.2 / SRV.14.2.5.1 compliance
             checkSameObjects(request, response);
         }
@@ -550,7 +571,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
                 wrequest.setQueryParams(queryString);
             }
             if (mapping != null) {
-                wrequest.setAttribute(RequestDispatcher.INCLUDE_MAPPING, mapping);
+                wrequest.setAttribute(INCLUDE_MAPPING, mapping);
             }
 
             wrequest.setAttribute(Globals.DISPATCHER_TYPE_ATTR,
@@ -597,7 +618,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
 
         wrequest.setAttribute(Globals.DISPATCHER_TYPE_ATTR, DispatcherType.ASYNC);
         wrequest.setAttribute(Globals.DISPATCHER_REQUEST_PATH_ATTR, getCombinedPath());
-        wrequest.setAttribute(AsyncContext.ASYNC_MAPPING, hrequest.getHttpServletMapping());
+        wrequest.setAttribute(ASYNC_MAPPING, ApplicationMapping.getHttpServletMapping(hrequest));
 
         wrequest.setContextPath(context.getEncodedPath());
         wrequest.setRequestURI(requestURI);
@@ -607,7 +628,7 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
             wrequest.setQueryString(queryString);
             wrequest.setQueryParams(queryString);
         }
-        wrequest.setMapping(mapping);
+        wrequest.setMapping(this.mapping);
 
         invoke(state.outerRequest, state.outerResponse, state);
     }
@@ -1030,7 +1051,6 @@ final class ApplicationDispatcher implements AsyncDispatcher, RequestDispatcher 
 
     private void recycleRequestWrapper(State state) {
         if (state.wrapRequest instanceof ApplicationHttpRequest) {
-            ((ApplicationHttpRequest) state.wrapRequest).recycle();
-        }
+            ((ApplicationHttpRequest) state.wrapRequest).recycle();        }
     }
 }

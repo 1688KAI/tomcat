@@ -176,7 +176,7 @@ public class NioReceiver extends ReceiverBase implements Runnable, NioReceiverMB
                 }
                 r.run();
             } catch (Exception x) {
-                log.error(sm.getString("nioReceiver.eventsError"), x);
+                log.error("", x);
             }
         }
     }
@@ -216,7 +216,8 @@ public class NioReceiver extends ReceiverBase implements Runnable, NioReceiverMB
         if ( keys == null ) {
             return;
         }
-        for (SelectionKey key : keys) {
+        for (Iterator<SelectionKey> iter = keys.iterator(); iter.hasNext();) {
+            SelectionKey key = iter.next();
             try {
 //                if (key.interestOps() == SelectionKey.OP_READ) {
 //                    //only timeout sockets that we are waiting for a read from

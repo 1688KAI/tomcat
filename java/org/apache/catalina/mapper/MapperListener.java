@@ -131,7 +131,7 @@ public class MapperListener extends LifecycleMBeanBase
     @Override
     protected String getDomainInternal() {
         if (service instanceof LifecycleMBeanBase) {
-            return service.getDomain();
+            return ((LifecycleMBeanBase) service).getDomain();
         } else {
             return null;
         }
@@ -141,7 +141,7 @@ public class MapperListener extends LifecycleMBeanBase
     @Override
     protected String getObjectNameKeyProperties() {
         // Same as connector but Mapper rather than Connector
-        return "type=Mapper";
+        return ("type=Mapper");
     }
 
     // --------------------------------------------- Container Listener methods
@@ -454,9 +454,13 @@ public class MapperListener extends LifecycleMBeanBase
         }
     }
 
-    /*
+    /**
      * Populate <code>wrappers</code> list with information for registration of
      * mappings for this wrapper in this context.
+     *
+     * @param context
+     * @param wrapper
+     * @param wrappers
      */
     private void prepareWrapperMappingInfo(Context context, Wrapper wrapper,
             List<WrapperMappingInfo> wrappers) {

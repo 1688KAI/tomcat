@@ -20,8 +20,8 @@ import java.io.IOException;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Container;
 import org.apache.catalina.Context;
@@ -180,6 +180,7 @@ public class PersistentValve extends ValveBase {
                                     session.recycle();
                                     stored = true;
                                 }
+
                             }
                         }
                         if (!stored) {

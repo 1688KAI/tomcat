@@ -32,7 +32,6 @@ import org.apache.catalina.Session;
 import org.apache.catalina.ha.ClusterManager;
 import org.apache.catalina.ha.ClusterMessage;
 import org.apache.catalina.session.ManagerBase;
-import org.apache.catalina.tribes.Channel;
 import org.apache.catalina.tribes.Member;
 import org.apache.catalina.tribes.io.ReplicationStream;
 import org.apache.juli.logging.Log;
@@ -67,6 +66,12 @@ public class DeltaManager extends ClusterManagerBase{
 
     // ----------------------------------------------------- Instance Variables
 
+    /**
+     * The descriptive name of this Manager implementation (for logging).
+     * @deprecated Unused. Will be removed in Tomcat 9
+     */
+    @Deprecated
+    protected static final String managerName = "DeltaManager";
     protected String name = null;
 
     private boolean expireSessionsOnShutdown = false;
@@ -265,6 +270,16 @@ public class DeltaManager extends ClusterManagerBase{
 
     /**
      * @return Returns the counterNoStateTransferred.
+     * @deprecated Use {@link #getCounterNoStateTransferred()}. Will be removed
+     *             in Tomcat 10 onwards.
+     */
+    @Deprecated
+    public int getCounterNoStateTransfered() {
+        return getCounterNoStateTransferred();
+    }
+
+    /**
+     * @return Returns the counterNoStateTransferred.
      */
     public int getCounterNoStateTransferred() {
         return counterNoStateTransferred;
@@ -285,6 +300,27 @@ public class DeltaManager extends ClusterManagerBase{
      */
     public void setStateTransferTimeout(int timeoutAllSession) {
         this.stateTransferTimeout = timeoutAllSession;
+    }
+
+    /**
+     * @return <code>true</code> if the state transfer is complete.
+     * @deprecated Use {@link #getStateTransferred()}. Will be removed in Tomcat
+     *             10 onwards.
+     */
+    @Deprecated
+    public boolean getStateTransfered() {
+        return getStateTransferred();
+    }
+
+    /**
+     * Set that state transferred is complete
+     * @param stateTransferred Flag value
+     * @deprecated Use {@link #setStateTransferred(boolean)}. Will be removed in
+     *             Tomcat 10 onwards.
+     */
+    @Deprecated
+    public void setStateTransfered(boolean stateTransferred) {
+        setStateTransferred(stateTransferred);
     }
 
     /**
@@ -471,6 +507,23 @@ public class DeltaManager extends ClusterManagerBase{
         return new DeltaSession(this);
     }
 
+    /**
+     * Get new session class to be used in the doLoad() method.
+     *
+     * @return a new session
+     *
+     * @deprecated Unused. This will be removed in Tomcat 10.
+     */
+    @Deprecated
+    protected DeltaSession getNewDeltaSession() {
+        return new DeltaSession(this);
+    }
+
+    @Override
+    public void changeSessionId(Session session) {
+        rotateSessionId(session, true);
+    }
+
     @Override
     public String rotateSessionId(Session session) {
         return rotateSessionId(session, true);
@@ -479,6 +532,14 @@ public class DeltaManager extends ClusterManagerBase{
     @Override
     public void changeSessionId(Session session, String newId) {
         changeSessionId(session, newId, true);
+    }
+
+    protected void changeSessionId(Session session, boolean notify) {
+        String orgSessionID = session.getId();
+        super.changeSessionId(session);
+        if (notify) {
+            sendChangeSessionId(session.getId(), orgSessionID);
+        }
     }
 
     protected String rotateSessionId(Session session, boolean notify) {
@@ -544,6 +605,58 @@ public class DeltaManager extends ClusterManagerBase{
         String sessionId = ois.readUTF();
         ois.close();
         return sessionId;
+    }
+
+    /**
+     * Load Deltarequest from external node
+     * Load the Class at container classloader
+     * @see DeltaRequest#readExternal(java.io.ObjectInput)
+     * @param session Corresponding session
+     * @param data message data
+     * @return The request
+     * @throws ClassNotFoundException Serialization error
+     * @throws IOException IO error with serialization
+     *
+     * @deprecated Unused. This will be removed in Tomcat 10.
+     *             Calling this method may result in a deadlock. See:
+     *             https://bz.apache.org/bugzilla/show_bug.cgi?id=62841
+     */
+    @Deprecated
+    protected DeltaRequest deserializeDeltaRequest(DeltaSession session, byte[] data)
+            throws ClassNotFoundException, IOException {
+        session.lock();
+        try {
+            ReplicationStream ois = getReplicationStream(data);
+            session.getDeltaRequest().readExternal(ois);
+            ois.close();
+            return session.getDeltaRequest();
+        } finally {
+            session.unlock();
+        }
+    }
+
+    /**
+     * serialize DeltaRequest
+     * @see DeltaRequest#writeExternal(java.io.ObjectOutput)
+     *
+     * @param session Associated session
+     * @param deltaRequest The request to serialize
+     * @return serialized delta request
+     * @throws IOException IO error with serialization
+     *
+     * @deprecated Unused. This will be removed in Tomcat 10.
+     *             Calling this method may result in a deadlock. See:
+     *             https://bz.apache.org/bugzilla/show_bug.cgi?id=62841
+     */
+    @Deprecated
+    protected byte[] serializeDeltaRequest(DeltaSession session, DeltaRequest deltaRequest)
+            throws IOException {
+        session.lock();
+        try {
+            return deltaRequest.serialize();
+        } finally {
+            session.unlock();
+        }
     }
 
     /**
@@ -702,7 +815,7 @@ public class DeltaManager extends ClusterManagerBase{
                 synchronized(receivedMessageQueue) {
                      receiverQueue = true ;
                 }
-                cluster.send(msg, mbr, Channel.SEND_OPTIONS_ASYNCHRONOUS);
+                cluster.send(msg, mbr);
                 if (log.isInfoEnabled()) {
                     log.info(sm.getString("deltaManager.waitForSessionState",
                             getName(), mbr, Integer.valueOf(getStateTransferTimeout())));
@@ -1385,8 +1498,7 @@ public class DeltaManager extends ClusterManagerBase{
             log.debug(sm.getString("deltaManager.createMessage.allSessionData", getName()));
         }
         counterSend_EVT_ALL_SESSION_DATA++;
-        int sendOptions = Channel.SEND_OPTIONS_SYNCHRONIZED_ACK|Channel.SEND_OPTIONS_USE_ACK;
-        cluster.send(newmsg, sender, sendOptions);
+        cluster.send(newmsg, sender);
     }
 
     @Override

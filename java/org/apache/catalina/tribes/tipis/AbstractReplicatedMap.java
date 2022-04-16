@@ -538,7 +538,7 @@ public abstract class AbstractReplicatedMap<K,V>
     public void transferState() {
         try {
             Member[] members = getMapMembers();
-            Member backup = members.length > 0 ? members[0] : null;
+            Member backup = members.length > 0 ? (Member) members[0] : null;
             if (backup != null) {
                 MapMessage msg = new MapMessage(mapContextName, getStateMessageType(), false,
                                                 null, null, null, null, null);
@@ -1301,7 +1301,7 @@ public abstract class AbstractReplicatedMap<K,V>
 
     @Override
     public Collection<V> values() {
-        List<V> values = new ArrayList<>();
+        ArrayList<V> values = new ArrayList<>();
         for (Entry<K, MapEntry<K, V>> e : innerMap.entrySet()) {
             MapEntry<K,V> entry = innerMap.get(e.getKey());
             if (entry!=null && entry.isActive() && entry.getValue()!=null) {

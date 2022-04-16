@@ -22,11 +22,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.naming.NamingException;
-
-import jakarta.websocket.DecodeException;
-import jakarta.websocket.Decoder;
-import jakarta.websocket.MessageHandler;
-import jakarta.websocket.Session;
+import javax.websocket.DecodeException;
+import javax.websocket.Decoder;
+import javax.websocket.MessageHandler;
+import javax.websocket.Session;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;

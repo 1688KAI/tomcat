@@ -18,13 +18,12 @@ package org.apache.coyote.http11;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import org.apache.coyote.ActionCode;
-import org.apache.coyote.CloseNowException;
 import org.apache.coyote.Response;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
+import org.apache.tomcat.util.http.HttpMessages;
 import org.apache.tomcat.util.net.SocketWrapperBase;
 import org.apache.tomcat.util.res.StringManager;
 
@@ -49,7 +48,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     /**
      * Associated Coyote response.
      */
-    protected final Response response;
+    protected Response response;
 
 
     private volatile boolean ackSent = false;
@@ -103,9 +102,14 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     protected long byteCount = 0;
 
 
-    protected Http11OutputBuffer(Response response, int headerBufferSize) {
+    @Deprecated
+    private boolean sendReasonPhrase = false;
+
+
+    protected Http11OutputBuffer(Response response, int headerBufferSize, boolean sendReasonPhrase) {
 
         this.response = response;
+        this.sendReasonPhrase = sendReasonPhrase;
 
         headerBuffer = ByteBuffer.allocate(headerBufferSize);
 
@@ -116,6 +120,11 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
         responseFinished = false;
 
         outputStreamOutputBuffer = new SocketOutputBuffer();
+
+        if (sendReasonPhrase) {
+            // Cause loading of HttpMessages
+            HttpMessages.getInstance(response.getLocale()).getMessage(200);
+        }
     }
 
 
@@ -129,7 +138,10 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
      */
     public void addFilter(OutputFilter filter) {
 
-        OutputFilter[] newFilterLibrary = Arrays.copyOf(filterLibrary, filterLibrary.length + 1);
+        OutputFilter[] newFilterLibrary = new OutputFilter[filterLibrary.length + 1];
+        for (int i = 0; i < filterLibrary.length; i++) {
+            newFilterLibrary[i] = filterLibrary[i];
+        }
         newFilterLibrary[filterLibrary.length] = filter;
         filterLibrary = newFilterLibrary;
 
@@ -177,6 +189,29 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
 
 
     // --------------------------------------------------- OutputBuffer Methods
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 9. Use
+     *             {@link #doWrite(ByteBuffer)}
+     */
+    @Deprecated
+    @Override
+    public int doWrite(ByteChunk chunk) throws IOException {
+
+        if (!response.isCommitted()) {
+            // Send the connector a request for commit. The connector should
+            // then validate the headers, send them (using sendHeaders) and
+            // set the filters accordingly.
+            response.action(ActionCode.COMMIT, null);
+        }
+
+        if (lastActiveFilter == -1) {
+            return outputStreamOutputBuffer.doWrite(chunk);
+        } else {
+            return activeFilters[lastActiveFilter].doWrite(chunk);
+        }
+    }
+
 
     @Override
     public int doWrite(ByteBuffer chunk) throws IOException {
@@ -287,13 +322,18 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     }
 
 
+    @SuppressWarnings("deprecation")
     public void sendAck() throws IOException {
         // It possible that the protocol configuration is changed between the
         // request being received and the first read of the body. That could led
         // to multiple calls to this method so ensure the ACK is only sent once.
         if (!response.isCommitted() && !ackSent) {
             ackSent = true;
-            socketWrapper.write(isBlocking(), Constants.ACK_BYTES, 0, Constants.ACK_BYTES.length);
+            if (sendReasonPhrase) {
+                socketWrapper.write(isBlocking(), Constants.ACK_BYTES_REASON, 0, Constants.ACK_BYTES_REASON.length);
+            } else {
+                socketWrapper.write(isBlocking(), Constants.ACK_BYTES, 0, Constants.ACK_BYTES.length);
+            }
             if (flushBuffer(true)) {
                 throw new IOException(sm.getString("iob.failedwrite.ack"));
             }
@@ -313,12 +353,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
             // Sending the response header buffer
             headerBuffer.flip();
             try {
-                SocketWrapperBase<?> socketWrapper = this.socketWrapper;
-                if (socketWrapper != null) {
-                    socketWrapper.write(isBlocking(), headerBuffer);
-                } else {
-                    throw new CloseNowException(sm.getString("iob.failedwrite"));
-                }
+                socketWrapper.write(isBlocking(), headerBuffer);
             } finally {
                 headerBuffer.position(0).limit(headerBuffer.capacity());
             }
@@ -329,6 +364,7 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     /**
      * Send the response status line.
      */
+    @SuppressWarnings("deprecation")
     public void sendStatus() {
         // Write protocol name
         write(Constants.HTTP_11_BYTES);
@@ -352,9 +388,24 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
 
         headerBuffer.put(Constants.SP);
 
-        // The reason phrase is optional but the space before it is not. Skip
-        // sending the reason phrase. Clients should ignore it (RFC 7230) and it
-        // just wastes bytes.
+        if (sendReasonPhrase) {
+            // Write message
+            String message = null;
+            if (org.apache.coyote.Constants.USE_CUSTOM_STATUS_MSG_IN_HEADER &&
+                    HttpMessages.isSafeInHttpHeader(response.getMessage())) {
+                message = response.getMessage();
+            }
+            if (message == null) {
+                write(HttpMessages.getInstance(
+                        response.getLocale()).getMessage(status));
+            } else {
+                write(message);
+            }
+        } else {
+            // The reason phrase is optional but the space before it is not. Skip
+            // sending the reason phrase. Clients should ignore it (RFC 7230) and it
+            // just wastes bytes.
+        }
 
         headerBuffer.put(Constants.CR).put(Constants.LF);
     }
@@ -444,6 +495,35 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
 
 
     /**
+     * This method will write the contents of the specified String to the
+     * output stream, without filtering. This method is meant to be used to
+     * write the response header.
+     *
+     * @param s data to be written
+     */
+    private void write(String s) {
+        if (s == null) {
+            return;
+        }
+
+        // From the Tomcat 3.3 HTTP/1.0 connector
+        int len = s.length();
+        checkLengthBeforeWrite(len);
+        for (int i = 0; i < len; i++) {
+            char c = s.charAt (i);
+            // Note: This is clearly incorrect for many strings,
+            // but is the only consistent approach within the current
+            // servlet framework. It must suffice until servlet output
+            // streams properly encode their output.
+            if (((c <= 31) && (c != 9)) || c == 127 || c > 255) {
+                c = ' ';
+            }
+            headerBuffer.put((byte) c);
+        }
+    }
+
+
+    /**
      * This method will write the specified integer to the output stream. This
      * method is meant to be used to write the response header.
      *
@@ -518,16 +598,6 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
     }
 
 
-    boolean isChunking() {
-        for (int i = 0; i < lastActiveFilter; i++) {
-            if (activeFilters[i] == filterLibrary[Constants.CHUNKED_FILTER]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-
     // ------------------------------------------ SocketOutputBuffer Inner Class
 
     /**
@@ -537,17 +607,29 @@ public class Http11OutputBuffer implements HttpOutputBuffer {
 
         /**
          * Write chunk.
+         *
+         * @deprecated Unused. Will be removed in Tomcat 9. Use
+         *             {@link #doWrite(ByteBuffer)}
+         */
+        @Deprecated
+        @Override
+        public int doWrite(ByteChunk chunk) throws IOException {
+            int len = chunk.getLength();
+            int start = chunk.getStart();
+            byte[] b = chunk.getBuffer();
+            socketWrapper.write(isBlocking(), b, start, len);
+            byteCount += len;
+            return len;
+        }
+
+        /**
+         * Write chunk.
          */
         @Override
         public int doWrite(ByteBuffer chunk) throws IOException {
             try {
                 int len = chunk.remaining();
-                SocketWrapperBase<?> socketWrapper = Http11OutputBuffer.this.socketWrapper;
-                if (socketWrapper != null) {
-                    socketWrapper.write(isBlocking(), chunk);
-                } else {
-                    throw new CloseNowException(sm.getString("iob.failedwrite"));
-                }
+                socketWrapper.write(isBlocking(), chunk);
                 len -= chunk.remaining();
                 byteCount += len;
                 return len;

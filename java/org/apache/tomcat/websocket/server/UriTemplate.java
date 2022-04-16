@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import jakarta.websocket.DeploymentException;
+import javax.websocket.DeploymentException;
 
 import org.apache.tomcat.util.res.StringManager;
 

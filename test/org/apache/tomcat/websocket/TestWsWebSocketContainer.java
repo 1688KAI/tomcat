@@ -16,9 +16,13 @@
  */
 package org.apache.tomcat.websocket;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -26,19 +30,21 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import jakarta.servlet.ServletContextEvent;
-import jakarta.websocket.ClientEndpointConfig;
-import jakarta.websocket.ContainerProvider;
-import jakarta.websocket.DeploymentException;
-import jakarta.websocket.Endpoint;
-import jakarta.websocket.EndpointConfig;
-import jakarta.websocket.Extension;
-import jakarta.websocket.MessageHandler;
-import jakarta.websocket.OnMessage;
-import jakarta.websocket.Session;
-import jakarta.websocket.WebSocketContainer;
-import jakarta.websocket.server.ServerContainer;
-import jakarta.websocket.server.ServerEndpoint;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import javax.servlet.ServletContextEvent;
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.ContainerProvider;
+import javax.websocket.DeploymentException;
+import javax.websocket.Endpoint;
+import javax.websocket.EndpointConfig;
+import javax.websocket.Extension;
+import javax.websocket.MessageHandler;
+import javax.websocket.OnMessage;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
+import javax.websocket.server.ServerContainer;
+import javax.websocket.server.ServerEndpoint;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -46,6 +52,7 @@ import org.junit.Test;
 import org.apache.catalina.Context;
 import org.apache.catalina.servlets.DefaultServlet;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.tomcat.util.net.TesterSupport;
 import org.apache.tomcat.websocket.TesterMessageCountClient.BasicBinary;
 import org.apache.tomcat.websocket.TesterMessageCountClient.BasicHandler;
 import org.apache.tomcat.websocket.TesterMessageCountClient.BasicText;
@@ -109,7 +116,7 @@ public class TestWsWebSocketContainer extends WsWebSocketContainerBaseTest {
     }
 
 
-    @Test(expected=jakarta.websocket.DeploymentException.class)
+    @Test(expected=javax.websocket.DeploymentException.class)
     public void testConnectToServerEndpointInvalidScheme() throws Exception {
         Tomcat tomcat = getTomcatInstance();
         // No file system docBase required
@@ -127,7 +134,7 @@ public class TestWsWebSocketContainer extends WsWebSocketContainerBaseTest {
     }
 
 
-    @Test(expected=jakarta.websocket.DeploymentException.class)
+    @Test(expected=javax.websocket.DeploymentException.class)
     public void testConnectToServerEndpointNoHost() throws Exception {
         Tomcat tomcat = getTomcatInstance();
         // No file system docBase required
@@ -528,6 +535,66 @@ public class TestWsWebSocketContainer extends WsWebSocketContainerBaseTest {
         public void onOpen(Session session, EndpointConfig config) {
             // NO-OP
         }
+    }
+
+
+    @Test
+    public void testConnectToServerEndpointSSL() throws Exception {
+
+        Tomcat tomcat = getTomcatInstance();
+        // No file system docBase required
+        Context ctx = tomcat.addContext("", null);
+        ctx.addApplicationListener(TesterEchoServer.Config.class.getName());
+        Tomcat.addServlet(ctx, "default", new DefaultServlet());
+        ctx.addServletMappingDecoded("/", "default");
+
+        TesterSupport.initSsl(tomcat);
+
+        tomcat.start();
+
+        WebSocketContainer wsContainer =
+                ContainerProvider.getWebSocketContainer();
+        ClientEndpointConfig clientEndpointConfig =
+                ClientEndpointConfig.Builder.create().build();
+
+        // Create the SSL Context
+        // Java 7 doesn't default to TLSv1.2 but the tests do
+        SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+
+        // Trust store
+        File keyStoreFile = new File(TesterSupport.CA_JKS);
+        KeyStore ks = KeyStore.getInstance("JKS");
+        try (InputStream is = new FileInputStream(keyStoreFile)) {
+            ks.load(is, org.apache.tomcat.websocket.Constants.SSL_TRUSTSTORE_PWD_DEFAULT.toCharArray());
+        }
+
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(
+                TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(ks);
+
+        sslContext.init(null, tmf.getTrustManagers(), null);
+
+        clientEndpointConfig.getUserProperties().put(
+                org.apache.tomcat.websocket.Constants.SSL_CONTEXT_PROPERTY,
+                sslContext);
+
+        Session wsSession = wsContainer.connectToServer(
+                TesterProgrammaticEndpoint.class,
+                clientEndpointConfig,
+                new URI("wss://" + getHostName() + ":" + getPort() +
+                        TesterEchoServer.Config.PATH_ASYNC));
+        CountDownLatch latch = new CountDownLatch(1);
+        BasicText handler = new BasicText(latch);
+        wsSession.addMessageHandler(handler);
+        wsSession.getBasicRemote().sendText(MESSAGE_STRING_1);
+
+        boolean latchResult = handler.getLatch().await(10, TimeUnit.SECONDS);
+
+        Assert.assertTrue(latchResult);
+
+        Queue<String> messages = handler.getMessages();
+        Assert.assertEquals(1, messages.size());
+        Assert.assertEquals(MESSAGE_STRING_1, messages.peek());
     }
 
 

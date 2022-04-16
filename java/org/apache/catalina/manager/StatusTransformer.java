@@ -20,6 +20,7 @@ import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
+import java.lang.reflect.Method;
 import java.text.MessageFormat;
 import java.util.Date;
 import java.util.Enumeration;
@@ -32,9 +33,9 @@ import java.util.Vector;
 import javax.management.MBeanServer;
 import javax.management.ObjectInstance;
 import javax.management.ObjectName;
+import javax.servlet.http.HttpServletResponse;
 
-import jakarta.servlet.http.HttpServletResponse;
-
+import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.security.Escape;
 
 /**
@@ -138,6 +139,73 @@ public class StatusTransformer {
         } else if (mode == 1){
             writer.write("</status>");
         }
+    }
+
+
+    /**
+     * Write the OS state.
+     *
+     * @param writer The output writer
+     * @param mode Mode <code>0</code> will generate HTML.
+     *             Mode <code>1</code> will generate XML.
+     * @param args I18n labels for the OS state values
+     */
+    public static void writeOSState(PrintWriter writer, int mode, Object[] args) {
+        long[] result = new long[16];
+        boolean ok = false;
+        try {
+            String methodName = "info";
+            Class<?> paramTypes[] = new Class[1];
+            paramTypes[0] = result.getClass();
+            Object paramValues[] = new Object[1];
+            paramValues[0] = result;
+            Method method = Class.forName("org.apache.tomcat.jni.OS")
+                .getMethod(methodName, paramTypes);
+            method.invoke(null, paramValues);
+            ok = true;
+        } catch (Throwable t) {
+            t = ExceptionUtils.unwrapInvocationTargetException(t);
+            ExceptionUtils.handleThrowable(t);
+        }
+
+        if (ok) {
+            if (mode == 0){
+                writer.print("<h1>OS</h1>");
+
+                writer.print("<p>");
+                writer.print( args[0] );
+                writer.print(' ');
+                writer.print(formatSize(Long.valueOf(result[0]), true));
+                writer.print(' ');
+                writer.print(args[1]);
+                writer.print(' ');
+                writer.print(formatSize(Long.valueOf(result[1]), true));
+                writer.print(' ');
+                writer.print(args[2]);
+                writer.print(' ');
+                writer.print(formatSize(Long.valueOf(result[2]), true));
+                writer.print(' ');
+                writer.print(args[3]);
+                writer.print(' ');
+                writer.print(formatSize(Long.valueOf(result[3]), true));
+                writer.print(' ');
+                writer.print(args[4]);
+                writer.print(' ');
+                writer.print(Long.valueOf(result[6]));
+                writer.print("<br>");
+                writer.print(args[5]);
+                writer.print(' ');
+                writer.print(formatTime(Long.valueOf(result[11] / 1000), true));
+                writer.print(' ');
+                writer.print(args[6]);
+                writer.print(' ');
+                writer.print(formatTime(Long.valueOf(result[12] / 1000), true));
+                writer.print("</p>");
+            } else if (mode == 1){
+                // NO-OP
+            }
+        }
+
     }
 
 
@@ -465,23 +533,23 @@ public class StatusTransformer {
                 }
                 writer.write("</td>");
                 writer.write("<td>");
-                writer.print(Escape.htmlElementContent(mBeanServer.getAttribute
+                writer.print(Escape.htmlElementContext(mBeanServer.getAttribute
                                     (pName, "remoteAddrForwarded")));
                 writer.write("</td>");
                 writer.write("<td>");
-                writer.print(Escape.htmlElementContent(mBeanServer.getAttribute
+                writer.print(Escape.htmlElementContext(mBeanServer.getAttribute
                                     (pName, "remoteAddr")));
                 writer.write("</td>");
                 writer.write("<td nowrap>");
-                writer.write(Escape.htmlElementContent(mBeanServer.getAttribute
+                writer.write(Escape.htmlElementContext(mBeanServer.getAttribute
                                     (pName, "virtualHost")));
                 writer.write("</td>");
                 writer.write("<td nowrap class=\"row-left\">");
                 if (showRequest) {
-                    writer.write(Escape.htmlElementContent(mBeanServer.getAttribute
+                    writer.write(Escape.htmlElementContext(mBeanServer.getAttribute
                                         (pName, "method")));
                     writer.write(' ');
-                    writer.write(Escape.htmlElementContent(mBeanServer.getAttribute
+                    writer.write(Escape.htmlElementContext(mBeanServer.getAttribute
                                         (pName, "currentUri")));
                     String queryString = (String) mBeanServer.getAttribute
                         (pName, "currentQueryString");
@@ -490,7 +558,7 @@ public class StatusTransformer {
                         writer.print(Escape.htmlElementContent(queryString));
                     }
                     writer.write(' ');
-                    writer.write(Escape.htmlElementContent(mBeanServer.getAttribute
+                    writer.write(Escape.htmlElementContext(mBeanServer.getAttribute
                                         (pName, "protocol")));
                 } else {
                     writer.write("?");
@@ -524,18 +592,18 @@ public class StatusTransformer {
                 }
                 writer.write("\"");
                 writer.write(" remoteAddr=\""
-                             + Escape.htmlElementContent(mBeanServer.getAttribute
+                             + Escape.htmlElementContext(mBeanServer.getAttribute
                                       (pName, "remoteAddr")) + "\"");
                 writer.write(" virtualHost=\""
-                             + Escape.htmlElementContent(mBeanServer.getAttribute
+                             + Escape.htmlElementContext(mBeanServer.getAttribute
                                       (pName, "virtualHost")) + "\"");
 
                 if (showRequest) {
                     writer.write(" method=\""
-                                 + Escape.htmlElementContent(mBeanServer.getAttribute
+                                 + Escape.htmlElementContext(mBeanServer.getAttribute
                                           (pName, "method")) + "\"");
                     writer.write(" currentUri=\""
-                                 + Escape.htmlElementContent(mBeanServer.getAttribute
+                                 + Escape.htmlElementContext(mBeanServer.getAttribute
                                           (pName, "currentUri")) + "\"");
 
                     String queryString = (String) mBeanServer.getAttribute
@@ -547,7 +615,7 @@ public class StatusTransformer {
                         writer.write(" currentQueryString=\"&#63;\"");
                     }
                     writer.write(" protocol=\""
-                                 + Escape.htmlElementContent(mBeanServer.getAttribute
+                                 + Escape.htmlElementContext(mBeanServer.getAttribute
                                           (pName, "protocol")) + "\"");
                 } else {
                     writer.write(" method=\"&#63;\"");
@@ -609,7 +677,7 @@ public class StatusTransformer {
                 }
 
                 writer.print("<a href=\"#" + (count++) + ".0\">");
-                writer.print(Escape.htmlElementContent(webModuleName));
+                writer.print(Escape.htmlElementContext(webModuleName));
                 writer.print("</a>");
                 if (iterator.hasNext()) {
                     writer.print("<br>");
@@ -691,7 +759,7 @@ public class StatusTransformer {
             }
 
             writer.print("<h1>");
-            writer.print(Escape.htmlElementContent(name));
+            writer.print(Escape.htmlElementContext(name));
             writer.print("</h1>");
             writer.print("</a>");
 
@@ -834,11 +902,11 @@ public class StatusTransformer {
                 mBeanServer.invoke(objectName, "findMappings", null, null);
 
             writer.print("<h2>");
-            writer.print(Escape.htmlElementContent(servletName));
+            writer.print(Escape.htmlElementContext(servletName));
             if ((mappings != null) && (mappings.length > 0)) {
                 writer.print(" [ ");
                 for (int i = 0; i < mappings.length; i++) {
-                    writer.print(Escape.htmlElementContent(mappings[i]));
+                    writer.print(Escape.htmlElementContext(mappings[i]));
                     if (i < mappings.length - 1) {
                         writer.print(" , ");
                     }
@@ -869,6 +937,83 @@ public class StatusTransformer {
             // for now we don't write out the wrapper details
         }
 
+    }
+
+
+    /**
+     * Filter the specified message string for characters that are sensitive
+     * in HTML.  This avoids potential attacks caused by including JavaScript
+     * codes in the request URL that is often reported in error messages.
+     *
+     * @param obj The message string to be filtered
+     * @return filtered HTML content
+     *
+     * @deprecated This method will be removed in Tomcat 9
+     */
+    @Deprecated
+    public static String filter(Object obj) {
+
+        if (obj == null) {
+            return ("?");
+        }
+        String message = obj.toString();
+
+        char content[] = new char[message.length()];
+        message.getChars(0, message.length(), content, 0);
+        StringBuilder result = new StringBuilder(content.length + 50);
+        for (int i = 0; i < content.length; i++) {
+            switch (content[i]) {
+            case '<':
+                result.append("&lt;");
+                break;
+            case '>':
+                result.append("&gt;");
+                break;
+            case '&':
+                result.append("&amp;");
+                break;
+            case '"':
+                result.append("&quot;");
+                break;
+            default:
+                result.append(content[i]);
+            }
+        }
+        return result.toString();
+
+    }
+
+
+    /**
+     * Escape the 5 entities defined by XML.
+     * @param s The message string to be filtered
+     * @return filtered XML content
+     *
+     * @deprecated This method will be removed in Tomcat 9
+     */
+    @Deprecated
+    public static String filterXml(String s) {
+        if (s == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '<') {
+                sb.append("&lt;");
+            } else if (c == '>') {
+                sb.append("&gt;");
+            } else if (c == '\'') {
+                sb.append("&apos;");
+            } else if (c == '&') {
+                sb.append("&amp;");
+            } else if (c == '"') {
+                sb.append("&quot;");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
 

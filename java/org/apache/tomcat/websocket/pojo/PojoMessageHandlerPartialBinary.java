@@ -19,7 +19,7 @@ package org.apache.tomcat.websocket.pojo;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 
-import jakarta.websocket.Session;
+import javax.websocket.Session;
 
 /**
  * ByteBuffer specific concrete implementation for handling partial messages.

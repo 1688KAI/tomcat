@@ -25,9 +25,9 @@ import java.io.Writer;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
@@ -337,7 +337,7 @@ public class ErrorReportValve extends ValveBase {
 
     /**
      * Print out a partial servlet stack trace (truncating at the last
-     * occurrence of jakarta.servlet.).
+     * occurrence of javax.servlet.).
      * @param t The stack trace to process
      * @return the stack trace relative to the application layer
      */
@@ -380,8 +380,9 @@ public class ErrorReportValve extends ValveBase {
         response.setContentType("text/html");
         response.setCharacterEncoding("UTF-8");
 
-        try (OutputStream os = response.getOutputStream();
-                InputStream is = new FileInputStream(file);){
+        try {
+            OutputStream os = response.getOutputStream();
+            InputStream is = new FileInputStream(file);
             IOTools.flow(is, os);
         } catch (IOException e) {
             getContainer().getLogger().warn(

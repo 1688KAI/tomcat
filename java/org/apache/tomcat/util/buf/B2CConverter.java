@@ -34,7 +34,8 @@ import org.apache.tomcat.util.res.StringManager;
  */
 public class B2CConverter {
 
-    private static final StringManager sm = StringManager.getManager(B2CConverter.class);
+    private static final StringManager sm =
+        StringManager.getManager(Constants.Package);
 
     private static final CharsetCache charsetCache = new CharsetCache();
 
@@ -52,10 +53,31 @@ public class B2CConverter {
      * @throws UnsupportedEncodingException If the requested Charset is not
      *                                      available
      */
-    public static Charset getCharset(String enc) throws UnsupportedEncodingException {
+    public static Charset getCharset(String enc)
+            throws UnsupportedEncodingException {
 
         // Encoding names should all be ASCII
         String lowerCaseEnc = enc.toLowerCase(Locale.ENGLISH);
+
+        return getCharsetLower(lowerCaseEnc);
+    }
+
+
+    /**
+     * Only to be used when it is known that the encoding name is in lower case.
+     * @param lowerCaseEnc The name of the encoding for the required charset in
+     *                     lower case
+     *
+     * @return The Charset corresponding to the requested encoding
+     *
+     * @throws UnsupportedEncodingException If the requested Charset is not
+     *                                      available
+     *
+     * @deprecated Will be removed in Tomcat 9.0.x
+     */
+    @Deprecated
+    public static Charset getCharsetLower(String lowerCaseEnc)
+            throws UnsupportedEncodingException {
 
         Charset charset = charsetCache.getCharset(lowerCaseEnc);
 
@@ -144,7 +166,7 @@ public class B2CConverter {
             int pos = cb.position();
             // Loop until one char is decoded or there is a decoder error
             do {
-                leftovers.put(bc.subtractB());
+                leftovers.put(bc.substractB());
                 leftovers.flip();
                 result = decoder.decode(leftovers, cb, endOfInput);
                 leftovers.position(leftovers.limit());
@@ -174,7 +196,7 @@ public class B2CConverter {
             if (bc.getLength() > 0) {
                 leftovers.limit(leftovers.array().length);
                 leftovers.position(bc.getLength());
-                bc.subtract(leftovers.array(), 0, bc.getLength());
+                bc.substract(leftovers.array(), 0, bc.getLength());
             }
         }
     }

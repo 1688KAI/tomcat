@@ -24,11 +24,11 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.AsyncContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,6 +37,7 @@ import org.apache.catalina.Context;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.coyote.UpgradeProtocol;
 import org.apache.tomcat.util.compat.JrePlatform;
 import org.apache.tomcat.util.http.FastHttpDateFormat;
 
@@ -463,11 +464,15 @@ public class TestStreamProcessor extends Http2TestBase {
 
         // Enable compression
         Connector connector = tomcat.getConnector();
-        Assert.assertTrue(connector.setProperty("compression", "on"));
 
         tomcat.start();
 
         enableHttp2();
+        for (UpgradeProtocol protocol : connector.findUpgradeProtocols()) {
+            if (protocol instanceof Http2Protocol) {
+                ((Http2Protocol) protocol).setCompression("on");
+            }
+        }
         openClientConnection();
         doHttpUpgrade();
         sendClientPreface();

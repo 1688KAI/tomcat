@@ -16,15 +16,13 @@
  */
 package org.apache.el;
 
-import java.util.function.Function;
-
-import jakarta.el.ELContext;
-import jakarta.el.ELProcessor;
-import jakarta.el.ExpressionFactory;
-import jakarta.el.MethodExpression;
-import jakarta.el.MethodInfo;
-import jakarta.el.MethodNotFoundException;
-import jakarta.el.ValueExpression;
+import javax.el.ELContext;
+import javax.el.ELProcessor;
+import javax.el.ExpressionFactory;
+import javax.el.MethodExpression;
+import javax.el.MethodInfo;
+import javax.el.MethodNotFoundException;
+import javax.el.ValueExpression;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -543,63 +541,111 @@ public class TestMethodExpressionImpl {
 
     @Test
     public void testVarArgsBeanFEnum() {
-        doTestVarArgsBeanF("beanF.doTest(apple)", (a) -> a.doTest(TesterEnum.APPLE));
+        doTestVarArgsBeanF("beanF.doTest(apple)", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest(TesterEnum.APPLE);
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanFEnumEnum() {
-        doTestVarArgsBeanF("beanF.doTest(apple,apple)", (a) -> a.doTest(TesterEnum.APPLE, TesterEnum.APPLE));
+        doTestVarArgsBeanF("beanF.doTest(apple,apple)", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest(TesterEnum.APPLE, TesterEnum.APPLE);
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanFEnumString() {
-        doTestVarArgsBeanF("beanF.doTest(apple,'apple')", (a) -> a.doTest(TesterEnum.APPLE, "apple"));
+        doTestVarArgsBeanF("beanF.doTest(apple,'apple')", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest(TesterEnum.APPLE, "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanFEnumVEnum() {
-        doTestVarArgsBeanF("beanF.doTest(apple,apple,apple)",
-                (a) -> a.doTest(TesterEnum.APPLE, TesterEnum.APPLE, TesterEnum.APPLE));
+        doTestVarArgsBeanF("beanF.doTest(apple,apple,apple)", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest(TesterEnum.APPLE, TesterEnum.APPLE, TesterEnum.APPLE);
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanFEnumVString() {
-        doTestVarArgsBeanF("beanF.doTest(apple,'apple','apple')", (a) -> a.doTest(TesterEnum.APPLE, "apple", "apple"));
+        doTestVarArgsBeanF("beanF.doTest(apple,'apple','apple')", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest(TesterEnum.APPLE, "apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanFString() {
-        doTestVarArgsBeanF("beanF.doTest('apple')", (a) -> a.doTest("apple"));
+        doTestVarArgsBeanF("beanF.doTest('apple')", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest("apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanFStringEnum() {
-        doTestVarArgsBeanF("beanF.doTest('apple',apple)", (a) -> a.doTest("apple", TesterEnum.APPLE));
+        doTestVarArgsBeanF("beanF.doTest('apple',apple)", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest("apple", TesterEnum.APPLE);
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanFStringString() {
-        doTestVarArgsBeanF("beanF.doTest('apple','apple')", (a) -> a.doTest("apple", "apple"));
+        doTestVarArgsBeanF("beanF.doTest('apple','apple')", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest("apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanFStringVEnum() {
-        doTestVarArgsBeanF("beanF.doTest('apple',apple,apple)",
-                (a) -> a.doTest("apple", TesterEnum.APPLE, TesterEnum.APPLE));
+        doTestVarArgsBeanF("beanF.doTest('apple',apple,apple)", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest("apple", TesterEnum.APPLE, TesterEnum.APPLE);
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanFStringVString() {
-        doTestVarArgsBeanF("beanF.doTest('apple','apple','apple')", (a) -> a.doTest("apple", "apple", "apple"));
+        doTestVarArgsBeanF("beanF.doTest('apple','apple','apple')", new Function<TesterBeanF, String>() {
+            @Override
+            public String apply(TesterBeanF a) {
+                return a.doTest("apple", "apple", "apple");
+            }
+        });
     }
 
 
@@ -607,7 +653,7 @@ public class TestMethodExpressionImpl {
         ELProcessor elp = new ELProcessor();
         elp.defineBean("apple", TesterEnum.APPLE);
         elp.defineBean("beanF", new TesterBeanF());
-        String elResult = elp.eval(expression);
+        String elResult = (String) elp.eval(expression);
         String javaResult = func.apply(new TesterBeanF());
         Assert.assertEquals(javaResult, elResult);
     }
@@ -615,61 +661,111 @@ public class TestMethodExpressionImpl {
 
     @Test
     public void testVarArgsBeanGEnum() {
-        doTestVarArgsBeanG("beanG.doTest(apple)", (a) -> a.doTest("apple"));
+        doTestVarArgsBeanG("beanG.doTest(apple)", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanGEnumEnum() {
-        doTestVarArgsBeanG("beanG.doTest(apple,apple)", (a) -> a.doTest("apple", "apple"));
+        doTestVarArgsBeanG("beanG.doTest(apple,apple)", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanGEnumString() {
-        doTestVarArgsBeanG("beanG.doTest(apple,'apple')", (a) -> a.doTest("apple", "apple"));
+        doTestVarArgsBeanG("beanG.doTest(apple,'apple')", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanGEnumVEnum() {
-        doTestVarArgsBeanG("beanG.doTest(apple,apple,apple)", (a) -> a.doTest("apple", "apple", "apple"));
+        doTestVarArgsBeanG("beanG.doTest(apple,apple,apple)", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple", "apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanGEnumVString() {
-        doTestVarArgsBeanG("beanG.doTest(apple,'apple','apple')", (a) -> a.doTest("apple", "apple", "apple"));
+        doTestVarArgsBeanG("beanG.doTest(apple,'apple','apple')", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple", "apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanGString() {
-        doTestVarArgsBeanG("beanG.doTest('apple')", (a) -> a.doTest("apple"));
+        doTestVarArgsBeanG("beanG.doTest('apple')", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanGStringEnum() {
-        doTestVarArgsBeanG("beanG.doTest('apple',apple)", (a) -> a.doTest("apple", "apple"));
+        doTestVarArgsBeanG("beanG.doTest('apple',apple)", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanGStringString() {
-        doTestVarArgsBeanG("beanG.doTest('apple','apple')", (a) -> a.doTest("apple", "apple"));
+        doTestVarArgsBeanG("beanG.doTest('apple','apple')", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanGStringVEnum() {
-        doTestVarArgsBeanG("beanG.doTest('apple',apple,apple)", (a) -> a.doTest("apple", "apple", "apple"));
+        doTestVarArgsBeanG("beanG.doTest('apple',apple,apple)", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple", "apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanGStringVString() {
-        doTestVarArgsBeanG("beanG.doTest('apple','apple','apple')", (a) -> a.doTest("apple", "apple", "apple"));
+        doTestVarArgsBeanG("beanG.doTest('apple','apple','apple')", new Function<TesterBeanG, String>() {
+            @Override
+            public String apply(TesterBeanG a) {
+                return a.doTest("apple", "apple", "apple");
+            }
+        });
     }
 
 
@@ -677,68 +773,119 @@ public class TestMethodExpressionImpl {
         ELProcessor elp = new ELProcessor();
         elp.defineBean("apple", TesterEnum.APPLE);
         elp.defineBean("beanG", new TesterBeanG());
-        String elResult = elp.eval(expression);
+        String elResult = (String) elp.eval(expression);
         String javaResult = func.apply(new TesterBeanG());
         Assert.assertEquals(javaResult, elResult);
     }
 
+
     @Test
     public void testVarArgsBeanHEnum() {
-        doTestVarArgsBeanH("beanH.doTest(apple)", (a) -> a.doTest("apple"));
+        doTestVarArgsBeanH("beanH.doTest(apple)", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanHEnumEnum() {
-        doTestVarArgsBeanH("beanH.doTest(apple,apple)", (a) -> a.doTest("apple", "apple"));
+        doTestVarArgsBeanH("beanH.doTest(apple,apple)", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanHEnumString() {
-        doTestVarArgsBeanH("beanH.doTest(apple,'apple')", (a) -> a.doTest("apple", "apple"));
+        doTestVarArgsBeanH("beanH.doTest(apple,'apple')", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanHEnumVEnum() {
-        doTestVarArgsBeanH("beanH.doTest(apple,apple,apple)", (a) -> a.doTest("apple", "apple", "apple"));
+        doTestVarArgsBeanH("beanH.doTest(apple,apple,apple)", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple", "apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanHEnumVString() {
-        doTestVarArgsBeanH("beanH.doTest(apple,'apple','apple')", (a) -> a.doTest("apple", "apple", "apple"));
+        doTestVarArgsBeanH("beanH.doTest(apple,'apple','apple')", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple", "apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanHString() {
-        doTestVarArgsBeanH("beanH.doTest('apple')", (a) -> a.doTest("apple"));
+        doTestVarArgsBeanH("beanH.doTest('apple')", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanHStringEnum() {
-        doTestVarArgsBeanH("beanH.doTest('apple',apple)", (a) -> a.doTest("apple", "apple"));
+        doTestVarArgsBeanH("beanH.doTest('apple',apple)", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanHStringString() {
-        doTestVarArgsBeanH("beanH.doTest('apple','apple')", (a) -> a.doTest("apple", "apple"));
+        doTestVarArgsBeanH("beanH.doTest('apple','apple')", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanHStringVEnum() {
-        doTestVarArgsBeanH("beanH.doTest('apple',apple,apple)", (a) -> a.doTest("apple", "apple", "apple"));
+        doTestVarArgsBeanH("beanH.doTest('apple',apple,apple)", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple", "apple", "apple");
+            }
+        });
     }
 
 
     @Test
     public void testVarArgsBeanHStringVString() {
-        doTestVarArgsBeanH("beanH.doTest('apple','apple','apple')", (a) -> a.doTest("apple", "apple", "apple"));
+        doTestVarArgsBeanH("beanH.doTest('apple','apple','apple')", new Function<TesterBeanH, String>() {
+            @Override
+            public String apply(TesterBeanH a) {
+                return a.doTest("apple", "apple", "apple");
+            }
+        });
     }
 
 
@@ -746,9 +893,14 @@ public class TestMethodExpressionImpl {
         ELProcessor elp = new ELProcessor();
         elp.defineBean("apple", TesterEnum.APPLE);
         elp.defineBean("beanH", new TesterBeanH());
-        String elResult = elp.eval(expression);
+        String elResult = (String) elp.eval(expression);
         String javaResult = func.apply(new TesterBeanH());
         Assert.assertEquals(javaResult, elResult);
+    }
+
+
+    private static interface Function<T, R> {
+        public R apply(T t);
     }
 
 
@@ -759,7 +911,7 @@ public class TestMethodExpressionImpl {
         bean.setName("xyz");
         elp.defineBean("bean2", bean);
         elp.defineBean("bean1", new TesterBeanI());
-        String elResult = elp.eval("bean1.echo(bean2)");
+        String elResult = (String) elp.eval("bean1.echo(bean2)");
         Assert.assertEquals("No varargs: xyz", elResult);
     }
 

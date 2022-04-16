@@ -20,7 +20,7 @@ package org.apache.catalina;
 import java.security.Principal;
 import java.util.Iterator;
 
-import jakarta.servlet.http.HttpSession;
+import javax.servlet.http.HttpSession;
 
 
 /**

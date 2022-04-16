@@ -18,7 +18,7 @@ package org.apache.catalina.valves;
 
 import java.io.IOException;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -112,12 +112,13 @@ public class TestRequestFilterValve {
         RequestFilterValve valve = null;
         Connector connector = new Connector();
         Context context = new StandardContext();
-        Request request = new Request(connector);
+        Request request = new Request();
         Response response = new MockResponse();
         StringBuilder msg = new StringBuilder();
         int expected = allowed ? OK : FORBIDDEN;
 
         connector.setPort(PORT);
+        request.setConnector(connector);
         request.getMappingData().context = context;
         request.setCoyoteRequest(new org.apache.coyote.Request());
 

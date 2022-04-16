@@ -24,13 +24,15 @@ import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -52,7 +54,6 @@ import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Loader;
 import org.apache.catalina.Pipeline;
 import org.apache.catalina.Realm;
-import org.apache.catalina.Server;
 import org.apache.catalina.Valve;
 import org.apache.catalina.Wrapper;
 import org.apache.catalina.connector.Request;
@@ -64,7 +65,6 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.MultiThrowable;
 import org.apache.tomcat.util.res.StringManager;
-import org.apache.tomcat.util.threads.InlineExecutorService;
 
 
 /**
@@ -169,12 +169,6 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
 
 
     /**
-     * The future allowing control of the background processor.
-     */
-    protected ScheduledFuture<?> backgroundProcessorFuture;
-    protected ScheduledFuture<?> monitorFuture;
-
-    /**
      * The container event listeners for this Container. Implemented as a
      * CopyOnWriteArrayList since listeners may invoke methods to add/remove
      * themselves or other listeners and with a ReadWriteLock that would trigger
@@ -256,6 +250,18 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
 
 
     /**
+     * The background thread.
+     */
+    private Thread thread = null;
+
+
+    /**
+     * The background thread completion semaphore.
+     */
+    private volatile boolean threadDone = false;
+
+
+    /**
      * The access log to use for requests normally handled by this container
      * that have been handled earlier in the processing chain.
      */
@@ -268,7 +274,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
      * children associated with this container.
      */
     private int startStopThreads = 1;
-    protected ExecutorService startStopExecutor;
+    protected ThreadPoolExecutor startStopExecutor;
 
 
     // ------------------------------------------------------------- Properties
@@ -278,14 +284,37 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
         return startStopThreads;
     }
 
+    /**
+     * Handles the special values.
+     */
+    private int getStartStopThreadsInternal() {
+        int result = getStartStopThreads();
+
+        // Positive values are unchanged
+        if (result > 0) {
+            return result;
+        }
+
+        // Zero == Runtime.getRuntime().availableProcessors()
+        // -ve  == Runtime.getRuntime().availableProcessors() + value
+        // These two are the same
+        result = Runtime.getRuntime().availableProcessors() + result;
+        if (result < 1) {
+            result = 1;
+        }
+        return result;
+    }
+
     @Override
     public void setStartStopThreads(int startStopThreads) {
-        int oldStartStopThreads = this.startStopThreads;
         this.startStopThreads = startStopThreads;
 
         // Use local copies to ensure thread safety
-        if (oldStartStopThreads != startStopThreads && startStopExecutor != null) {
-            reconfigureStartStopExecutor(getStartStopThreads());
+        ThreadPoolExecutor executor = startStopExecutor;
+        if (executor != null) {
+            int newThreads = getStartStopThreadsInternal();
+            executor.setMaximumPoolSize(newThreads);
+            executor.setCorePoolSize(newThreads);
         }
     }
 
@@ -714,8 +743,6 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
             children.put(child.getName(), child);
         }
 
-        fireContainerEvent(ADD_CHILD_EVENT, child);
-
         // Start child
         // Don't do this inside sync block - start can be a slow process and
         // locking the children object can cause problems elsewhere
@@ -726,7 +753,10 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
                 child.start();
             }
         } catch (LifecycleException e) {
+            log.error("ContainerBase.addChild: start: ", e);
             throw new IllegalStateException(sm.getString("containerBase.child.start"), e);
+        } finally {
+            fireContainerEvent(ADD_CHILD_EVENT, child);
         }
     }
 
@@ -817,21 +847,15 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
             log.error(sm.getString("containerBase.child.stop"), e);
         }
 
-        boolean destroy = false;
         try {
             // child.destroy() may have already been called which would have
             // triggered this call. If that is the case, no need to destroy the
             // child again.
             if (!LifecycleState.DESTROYING.equals(child.getState())) {
                 child.destroy();
-                destroy = true;
             }
         } catch (LifecycleException e) {
             log.error(sm.getString("containerBase.child.destroy"), e);
-        }
-
-        if (!destroy) {
-            fireContainerEvent(REMOVE_CHILD_EVENT, child);
         }
 
         synchronized(children) {
@@ -841,6 +865,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
             children.remove(child.getName());
         }
 
+        fireContainerEvent(REMOVE_CHILD_EVENT, child);
     }
 
 
@@ -870,23 +895,14 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
 
     @Override
     protected void initInternal() throws LifecycleException {
-        reconfigureStartStopExecutor(getStartStopThreads());
+        BlockingQueue<Runnable> startStopQueue = new LinkedBlockingQueue<>();
+        startStopExecutor = new ThreadPoolExecutor(
+                getStartStopThreadsInternal(),
+                getStartStopThreadsInternal(), 10, TimeUnit.SECONDS,
+                startStopQueue,
+                new StartStopThreadFactory(getName() + "-startStop-"));
+        startStopExecutor.allowCoreThreadTimeOut(true);
         super.initInternal();
-    }
-
-
-    private void reconfigureStartStopExecutor(int threads) {
-        if (threads == 1) {
-            // Use a fake executor
-            if (!(startStopExecutor instanceof InlineExecutorService)) {
-                startStopExecutor = new InlineExecutorService();
-            }
-        } else {
-            // Delegate utility execution to the Service
-            Server server = Container.getService(this).getServer();
-            server.setUtilityThreads(threads);
-            startStopExecutor = server.getUtilityExecutor();
-        }
     }
 
 
@@ -946,11 +962,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
         setState(LifecycleState.STARTING);
 
         // Start our thread
-        if (backgroundProcessorDelay > 0) {
-            monitorFuture = Container.getService(ContainerBase.this).getServer()
-                    .getUtilityExecutor().scheduleWithFixedDelay(
-                            new ContainerBackgroundProcessorMonitor(), 0, 60, TimeUnit.SECONDS);
-        }
+        threadStart();
     }
 
 
@@ -965,10 +977,6 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
     protected synchronized void stopInternal() throws LifecycleException {
 
         // Stop our thread
-        if (monitorFuture != null) {
-            monitorFuture.cancel(true);
-            monitorFuture = null;
-        }
         threadStop();
 
         setState(LifecycleState.STOPPING);
@@ -1265,7 +1273,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
         List<ObjectName> names = new ArrayList<>(children.size());
         for (Container next : children.values()) {
             if (next instanceof ContainerBase) {
-                names.add(next.getObjectName());
+                names.add(((ContainerBase)next).getObjectName());
             }
         }
         return names.toArray(new ObjectName[0]);
@@ -1279,22 +1287,20 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
      * session timeouts.
      */
     protected void threadStart() {
-        if (backgroundProcessorDelay > 0
-                && (getState().isAvailable() || LifecycleState.STARTING_PREP.equals(getState()))
-                && (backgroundProcessorFuture == null || backgroundProcessorFuture.isDone())) {
-            if (backgroundProcessorFuture != null && backgroundProcessorFuture.isDone()) {
-                // There was an error executing the scheduled task, get it and log it
-                try {
-                    backgroundProcessorFuture.get();
-                } catch (InterruptedException | ExecutionException e) {
-                    log.error(sm.getString("containerBase.backgroundProcess.error"), e);
-                }
-            }
-            backgroundProcessorFuture = Container.getService(this).getServer().getUtilityExecutor()
-                    .scheduleWithFixedDelay(new ContainerBackgroundProcessor(),
-                            backgroundProcessorDelay, backgroundProcessorDelay,
-                            TimeUnit.SECONDS);
+
+        if (thread != null) {
+            return;
         }
+        if (backgroundProcessorDelay <= 0) {
+            return;
+        }
+
+        threadDone = false;
+        String threadName = "ContainerBackgroundProcessor[" + toString() + "]";
+        thread = new Thread(new ContainerBackgroundProcessor(), threadName);
+        thread.setDaemon(true);
+        thread.start();
+
     }
 
 
@@ -1303,15 +1309,26 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
      * session timeouts.
      */
     protected void threadStop() {
-        if (backgroundProcessorFuture != null) {
-            backgroundProcessorFuture.cancel(true);
-            backgroundProcessorFuture = null;
+
+        if (thread == null) {
+            return;
         }
+
+        threadDone = true;
+        thread.interrupt();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            // Ignore
+        }
+
+        thread = null;
+
     }
 
 
     @Override
-    public final String toString() {
+    public String toString() {
         StringBuilder sb = new StringBuilder();
         Container parent = getParent();
         if (parent != null) {
@@ -1325,16 +1342,8 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
         return sb.toString();
     }
 
-    // ------------------------------- ContainerBackgroundProcessor Inner Class
 
-    protected class ContainerBackgroundProcessorMonitor implements Runnable {
-        @Override
-        public void run() {
-            if (getState().isAvailable()) {
-                threadStart();
-            }
-        }
-    }
+    // -------------------------------------- ContainerExecuteDelay Inner Class
 
     /**
      * Private runnable class to invoke the backgroundProcess method
@@ -1344,7 +1353,29 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
 
         @Override
         public void run() {
-            processChildren(ContainerBase.this);
+            Throwable t = null;
+            String unexpectedDeathMessage = sm.getString(
+                    "containerBase.backgroundProcess.unexpectedThreadDeath",
+                    Thread.currentThread().getName());
+            try {
+                while (!threadDone) {
+                    try {
+                        Thread.sleep(backgroundProcessorDelay * 1000L);
+                    } catch (InterruptedException e) {
+                        // Ignore
+                    }
+                    if (!threadDone) {
+                        processChildren(ContainerBase.this);
+                    }
+                }
+            } catch (RuntimeException|Error e) {
+                t = e;
+                throw e;
+            } finally {
+                if (!threadDone) {
+                    log.error(unexpectedDeathMessage, t);
+                }
+            }
         }
 
         protected void processChildren(Container container) {
@@ -1415,4 +1446,22 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
         }
     }
 
+    private static class StartStopThreadFactory implements ThreadFactory {
+        private final ThreadGroup group;
+        private final AtomicInteger threadNumber = new AtomicInteger(1);
+        private final String namePrefix;
+
+        public StartStopThreadFactory(String namePrefix) {
+            SecurityManager s = System.getSecurityManager();
+            group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
+            this.namePrefix = namePrefix;
+        }
+
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread thread = new Thread(group, r, namePrefix + threadNumber.getAndIncrement());
+            thread.setDaemon(true);
+            return thread;
+        }
+    }
 }

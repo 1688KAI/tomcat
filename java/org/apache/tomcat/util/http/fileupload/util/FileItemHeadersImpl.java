@@ -87,7 +87,11 @@ public class FileItemHeadersImpl implements FileItemHeaders, Serializable {
      */
     public synchronized void addHeader(final String name, final String value) {
         final String nameLower = name.toLowerCase(Locale.ENGLISH);
-        List<String> headerValueList = headerNameToValueListMap.computeIfAbsent(nameLower, k -> new ArrayList<>());
+        List<String> headerValueList = headerNameToValueListMap.get(nameLower);
+        if (null == headerValueList) {
+            headerValueList = new ArrayList<>();
+            headerNameToValueListMap.put(nameLower, headerValueList);
+        }
         headerValueList.add(value);
     }
 

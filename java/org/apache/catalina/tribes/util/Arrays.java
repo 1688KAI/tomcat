@@ -173,7 +173,7 @@ public class Arrays {
     }
 
     public static Member[] diff(Membership complete, Membership local, Member ignore) {
-        List<Member> result = new ArrayList<>();
+        ArrayList<Member> result = new ArrayList<>();
         Member[] comp = complete.getMembers();
         for (Member member : comp) {
             if (ignore != null && ignore.equals(member)) {

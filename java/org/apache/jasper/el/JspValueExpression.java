@@ -21,11 +21,11 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-import jakarta.el.ELContext;
-import jakarta.el.ELException;
-import jakarta.el.PropertyNotFoundException;
-import jakarta.el.PropertyNotWritableException;
-import jakarta.el.ValueExpression;
+import javax.el.ELContext;
+import javax.el.ELException;
+import javax.el.PropertyNotFoundException;
+import javax.el.PropertyNotWritableException;
+import javax.el.ValueExpression;
 
 /**
  * Wrapper for providing context to ValueExpressions
@@ -122,11 +122,11 @@ public final class JspValueExpression extends ValueExpression implements
     }
 
     @Override
-    public <T> T getValue(ELContext context) throws NullPointerException,
+    public Object getValue(ELContext context) throws NullPointerException,
             PropertyNotFoundException, ELException {
         context.notifyBeforeEvaluation(getExpressionString());
         try {
-            T result = this.target.getValue(context);
+            Object result = this.target.getValue(context);
             context.notifyAfterEvaluation(getExpressionString());
             return result;
         } catch (PropertyNotFoundException e) {

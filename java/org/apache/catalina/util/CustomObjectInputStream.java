@@ -112,15 +112,16 @@ public final class CustomObjectInputStream extends ObjectInputStream {
             reportedClasses = reportedClassCache.get(classLoader);
         }
         if (reportedClasses == null) {
-            reportedClasses = Collections.newSetFromMap(new ConcurrentHashMap<>());
-            Set<String> original;
+            reportedClasses = Collections.newSetFromMap(new ConcurrentHashMap<String,Boolean>());
             synchronized (reportedClassCache) {
-                original = reportedClassCache.putIfAbsent(classLoader, reportedClasses);
-            }
-            if (original != null) {
-                // Concurrent attempts to create the new Set. Make sure all
-                // threads use the first successfully added Set.
-                reportedClasses = original;
+                Set<String> original = reportedClassCache.get(classLoader);
+                if (original == null) {
+                    reportedClassCache.put(classLoader, reportedClasses);
+                } else {
+                    // Concurrent attempts to create the new Set. Make sure all
+                    // threads use the first successfully added Set.
+                    reportedClasses = original;
+                }
             }
         }
         this.reportedClasses = reportedClasses;
@@ -185,10 +186,7 @@ public final class CustomObjectInputStream extends ObjectInputStream {
         }
 
         try {
-            // No way to avoid this at the moment
-            @SuppressWarnings("deprecation")
-            Class<?> proxyClass = Proxy.getProxyClass(classLoader, cinterfaces);
-            return proxyClass;
+            return Proxy.getProxyClass(classLoader, cinterfaces);
         } catch (IllegalArgumentException e) {
             throw new ClassNotFoundException(null, e);
         }

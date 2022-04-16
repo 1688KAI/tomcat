@@ -18,12 +18,13 @@ package org.apache.catalina.connector;
 
 import java.io.IOException;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.catalina.core.StandardContext;
@@ -39,6 +40,8 @@ public class TestMaxConnections extends TomcatBaseTest {
     @Test
     public void testConnector() throws Exception {
         init();
+        Assume.assumeFalse("This feature is not available for NIO2 (BZ58103)",
+                getTomcatInstance().getConnector().getProtocolHandlerClassName().contains("Nio2"));
         ConnectThread[] t = new ConnectThread[10];
         for (int i=0; i<t.length; i++) {
             t[i] = new ConnectThread();

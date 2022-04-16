@@ -31,14 +31,14 @@ import java.util.NoSuchElementException;
  *     obj = pool.borrowObject();
  *     <code style="color:#00C">try</code> {
  *         <code style="color:#0C0">//...use the object...</code>
- *     } <code style="color:#00C">catch</code> (Exception e) {
+ *     } <code style="color:#00C">catch</code>(Exception e) {
  *         <code style="color:#0C0">// invalidate the object</code>
  *         pool.invalidateObject(obj);
  *         <code style="color:#0C0">// do not return the object to the pool twice</code>
  *         obj = <code style="color:#00C">null</code>;
  *     } <code style="color:#00C">finally</code> {
  *         <code style="color:#0C0">// make sure the object is returned to the pool</code>
- *         <code style="color:#00C">if</code> (<code style="color:#00C">null</code> != obj) {
+ *         <code style="color:#00C">if</code>(<code style="color:#00C">null</code> != obj) {
  *             pool.returnObject(obj);
  *        }
  *     }
@@ -85,14 +85,10 @@ public interface ObjectPool<T> extends Closeable {
      *             when {@link ObjectPool#addObject()} fails.
      * @since 2.8.0
      */
-    default void addObjects(final int count) throws Exception {
-        for (int i = 0; i < count; i++) {
-            addObject();
-        }
-    }
+    void addObjects(final int count) throws Exception;
 
     /**
-     * Borrows an instance from this pool.
+     * Obtains an instance from this pool.
      * <p>
      * Instances returned from this method will have been either newly created
      * with {@link PooledObjectFactory#makeObject} or will be a previously
@@ -151,14 +147,14 @@ public interface ObjectPool<T> extends Closeable {
     void close();
 
     /**
-     * Gets the number of instances currently borrowed from this pool. Returns
+     * Returns the number of instances currently borrowed from this pool. Returns
      * a negative value if this information is not available.
      * @return the number of instances currently borrowed from this pool.
      */
     int getNumActive();
 
     /**
-     * Gets the number of instances currently idle in this pool. This may be
+     * Returns the number of instances currently idle in this pool. This may be
      * considered an approximation of the number of objects that can be
      * {@link #borrowObject borrowed} without creating any new instances.
      * Returns a negative value if this information is not available.
@@ -198,14 +194,12 @@ public interface ObjectPool<T> extends Closeable {
      * </p>
      *
      * @param obj a {@link #borrowObject borrowed} instance to be disposed.
-     * @param destroyMode destroy activation context provided to the factory
+     * @param mode destroy activation context provided to the factory
      *
      * @throws Exception if the instance cannot be invalidated
      * @since 2.9.0
      */
-    default void invalidateObject(final T obj, final DestroyMode destroyMode) throws Exception {
-        invalidateObject(obj);
-    }
+    void invalidateObject(final T obj, final DestroyMode mode) throws Exception;
 
     /**
      * Returns an instance to the pool. By contract, {@code obj}

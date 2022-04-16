@@ -34,19 +34,21 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterRegistration;
-import jakarta.servlet.FilterRegistration.Dynamic;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.Servlet;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRegistration;
-import jakarta.servlet.SessionCookieConfig;
-import jakarta.servlet.SessionTrackingMode;
-import jakarta.servlet.descriptor.JspConfigDescriptor;
+import javax.servlet.Filter;
+import javax.servlet.FilterRegistration;
+import javax.servlet.FilterRegistration.Dynamic;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.Servlet;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRegistration;
+import javax.servlet.SessionCookieConfig;
+import javax.servlet.SessionTrackingMode;
+import javax.servlet.descriptor.JspConfigDescriptor;
 
 import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;
@@ -84,7 +86,7 @@ public class JspCServletContext implements ServletContext {
     /**
      * Servlet context initialization parameters.
      */
-    private final Map<String,String> myParameters = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String,String> myParameters = new ConcurrentHashMap<>();
 
 
     /**
@@ -202,6 +204,7 @@ public class JspCServletContext implements ServletContext {
                     // This is a resource JAR
                     resourceJars.add(resourceFragment.getURL());
                 }
+                jar.close();
             } catch (IOException ioe) {
                 throw new JasperException(ioe);
             }
@@ -296,7 +299,7 @@ public class JspCServletContext implements ServletContext {
      */
     @Override
     public int getMajorVersion() {
-        return 4;
+        return 3;
     }
 
 
@@ -316,7 +319,7 @@ public class JspCServletContext implements ServletContext {
      */
     @Override
     public int getMinorVersion() {
-        return 0;
+        return 1;
     }
 
 
@@ -496,7 +499,21 @@ public class JspCServletContext implements ServletContext {
      */
     @Override
     public String getServerInfo() {
-        return "JspC/ApacheTomcat10";
+        return ("JspC/ApacheTomcat8");
+    }
+
+
+    /**
+     * Return a null reference for the specified servlet name.
+     *
+     * @param name Name of the requested servlet
+     *
+     * @deprecated This method has been deprecated with no replacement
+     */
+    @Override
+    @Deprecated
+    public Servlet getServlet(String name) throws ServletException {
+        return null;
     }
 
 
@@ -510,6 +527,30 @@ public class JspCServletContext implements ServletContext {
 
 
     /**
+     * Return an empty enumeration of servlet names.
+     *
+     * @deprecated This method has been deprecated with no replacement
+     */
+    @Override
+    @Deprecated
+    public Enumeration<String> getServletNames() {
+        return new Vector<String>().elements();
+    }
+
+
+    /**
+     * Return an empty enumeration of servlets.
+     *
+     * @deprecated This method has been deprecated with no replacement
+     */
+    @Override
+    @Deprecated
+    public Enumeration<Servlet> getServlets() {
+        return new Vector<Servlet>().elements();
+    }
+
+
+    /**
      * Log the specified message.
      *
      * @param message The message to be logged
@@ -517,6 +558,21 @@ public class JspCServletContext implements ServletContext {
     @Override
     public void log(String message) {
         myLogWriter.println(message);
+    }
+
+
+    /**
+     * Log the specified message and exception.
+     *
+     * @param exception The exception to be logged
+     * @param message The message to be logged
+     *
+     * @deprecated Use log(String,Throwable) instead
+     */
+    @Override
+    @Deprecated
+    public void log(Exception exception, String message) {
+        log(message, exception);
     }
 
 
@@ -623,12 +679,6 @@ public class JspCServletContext implements ServletContext {
 
 
     @Override
-    public jakarta.servlet.ServletRegistration.Dynamic addJspFile(String jspName, String jspFile) {
-        return null;
-    }
-
-
-    @Override
     public <T extends Filter> T createFilter(Class<T> c)
             throws ServletException {
         return null;
@@ -730,35 +780,5 @@ public class JspCServletContext implements ServletContext {
     @Override
     public String getVirtualServerName() {
         return null;
-    }
-
-    @Override
-    public int getSessionTimeout() {
-        return 0;
-    }
-
-    @Override
-    public void setSessionTimeout(int sessionTimeout) {
-        // NO-OP
-    }
-
-    @Override
-    public String getRequestCharacterEncoding() {
-        return null;
-    }
-
-    @Override
-    public void setRequestCharacterEncoding(String encoding) {
-        // NO-OP
-    }
-
-    @Override
-    public String getResponseCharacterEncoding() {
-        return null;
-    }
-
-    @Override
-    public void setResponseCharacterEncoding(String encoding) {
-        // NO-OP
     }
 }

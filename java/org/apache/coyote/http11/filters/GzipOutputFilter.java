@@ -26,6 +26,7 @@ import org.apache.coyote.http11.HttpOutputBuffer;
 import org.apache.coyote.http11.OutputFilter;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.util.buf.ByteChunk;
 
 /**
  * Gzip output filter.
@@ -58,6 +59,22 @@ public class GzipOutputFilter implements OutputFilter {
 
 
     // --------------------------------------------------- OutputBuffer Methods
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 9. Use
+     *             {@link #doWrite(ByteBuffer)}
+     */
+    @Deprecated
+    @Override
+    public int doWrite(ByteChunk chunk) throws IOException {
+        if (compressionStream == null) {
+            compressionStream = new GZIPOutputStream(fakeOutputStream, true);
+        }
+        compressionStream.write(chunk.getBytes(), chunk.getStart(),
+                                chunk.getLength());
+        return chunk.getLength();
+    }
+
 
     @Override
     public int doWrite(ByteBuffer chunk) throws IOException {

@@ -16,7 +16,7 @@
  */
 package org.apache.catalina.ha;
 
-import jakarta.servlet.http.HttpSession;
+import javax.servlet.http.HttpSession;
 
 import org.apache.catalina.Session;
 

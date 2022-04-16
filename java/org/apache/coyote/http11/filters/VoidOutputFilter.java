@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import org.apache.coyote.Response;
 import org.apache.coyote.http11.HttpOutputBuffer;
 import org.apache.coyote.http11.OutputFilter;
+import org.apache.tomcat.util.buf.ByteChunk;
 
 /**
  * Void output filter, which silently swallows bytes written. Used with a 204
@@ -35,6 +36,17 @@ public class VoidOutputFilter implements OutputFilter {
 
 
     // --------------------------------------------------- OutputBuffer Methods
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 9. Use
+     *             {@link #doWrite(ByteBuffer)}
+     */
+    @Deprecated
+    @Override
+    public int doWrite(ByteChunk chunk) throws IOException {
+        return chunk.getLength();
+    }
+
 
     @Override
     public int doWrite(ByteBuffer chunk) throws IOException {

@@ -72,6 +72,14 @@ public class DataSourceRealm extends RealmBase {
 
 
     /**
+     * Descriptive information about this Realm implementation.
+     * @deprecated This will be removed in Tomcat 9 onwards.
+     */
+    @Deprecated
+    protected static final String name = "DataSourceRealm";
+
+
+    /**
      * The column in the user role table that names a role
      */
     protected String roleNameCol = null;
@@ -338,7 +346,7 @@ public class DataSourceRealm extends RealmBase {
         ArrayList<String> list = getRoles(dbConnection, username);
 
         // Create and return a suitable Principal for this user
-        return new GenericPrincipal(username, list);
+        return new GenericPrincipal(username, credentials, list);
     }
 
 
@@ -397,6 +405,12 @@ public class DataSourceRealm extends RealmBase {
             containerLog.error(sm.getString("dataSourceRealm.exception"), e);
         }
         return null;
+    }
+
+    @Override
+    @Deprecated
+    protected String getName() {
+        return name;
     }
 
     /**
@@ -460,10 +474,11 @@ public class DataSourceRealm extends RealmBase {
     protected Principal getPrincipal(String username) {
         Connection dbConnection = open();
         if (dbConnection == null) {
-            return new GenericPrincipal(username, null);
+            return new GenericPrincipal(username, null, null);
         }
         try {
             return new GenericPrincipal(username,
+                    getPassword(dbConnection, username),
                     getRoles(dbConnection, username));
         } finally {
             close(dbConnection);

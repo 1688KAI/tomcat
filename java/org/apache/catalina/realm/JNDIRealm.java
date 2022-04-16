@@ -224,6 +224,14 @@ public class JNDIRealm extends RealmBase {
     public static final String DEREF_ALIASES = "java.naming.ldap.derefAliases";
 
     /**
+     * Descriptive information about this Realm implementation.
+     * @deprecated This will be removed in Tomcat 9 onwards.
+     */
+    @Deprecated
+    protected static final String name = "JNDIRealm";
+
+
+    /**
      * The protocol that will be used in the communication with the
      * directory server.
      */
@@ -447,7 +455,7 @@ public class JNDIRealm extends RealmBase {
     /**
      * Non pooled connection to our directory server.
      */
-    protected JNDIConnection singleConnection;
+    protected JNDIConnection singleConnection = new JNDIConnection();
 
     /**
      * The lock to ensure single connection thread safety.
@@ -1347,7 +1355,7 @@ public class JNDIRealm extends RealmBase {
                                 if (containerLog.isDebugEnabled()) {
                                     containerLog.debug("Found roles: " + roles.toString());
                                 }
-                                return new GenericPrincipal(username, roles);
+                                return new GenericPrincipal(username, credentials, roles);
                             }
                         } catch (InvalidNameException ine) {
                             // Log the problem for posterity
@@ -1379,7 +1387,7 @@ public class JNDIRealm extends RealmBase {
                 }
 
                 // Create and return a suitable Principal for this user
-                return new GenericPrincipal(username, roles);
+                return new GenericPrincipal(username, credentials, roles);
             }
         } finally {
             if (!isUseContextClassLoader()) {
@@ -2340,6 +2348,13 @@ public class JNDIRealm extends RealmBase {
     }
 
 
+    @Override
+    @Deprecated
+    protected String getName() {
+        return name;
+    }
+
+
     /**
      * Get the password for the specified user.
      * @param username The user name
@@ -2425,6 +2440,7 @@ public class JNDIRealm extends RealmBase {
     }
 
 
+    @Override
     protected Principal getPrincipal(String username, GSSCredential gssCredential) {
 
         JNDIConnection connection = null;
@@ -2516,7 +2532,7 @@ public class JNDIRealm extends RealmBase {
         }
 
         if (user != null) {
-            return new GenericPrincipal(user.getUserName(), roles, null, null, gssCredential, null);
+            return new GenericPrincipal(user.getUserName(), user.getPassword(), roles, null, null, gssCredential);
         }
 
         return null;
@@ -2553,9 +2569,6 @@ public class JNDIRealm extends RealmBase {
             }
         } else {
             singleConnectionLock.lock();
-            if (singleConnection == null) {
-                singleConnection = create();
-            }
             connection = singleConnection;
         }
         if (connection.context == null) {
@@ -2590,7 +2603,24 @@ public class JNDIRealm extends RealmBase {
      * @return the new connection
      */
     protected JNDIConnection create() {
-        return new JNDIConnection(userSearch, userPatternArray, roleBase, roleSearch);
+        JNDIConnection connection = new JNDIConnection();
+        if (userSearch != null) {
+            connection.userSearchFormat = new MessageFormat(userSearch);
+        }
+        if (userPattern != null) {
+            int len = userPatternArray.length;
+            connection.userPatternFormatArray = new MessageFormat[len];
+            for (int i = 0; i < len; i++) {
+                connection.userPatternFormatArray[i] = new MessageFormat(userPatternArray[i]);
+            }
+        }
+        if (roleBase != null) {
+            connection.roleBaseFormat = new MessageFormat(roleBase);
+        }
+        if (roleSearch != null) {
+            connection.roleFormat = new MessageFormat(roleSearch);
+        }
+        return connection;
     }
 
 
@@ -2913,6 +2943,30 @@ public class JNDIRealm extends RealmBase {
      * @param inString string to escape according to RFC 2254 guidelines
      *
      * @return String the escaped/encoded result
+     *
+     * @deprecated Will be removed in Tomcat 10.1.x onwards
+     */
+    @Deprecated
+    protected String doRFC2254Encoding(String inString) {
+        return doFilterEscaping(inString);
+    }
+
+
+    /**
+     * Given an LDAP search string, returns the string with certain characters
+     * escaped according to RFC 2254 guidelines.
+     * The character mapping is as follows:
+     *     char -&gt;  Replacement
+     *    ---------------------------
+     *     *  -&gt; \2a
+     *     (  -&gt; \28
+     *     )  -&gt; \29
+     *     \  -&gt; \5c
+     *     \0 -&gt; \00
+     *
+     * @param inString string to escape according to RFC 2254 guidelines
+     *
+     * @return String the escaped/encoded result
      */
     protected String doFilterEscaping(String inString) {
         if (inString == null) {
@@ -3210,60 +3264,29 @@ public class JNDIRealm extends RealmBase {
          * The MessageFormat object associated with the current
          * <code>userSearch</code>.
          */
-        public final MessageFormat userSearchFormat;
+        protected MessageFormat userSearchFormat = null;
 
         /**
          * An array of MessageFormat objects associated with the current
          * <code>userPatternArray</code>.
          */
-        public final MessageFormat[] userPatternFormatArray;
+        protected MessageFormat[] userPatternFormatArray = null;
 
         /**
          * The MessageFormat object associated with the current
          * <code>roleBase</code>.
          */
-        public final MessageFormat roleBaseFormat;
+        protected MessageFormat roleBaseFormat = null;
 
         /**
          * The MessageFormat object associated with the current
          * <code>roleSearch</code>.
          */
-        public final MessageFormat roleFormat ;
+        protected MessageFormat roleFormat = null;
 
         /**
          * The directory context linking us to our directory server.
          */
-        public volatile DirContext context = null;
-
-
-        public JNDIConnection(String userSearch, String[] userPatternArray, String roleBase, String roleSearch) {
-            if (userSearch == null) {
-                userSearchFormat = null;
-            } else {
-                userSearchFormat = new MessageFormat(userSearch);
-            }
-
-            if (userPatternArray == null) {
-                userPatternFormatArray = null;
-            } else {
-                int len = userPatternArray.length;
-                userPatternFormatArray = new MessageFormat[len];
-                for (int i = 0; i < len; i++) {
-                    userPatternFormatArray[i] = new MessageFormat(userPatternArray[i]);
-                }
-            }
-
-            if (roleBase == null) {
-                roleBaseFormat = null;
-            } else {
-                roleBaseFormat = new MessageFormat(roleBase);
-            }
-
-            if (roleSearch == null) {
-                roleFormat = null;
-            } else {
-                roleFormat = new MessageFormat(roleSearch);
-            }
-        }
+        protected DirContext context = null;
     }
 }

@@ -26,6 +26,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.Manifest;
 
 import org.apache.tomcat.Jar;
+import org.apache.tomcat.util.compat.JreCompat;
 
 /**
  * Base implementation of Jar for implementations that use a JarInputStream to
@@ -103,6 +104,13 @@ public abstract class AbstractInputStreamJar implements Jar {
 
 
     @Override
+    @Deprecated
+    public boolean entryExists(String name) throws IOException {
+        return false;
+    }
+
+
+    @Override
     public InputStream getInputStream(String name) throws IOException {
         gotoEntry(name);
         if (entry == null) {
@@ -160,16 +168,20 @@ public abstract class AbstractInputStreamJar implements Jar {
         jarInputStream = createJarInputStream();
         // Only perform multi-release processing on first access
         if (multiRelease == null) {
-            Manifest manifest = jarInputStream.getManifest();
-            if (manifest == null) {
-                multiRelease = Boolean.FALSE;
-            } else {
-                String mrValue = manifest.getMainAttributes().getValue("Multi-Release");
-                if (mrValue == null) {
+            if (JreCompat.isJre9Available()) {
+                Manifest manifest = jarInputStream.getManifest();
+                if (manifest == null) {
                     multiRelease = Boolean.FALSE;
                 } else {
-                    multiRelease = Boolean.valueOf(mrValue);
+                    String mrValue = manifest.getMainAttributes().getValue("Multi-Release");
+                    if (mrValue == null) {
+                        multiRelease = Boolean.FALSE;
+                    } else {
+                        multiRelease = Boolean.valueOf(mrValue);
+                    }
                 }
+            } else {
+                multiRelease = Boolean.FALSE;
             }
             if (multiRelease.booleanValue()) {
                 if (mrMap == null) {
@@ -231,7 +243,7 @@ public abstract class AbstractInputStreamJar implements Jar {
 
 
     private void populateMrMap() throws IOException {
-        int targetVersion = Runtime.version().feature();
+        int targetVersion = JreCompat.getInstance().jarFileRuntimeMajorVersion();
 
         Map<String,Integer> mrVersions = new HashMap<>();
 

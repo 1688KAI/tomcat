@@ -18,7 +18,7 @@ package org.apache.catalina.ha.session;
 
 import java.io.IOException;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
 
 import org.apache.catalina.Cluster;
 import org.apache.catalina.LifecycleException;

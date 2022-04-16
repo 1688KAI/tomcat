@@ -30,25 +30,24 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import javax.naming.NamingException;
-
-import jakarta.websocket.ClientEndpointConfig;
-import jakarta.websocket.CloseReason;
-import jakarta.websocket.CloseReason.CloseCode;
-import jakarta.websocket.CloseReason.CloseCodes;
-import jakarta.websocket.DeploymentException;
-import jakarta.websocket.Endpoint;
-import jakarta.websocket.EndpointConfig;
-import jakarta.websocket.Extension;
-import jakarta.websocket.MessageHandler;
-import jakarta.websocket.MessageHandler.Partial;
-import jakarta.websocket.MessageHandler.Whole;
-import jakarta.websocket.PongMessage;
-import jakarta.websocket.RemoteEndpoint;
-import jakarta.websocket.SendResult;
-import jakarta.websocket.Session;
-import jakarta.websocket.WebSocketContainer;
-import jakarta.websocket.server.ServerEndpointConfig;
-import jakarta.websocket.server.ServerEndpointConfig.Configurator;
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.CloseReason;
+import javax.websocket.CloseReason.CloseCode;
+import javax.websocket.CloseReason.CloseCodes;
+import javax.websocket.DeploymentException;
+import javax.websocket.Endpoint;
+import javax.websocket.EndpointConfig;
+import javax.websocket.Extension;
+import javax.websocket.MessageHandler;
+import javax.websocket.MessageHandler.Partial;
+import javax.websocket.MessageHandler.Whole;
+import javax.websocket.PongMessage;
+import javax.websocket.RemoteEndpoint;
+import javax.websocket.SendResult;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
+import javax.websocket.server.ServerEndpointConfig;
+import javax.websocket.server.ServerEndpointConfig.Configurator;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -299,6 +298,100 @@ public class WsSession implements Session {
             return true;
         }
         return false;
+    }
+
+
+    /**
+     * Creates a new WebSocket session for communication between the two
+     * provided end points. The result of {@link Thread#getContextClassLoader()}
+     * at the time this constructor is called will be used when calling
+     * {@link Endpoint#onClose(Session, CloseReason)}.
+     *
+     * @param localEndpoint        The end point managed by this code
+     * @param wsRemoteEndpoint     The other / remote endpoint
+     * @param wsWebSocketContainer The container that created this session
+     * @param requestUri           The URI used to connect to this endpoint or
+     *                             <code>null</code> is this is a client session
+     * @param requestParameterMap  The parameters associated with the request
+     *                             that initiated this session or
+     *                             <code>null</code> if this is a client session
+     * @param queryString          The query string associated with the request
+     *                             that initiated this session or
+     *                             <code>null</code> if this is a client session
+     * @param userPrincipal        The principal associated with the request
+     *                             that initiated this session or
+     *                             <code>null</code> if this is a client session
+     * @param httpSessionId        The HTTP session ID associated with the
+     *                             request that initiated this session or
+     *                             <code>null</code> if this is a client session
+     * @param negotiatedExtensions The agreed extensions to use for this session
+     * @param subProtocol          The agreed subprotocol to use for this
+     *                             session
+     * @param pathParameters       The path parameters associated with the
+     *                             request that initiated this session or
+     *                             <code>null</code> if this is a client session
+     * @param secure               Was this session initiated over a secure
+     *                             connection?
+     * @param endpointConfig       The configuration information for the
+     *                             endpoint
+     * @throws DeploymentException if an invalid encode is specified
+     *
+     * @deprecated  Unused. This will be removed in Tomcat 10.1
+     */
+    @Deprecated
+    public WsSession(Endpoint localEndpoint,
+            WsRemoteEndpointImplBase wsRemoteEndpoint,
+            WsWebSocketContainer wsWebSocketContainer,
+            URI requestUri, Map<String, List<String>> requestParameterMap,
+            String queryString, Principal userPrincipal, String httpSessionId,
+            List<Extension> negotiatedExtensions, String subProtocol, Map<String, String> pathParameters,
+            boolean secure, EndpointConfig endpointConfig) throws DeploymentException {
+        this.localEndpoint = localEndpoint;
+        this.wsRemoteEndpoint = wsRemoteEndpoint;
+        this.wsRemoteEndpoint.setSession(this);
+        this.remoteEndpointAsync = new WsRemoteEndpointAsync(wsRemoteEndpoint);
+        this.remoteEndpointBasic = new WsRemoteEndpointBasic(wsRemoteEndpoint);
+        this.webSocketContainer = wsWebSocketContainer;
+        applicationClassLoader = Thread.currentThread().getContextClassLoader();
+        wsRemoteEndpoint.setSendTimeout(wsWebSocketContainer.getDefaultAsyncSendTimeout());
+        this.maxBinaryMessageBufferSize = webSocketContainer.getDefaultMaxBinaryMessageBufferSize();
+        this.maxTextMessageBufferSize = webSocketContainer.getDefaultMaxTextMessageBufferSize();
+        this.maxIdleTimeout = webSocketContainer.getDefaultMaxSessionIdleTimeout();
+        this.requestUri = requestUri;
+        if (requestParameterMap == null) {
+            this.requestParameterMap = Collections.emptyMap();
+        } else {
+            this.requestParameterMap = requestParameterMap;
+        }
+        this.queryString = queryString;
+        this.userPrincipal = userPrincipal;
+        this.httpSessionId = httpSessionId;
+        this.negotiatedExtensions = negotiatedExtensions;
+        if (subProtocol == null) {
+            this.subProtocol = "";
+        } else {
+            this.subProtocol = subProtocol;
+        }
+        this.pathParameters = pathParameters;
+        this.secure = secure;
+        this.wsRemoteEndpoint.setEncoders(endpointConfig);
+        this.endpointConfig = endpointConfig;
+
+        this.userProperties.putAll(endpointConfig.getUserProperties());
+        this.id = Long.toHexString(ids.getAndIncrement());
+
+        InstanceManager instanceManager = getInstanceManager();
+        if (instanceManager != null) {
+            try {
+                instanceManager.newInstance(localEndpoint);
+            } catch (Exception e) {
+                throw new DeploymentException(sm.getString("wsSession.instanceNew"), e);
+            }
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug(sm.getString("wsSession.created", id));
+        }
     }
 
 

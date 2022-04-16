@@ -213,6 +213,18 @@ public class StatementCache extends StatementDecoratorInterceptor implements Sta
         }
     }
 
+    /**
+     * @param sql The SQL to attempt to match to entries in the statement cache
+     *
+     * @return The CachedStatement for the given SQL
+     *
+     * @deprecated Unused. Will be removed in Tomcat 9
+     */
+    @Deprecated
+    public CachedStatement isCached(String sql) {
+        return null;
+    }
+
     public CachedStatement isCached(Method method, Object[] args) {
         ConcurrentHashMap<CacheKey,CachedStatement> cache = getCache();
         if (cache == null) {
@@ -280,6 +292,7 @@ public class StatementCache extends StatementDecoratorInterceptor implements Sta
     }
 
     protected class CachedStatement extends StatementDecoratorInterceptor.StatementProxy<PreparedStatement> {
+        boolean cached = false;
         CacheKey key;
         public CachedStatement(PreparedStatement parent, String sql) {
             super(parent, sql);
@@ -308,6 +321,7 @@ public class StatementCache extends StatementDecoratorInterceptor implements Sta
                     proxy.setConnection(getConnection());
                     proxy.setConstructor(getConstructor());
                     if (cacheStatement(proxy)) {
+                        proxy.cached = true;
                         shouldClose = false;
                     }
                 } catch (RuntimeException | ReflectiveOperationException | SQLException x) {

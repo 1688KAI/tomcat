@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.coyote.InputBuffer;
@@ -30,6 +29,8 @@ import org.apache.coyote.http11.Constants;
 import org.apache.coyote.http11.InputFilter;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.HexUtils;
+import org.apache.tomcat.util.buf.MessageBytes;
+import org.apache.tomcat.util.http.MimeHeaders;
 import org.apache.tomcat.util.net.ApplicationBufferHandler;
 import org.apache.tomcat.util.res.StringManager;
 
@@ -146,6 +147,65 @@ public class ChunkedInputFilter implements InputFilter, ApplicationBufferHandler
 
 
     // ---------------------------------------------------- InputBuffer Methods
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 9. Use
+     *             {@link #doRead(ApplicationBufferHandler)}
+     */
+    @Deprecated
+    @Override
+    public int doRead(ByteChunk chunk) throws IOException {
+        if (endChunk) {
+            return -1;
+        }
+
+        checkError();
+
+        if(needCRLFParse) {
+            needCRLFParse = false;
+            parseCRLF(false);
+        }
+
+        if (remaining <= 0) {
+            if (!parseChunkHeader()) {
+                throwIOException(sm.getString("chunkedInputFilter.invalidHeader"));
+            }
+            if (endChunk) {
+                parseEndChunk();
+                return -1;
+            }
+        }
+
+        int result = 0;
+
+        if (readChunk == null || readChunk.position() >= readChunk.limit()) {
+            if (readBytes() < 0) {
+                throwIOException(sm.getString("chunkedInputFilter.eos"));
+            }
+        }
+
+        if (remaining > readChunk.remaining()) {
+            result = readChunk.remaining();
+            remaining = remaining - result;
+            chunk.setBytes(readChunk.array(), readChunk.arrayOffset() + readChunk.position(), result);
+            readChunk.position(readChunk.limit());
+        } else {
+            result = remaining;
+            chunk.setBytes(readChunk.array(), readChunk.arrayOffset() + readChunk.position(), remaining);
+            readChunk.position(readChunk.position() + remaining);
+            remaining = 0;
+            //we need a CRLF
+            if ((readChunk.position() + 1) >= readChunk.limit()) {
+                //if we call parseCRLF we overrun the buffer here
+                //so we defer it to the next call BZ 11117
+                needCRLFParse = true;
+            } else {
+                parseCRLF(false); //parse the CRLF immediately
+            }
+        }
+
+        return result;
+    }
 
     @Override
     public int doRead(ApplicationBufferHandler handler) throws IOException {
@@ -444,7 +504,7 @@ public class ChunkedInputFilter implements InputFilter, ApplicationBufferHandler
 
     private boolean parseHeader() throws IOException {
 
-        Map<String,String> headers = request.getTrailerFields();
+        MimeHeaders headers = request.getMimeHeaders();
 
         byte chr = 0;
 
@@ -588,14 +648,12 @@ public class ChunkedInputFilter implements InputFilter, ApplicationBufferHandler
         String headerName = new String(trailingHeaders.getBytes(), startPos,
                 colonPos - startPos, StandardCharsets.ISO_8859_1);
 
-        headerName = headerName.toLowerCase(Locale.ENGLISH);
+        if (allowedTrailerHeaders.contains(headerName.toLowerCase(Locale.ENGLISH))) {
+            MessageBytes headerValue = headers.addValue(headerName);
 
-        if (allowedTrailerHeaders.contains(headerName)) {
-
-            String value = new String(trailingHeaders.getBytes(), colonPos,
-                    lastSignificantChar - colonPos, StandardCharsets.ISO_8859_1);
-
-            headers.put(headerName, value);
+            // Set the header value
+            headerValue.setBytes(trailingHeaders.getBytes(), colonPos,
+                    lastSignificantChar - colonPos);
         }
 
         return true;

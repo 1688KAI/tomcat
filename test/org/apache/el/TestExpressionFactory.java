@@ -16,8 +16,8 @@
  */
 package org.apache.el;
 
-import jakarta.el.ELContext;
-import jakarta.el.ExpressionFactory;
+import javax.el.ELContext;
+import javax.el.ExpressionFactory;
 
 import org.junit.Assert;
 import org.junit.Test;

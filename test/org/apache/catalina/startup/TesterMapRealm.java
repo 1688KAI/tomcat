@@ -47,13 +47,19 @@ public final class TesterMapRealm extends RealmBase {
     }
 
     @Override
+    @Deprecated
+    protected String getName() {
+        return "MapRealm";
+    }
+
+    @Override
     protected String getPassword(String username) {
         return users.get(username);
     }
 
     @Override
     protected Principal getPrincipal(String username) {
-        return new GenericPrincipal(username,
+        return new GenericPrincipal(username, getPassword(username),
                 roles.get(username));
     }
 

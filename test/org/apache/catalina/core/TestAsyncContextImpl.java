@@ -31,25 +31,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.AsyncEvent;
-import jakarta.servlet.AsyncListener;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.GenericServlet;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.Servlet;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletRequestEvent;
-import jakarta.servlet.ServletRequestListener;
-import jakarta.servlet.ServletRequestWrapper;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.ServletResponseWrapper;
-import jakarta.servlet.WriteListener;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.AsyncContext;
+import javax.servlet.AsyncEvent;
+import javax.servlet.AsyncListener;
+import javax.servlet.DispatcherType;
+import javax.servlet.GenericServlet;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.Servlet;
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletRequestEvent;
+import javax.servlet.ServletRequestListener;
+import javax.servlet.ServletRequestWrapper;
+import javax.servlet.ServletResponse;
+import javax.servlet.ServletResponseWrapper;
+import javax.servlet.WriteListener;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -2491,7 +2491,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
                         HttpServletResponse response = (HttpServletResponse) event
                                 .getSuppliedResponse();
                         if (!response.isCommitted()) {
-                            event.getSuppliedRequest()
+                            ((HttpServletRequest) event.getSuppliedRequest())
                                     .setAttribute("timeout", Boolean.TRUE);
                             context.dispatch();
                         }
@@ -2548,7 +2548,7 @@ public class TestAsyncContextImpl extends TomcatBaseTest {
         };
         final Context context = new TesterContext();
         final Response response = new Response();
-        final Request request = new Request(null);
+        final Request request = new Request();
         request.setCoyoteRequest(new org.apache.coyote.Request());
         request.getMappingData().context = context;
         final AsyncContextImpl ac = new AsyncContextImpl(request);

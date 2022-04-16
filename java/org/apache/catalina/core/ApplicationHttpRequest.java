@@ -25,20 +25,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletRequestWrapper;
-import jakarta.servlet.http.HttpServletMapping;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletRequestWrapper;
-import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.PushBuilder;
+import javax.servlet.DispatcherType;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletRequestWrapper;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
+import javax.servlet.http.HttpSession;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.Globals;
@@ -46,7 +43,6 @@ import org.apache.catalina.Manager;
 import org.apache.catalina.Session;
 import org.apache.catalina.connector.RequestFacade;
 import org.apache.catalina.util.ParameterMap;
-import org.apache.catalina.util.RequestUtil;
 import org.apache.catalina.util.URLEncoder;
 import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.MessageBytes;
@@ -55,10 +51,10 @@ import org.apache.tomcat.util.res.StringManager;
 
 
 /**
- * Wrapper around a <code>jakarta.servlet.http.HttpServletRequest</code>
+ * Wrapper around a <code>javax.servlet.http.HttpServletRequest</code>
  * that transforms an application request object (which might be the original
  * one passed to a servlet, or might be based on the 2.3
- * <code>jakarta.servlet.http.HttpServletRequestWrapper</code> class)
+ * <code>javax.servlet.http.HttpServletRequestWrapper</code> class)
  * back into an internal <code>org.apache.catalina.HttpRequest</code>.
  * <p>
  * <strong>WARNING</strong>:  Due to Java's lack of support for multiple
@@ -82,13 +78,13 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
       RequestDispatcher.INCLUDE_SERVLET_PATH,
       RequestDispatcher.INCLUDE_PATH_INFO,
       RequestDispatcher.INCLUDE_QUERY_STRING,
-      RequestDispatcher.INCLUDE_MAPPING,
+      ApplicationDispatcher.INCLUDE_MAPPING,
       RequestDispatcher.FORWARD_REQUEST_URI,
       RequestDispatcher.FORWARD_CONTEXT_PATH,
       RequestDispatcher.FORWARD_SERVLET_PATH,
       RequestDispatcher.FORWARD_PATH_INFO,
       RequestDispatcher.FORWARD_QUERY_STRING,
-      RequestDispatcher.FORWARD_MAPPING};
+      ApplicationDispatcher.FORWARD_MAPPING};
 
     private static final int SPECIALS_FIRST_FORWARD_INDEX = 6;
 
@@ -195,7 +191,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
     /**
      * The mapping for this request.
      */
-    private HttpServletMapping mapping = null;
+    private ApplicationMappingImpl mapping = null;
 
 
     /**
@@ -500,7 +496,27 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     @Override
     public StringBuffer getRequestURL() {
-        return RequestUtil.getRequestURL(this);
+
+        StringBuffer url = new StringBuffer();
+        String scheme = getScheme();
+        int port = getServerPort();
+        if (port < 0)
+         {
+            port = 80; // Work around java.net.URL bug
+        }
+
+        url.append(scheme);
+        url.append("://");
+        url.append(getServerName());
+        if ((scheme.equals("http") && (port != 80))
+            || (scheme.equals("https") && (port != 443))) {
+            url.append(':');
+            url.append(port);
+        }
+        url.append(getRequestURI());
+
+        return (url);
+
     }
 
 
@@ -514,8 +530,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
     }
 
 
-    @Override
-    public HttpServletMapping getHttpServletMapping() {
+    public ApplicationMappingImpl getHttpServletMapping() {
         return mapping;
     }
 
@@ -629,8 +644,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
     }
 
 
-    @Override
-    public PushBuilder newPushBuilder() {
+    public ApplicationPushBuilder newPushBuilder() {
         ServletRequest current = getRequest();
         while (current instanceof ServletRequestWrapper) {
             current = ((ServletRequestWrapper) current).getRequest();
@@ -702,8 +716,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
 
         // Initialize the attributes for this request
         dispatcherType = (DispatcherType)request.getAttribute(Globals.DISPATCHER_TYPE_ATTR);
-        requestDispatcherPath =
-            request.getAttribute(Globals.DISPATCHER_REQUEST_PATH_ATTR);
+        requestDispatcherPath = request.getAttribute(Globals.DISPATCHER_REQUEST_PATH_ATTR);
 
         // Initialize the path elements for this request
         contextPath = request.getContextPath();
@@ -711,7 +724,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
         queryString = request.getQueryString();
         requestURI = request.getRequestURI();
         servletPath = request.getServletPath();
-        mapping = request.getHttpServletMapping();
+        mapping = ApplicationMapping.getHttpServletMapping(request);
     }
 
 
@@ -770,7 +783,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
     }
 
 
-    void setMapping(HttpServletMapping mapping) {
+    void setMapping(ApplicationMappingImpl mapping) {
         this.mapping = mapping;
     }
 
@@ -851,7 +864,7 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
      */
     private String[] mergeValues(String[] values1, String[] values2) {
 
-        List<Object> results = new ArrayList<>();
+        ArrayList<Object> results = new ArrayList<>();
 
         if (values1 == null) {
             // Skip - nothing to merge
@@ -894,7 +907,6 @@ class ApplicationHttpRequest extends HttpServletRequestWrapper {
         // - Should only use body encoding if useBodyEncodingForURI is true
         // - Otherwise, should use URIEncoding
         // - The problem is that the connector is not available...
-        // - To add to the fun, the URI default changed in Servlet 4.0 to UTF-8
 
         String encoding = getCharacterEncoding();
         Charset charset = null;

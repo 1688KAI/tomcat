@@ -16,7 +16,7 @@
  */
 package org.apache.jasper.el;
 
-import jakarta.el.PropertyNotFoundException;
+import javax.el.PropertyNotFoundException;
 
 public final class JspPropertyNotFoundException extends
         PropertyNotFoundException {

@@ -25,6 +25,14 @@ import java.security.Principal;
  */
 public class NullRealm extends RealmBase {
 
+    private static final String NAME = "NullRealm";
+
+    @Override
+    @Deprecated
+    protected String getName() {
+        return NAME;
+    }
+
     @Override
     protected String getPassword(String username) {
         // Always return null

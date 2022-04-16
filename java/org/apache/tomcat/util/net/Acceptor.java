@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.jni.Error;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.res.StringManager;
 
@@ -154,13 +155,41 @@ public class Acceptor<U> implements Runnable {
                 } catch (Throwable t) {
                     ExceptionUtils.handleThrowable(t);
                     String msg = sm.getString("endpoint.accept.fail");
-                    log.error(msg, t);
+                    // APR specific.
+                    // Could push this down but not sure it is worth the trouble.
+                    if (t instanceof Error) {
+                        Error e = (Error) t;
+                        if (e.getError() == 233) {
+                            // Not an error on HP-UX so log as a warning
+                            // so it can be filtered out on that platform
+                            // See bug 50273
+                            log.warn(msg, t);
+                        } else {
+                            log.error(msg, t);
+                        }
+                    } else {
+                            log.error(msg, t);
+                    }
                 }
             }
         } finally {
             stopLatch.countDown();
         }
         state = AcceptorState.ENDED;
+    }
+
+
+    /**
+     * Signals the Acceptor to stop, waiting at most 10 seconds for the stop to
+     * complete before returning. If the stop does not complete in that time a
+     * warning will be logged.
+     *
+     * @deprecated This method will be removed in Tomcat 10.1.x onwards.
+     *             Use {@link #stop(int)} instead.
+     */
+    @Deprecated
+    public void stop() {
+        stop(10);
     }
 
 

@@ -19,16 +19,16 @@ package org.apache.catalina.core;
 import java.io.IOException;
 import java.util.Locale;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpServletResponseWrapper;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponseWrapper;
 
 
 /**
- * Wrapper around a <code>jakarta.servlet.http.HttpServletResponse</code>
+ * Wrapper around a <code>javax.servlet.http.HttpServletResponse</code>
  * that transforms an application response object (which might be the original
  * one passed to a servlet, or might be based on the 2.3
- * <code>jakarta.servlet.http.HttpServletResponseWrapper</code> class)
+ * <code>javax.servlet.http.HttpServletResponseWrapper</code> class)
  * back into an internal <code>org.apache.catalina.HttpResponse</code>.
  * <p>
  * <strong>WARNING</strong>:  Due to Java's lack of support for multiple
@@ -338,6 +338,27 @@ class ApplicationHttpResponse extends HttpServletResponseWrapper {
 
         if (!included) {
             ((HttpServletResponse) getResponse()).setStatus(sc);
+        }
+
+    }
+
+
+    /**
+     * Disallow <code>setStatus()</code> calls on an included response.
+     *
+     * @param sc The new status code
+     * @param msg The new message
+     * @deprecated As of version 2.1, due to ambiguous meaning of the message
+     *             parameter. To set a status code use
+     *             <code>setStatus(int)</code>, to send an error with a
+     *             description use <code>sendError(int, String)</code>.
+     */
+    @Deprecated
+    @Override
+    public void setStatus(int sc, String msg) {
+
+        if (!included) {
+            ((HttpServletResponse) getResponse()).setStatus(sc, msg);
         }
 
     }

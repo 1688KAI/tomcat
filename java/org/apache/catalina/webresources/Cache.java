@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.catalina.WebResource;
-import org.apache.catalina.WebResourceRoot.CacheStrategy;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
@@ -46,7 +45,6 @@ public class Cache {
     private long ttl = 5000;
     private long maxSize = 10 * 1024 * 1024;
     private int objectMaxSize = (int) maxSize/OBJECT_MAX_SIZE_FACTOR;
-    private CacheStrategy cacheStrategy;
 
     private AtomicLong lookupCount = new AtomicLong(0);
     private AtomicLong hitCount = new AtomicLong(0);
@@ -62,13 +60,6 @@ public class Cache {
 
         if (noCache(path)) {
             return root.getResourceInternal(path, useClassLoaderResources);
-        }
-
-        CacheStrategy strategy = getCacheStrategy();
-        if (strategy != null) {
-            if (strategy.noCache(path)) {
-                return root.getResourceInternal(path, useClassLoaderResources);
-            }
         }
 
         lookupCount.incrementAndGet();
@@ -268,14 +259,6 @@ public class Cache {
             long delta = cachedResource.getSize();
             size.addAndGet(-delta);
         }
-    }
-
-    public CacheStrategy getCacheStrategy() {
-        return cacheStrategy;
-    }
-
-    public void setCacheStrategy(CacheStrategy cacheStrategy) {
-        this.cacheStrategy = cacheStrategy;
     }
 
     public long getTtl() {

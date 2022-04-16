@@ -23,7 +23,7 @@ import java.security.NoSuchProviderException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
 
 import org.apache.catalina.Globals;
 import org.apache.catalina.connector.Request;
@@ -145,23 +145,28 @@ public class SSLValve extends ValveBase {
          * '-----BEGIN CERTIFICATE-----' and ends with
          * '-----END CERTIFICATE-----'.
          *
-         * Note: As long as the BEGIN marker and the rest of the content are on
-         *       separate lines, the CertificateFactory is tolerant of any
-         *       additional whitespace.
+         * Note: For Java 7, the the BEGIN and END markers must be on separate
+         *       lines as must each of the original content lines. The
+         *       CertificateFactory is tolerant of any additional whitespace
+         *       such as leading and trailing spaces and new lines as long as
+         *       they do not appear in the middle of an original content line.
          */
         String headerValue;
         String headerEscapedValue = mygetHeader(request, sslClientEscapedCertHeader);
         if (headerEscapedValue != null) {
-            headerValue = UDecoder.URLDecode(headerEscapedValue, null);
+            headerValue = UDecoder.URLDecode(headerEscapedValue, StandardCharsets.ISO_8859_1);
         } else {
             headerValue = mygetHeader(request, sslClientCertHeader);
         }
         if (headerValue != null) {
             headerValue = headerValue.trim();
             if (headerValue.length() > 27) {
-                String body = headerValue.substring(27);
+                String body = headerValue.substring(27, headerValue .length() - 25);
+                body = body.replace(' ', '\n');
+                body = body.replace('\t', '\n');
                 String header = "-----BEGIN CERTIFICATE-----\n";
-                String strcerts = header.concat(body);
+                String footer = "\n-----END CERTIFICATE-----\n";
+                String strcerts = header.concat(body).concat(footer);
                 ByteArrayInputStream bais = new ByteArrayInputStream(
                         strcerts.getBytes(StandardCharsets.ISO_8859_1));
                 X509Certificate jsseCerts[] = null;

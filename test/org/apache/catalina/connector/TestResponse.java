@@ -24,11 +24,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -600,8 +600,9 @@ public class TestResponse extends TomcatBaseTest {
         Connector connector = new Connector();
         org.apache.coyote.Response cResponse = new org.apache.coyote.Response();
         Response response = new Response();
+        response.setConnector(connector);
         response.setCoyoteResponse(cResponse);
-        Request request = new Request(connector);
+        Request request = new Request();
         org.apache.coyote.Request cRequest = new org.apache.coyote.Request();
         request.setCoyoteRequest(cRequest);
         Context context = new TesterContext();
@@ -964,8 +965,10 @@ public class TestResponse extends TomcatBaseTest {
         Connector connector = new Connector();
         org.apache.coyote.Response cResponse = new org.apache.coyote.Response();
         Response response = new Response();
+        response.setConnector(connector);
         response.setCoyoteResponse(cResponse);
-        Request request = new Request(connector);
+        Request request = new Request();
+        request.setConnector(connector);
         org.apache.coyote.Request cRequest = new org.apache.coyote.Request();
         request.setCoyoteRequest(cRequest);
         Context context = new TesterContext();

@@ -33,11 +33,10 @@ import java.util.Map;
 import java.util.Random;
 
 import javax.net.SocketFactory;
-
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Assume;
@@ -48,7 +47,6 @@ import org.apache.catalina.connector.Connector;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.catalina.util.IOTools;
-import org.apache.coyote.http11.Http11NioProtocol;
 import org.apache.coyote.http2.HpackDecoder.HeaderEmitter;
 import org.apache.coyote.http2.Http2Parser.Input;
 import org.apache.coyote.http2.Http2Parser.Output;
@@ -88,7 +86,7 @@ public abstract class Http2TestBase extends TomcatBaseTest {
         EMPTY_HTTP2_SETTINGS_HEADER = "HTTP2-Settings: " + Base64.encodeBase64URLSafeString(empty) + "\r\n";
     }
 
-    protected static final String TRAILER_HEADER_NAME = "x-trailertest";
+    protected static final String TRAILER_HEADER_NAME = "X-TrailerTest";
     protected static final String TRAILER_HEADER_VALUE = "test";
 
     // Client
@@ -433,34 +431,6 @@ public abstract class Http2TestBase extends TomcatBaseTest {
     }
 
 
-    protected void buildHeadRequest(byte[] headersFrameHeader, ByteBuffer headersPayload, int streamId, String path) {
-        MimeHeaders headers = new MimeHeaders();
-        headers.addValue(":method").setString("HEAD");
-        headers.addValue(":scheme").setString("http");
-        headers.addValue(":path").setString(path);
-        headers.addValue(":authority").setString("localhost:" + getPort());
-        hpackEncoder.encode(headers, headersPayload);
-
-        headersPayload.flip();
-
-        ByteUtil.setThreeBytes(headersFrameHeader, 0, headersPayload.limit());
-        headersFrameHeader[3] = FrameType.HEADERS.getIdByte();
-        // Flags. end of headers (0x04)
-        headersFrameHeader[4] = 0x04;
-        // Stream id
-        ByteUtil.set31Bits(headersFrameHeader, 5, streamId);
-    }
-
-
-    protected void sendHeadRequest(int streamId, String path) throws IOException {
-        byte[] frameHeader = new byte[9];
-        ByteBuffer headersPayload = ByteBuffer.allocate(128);
-
-        buildHeadRequest(frameHeader, headersPayload, streamId, path);
-        writeFrame(frameHeader, headersPayload);
-    }
-
-
     protected void writeFrame(byte[] header, ByteBuffer payload)
             throws IOException {
         writeFrame(header, payload, 0, payload.limit());
@@ -615,7 +585,6 @@ public abstract class Http2TestBase extends TomcatBaseTest {
         http2Protocol.setStreamReadTimeout(5000);
         http2Protocol.setStreamWriteTimeout(5000);
         http2Protocol.setMaxConcurrentStreams(maxConcurrentStreams);
-        http2Protocol.setHttp11Protocol(new Http11NioProtocol());
         connector.addUpgradeProtocol(http2Protocol);
         if (tls) {
             // Enable TLS
@@ -1001,6 +970,21 @@ public abstract class Http2TestBase extends TomcatBaseTest {
 
 
         @Override
+        public boolean fill(boolean block, byte[] data) throws IOException {
+            return fill(block, data, 0, data.length);        }
+
+
+        @Override
+        public boolean fill(boolean block, ByteBuffer data, int len) throws IOException {
+            boolean result = fill(block, data.array(), data.arrayOffset() + data.position(), len);
+            if (result) {
+                data.position(data.position() + len);
+            }
+            return result;
+        }
+
+
+        @Override
         public boolean fill(boolean block, byte[] data, int offset, int length) throws IOException {
             // Note: Block is ignored for this test class. Reads always block.
             int off = offset;
@@ -1025,7 +1009,7 @@ public abstract class Http2TestBase extends TomcatBaseTest {
     }
 
 
-    public class TestOutput implements Output, HeaderEmitter {
+    class TestOutput implements Output, HeaderEmitter {
 
         private StringBuffer trace = new StringBuffer();
         private String lastStreamId = "0";
@@ -1274,7 +1258,7 @@ public abstract class Http2TestBase extends TomcatBaseTest {
     }
 
 
-    public static class SimpleServlet extends HttpServlet {
+    protected static class SimpleServlet extends HttpServlet {
 
         private static final long serialVersionUID = 1L;
 
@@ -1314,7 +1298,7 @@ public abstract class Http2TestBase extends TomcatBaseTest {
             IOTools.flow(bais, resp.getOutputStream());
 
             // Check for trailer headers
-            String trailerValue = req.getTrailerFields().get(TRAILER_HEADER_NAME);
+            String trailerValue = req.getHeader(TRAILER_HEADER_NAME);
             if (trailerValue != null) {
                 resp.getOutputStream().write(trailerValue.getBytes(StandardCharsets.UTF_8));
             }

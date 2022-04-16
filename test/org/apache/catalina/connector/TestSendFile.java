@@ -31,10 +31,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -91,7 +91,7 @@ public class TestSendFile extends TomcatBaseTest {
     public File generateFile(String dir, String suffix, int size) throws IOException {
         String name = "testSendFile-" + System.currentTimeMillis() + suffix + ".txt";
         File f = new File(dir, name);
-        try (FileWriter fw = new FileWriter(f, false); BufferedWriter w = new BufferedWriter(fw)) {
+        try (FileWriter fw = new FileWriter(f, false); BufferedWriter w = new BufferedWriter(fw);) {
             int defSize = 8192;
             while (size > 0) {
                 int bytes = Math.min(size, defSize);
@@ -102,8 +102,8 @@ public class TestSendFile extends TomcatBaseTest {
             }
             w.flush();
         }
-        System.out.println(
-                "Created file:" + f.getAbsolutePath() + " with " + f.length() + " bytes.");
+        System.out
+                .println("Created file:" + f.getAbsolutePath() + " with " + f.length() + " bytes.");
         return f;
 
     }

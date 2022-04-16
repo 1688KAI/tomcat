@@ -16,11 +16,11 @@
  */
 package org.apache.el;
 
-import jakarta.el.ELContext;
-import jakarta.el.ELResolver;
-import jakarta.el.ExpressionFactory;
-import jakarta.el.MethodExpression;
-import jakarta.el.ValueExpression;
+import javax.el.ELContext;
+import javax.el.ELResolver;
+import javax.el.ExpressionFactory;
+import javax.el.MethodExpression;
+import javax.el.ValueExpression;
 
 import org.apache.el.lang.ELSupport;
 import org.apache.el.lang.ExpressionBuilder;
@@ -29,15 +29,14 @@ import org.apache.el.util.MessageFactory;
 
 
 /**
- * @see jakarta.el.ExpressionFactory
+ * @see javax.el.ExpressionFactory
  *
  * @author Jacob Hookom [jacob@hookom.net]
  */
-@aQute.bnd.annotation.spi.ServiceProvider(value=ExpressionFactory.class)
 public class ExpressionFactoryImpl extends ExpressionFactory {
 
     @Override
-    public <T> T coerceToType(Object obj, Class<T> type) {
+    public Object coerceToType(Object obj, Class<?> type) {
         return ELSupport.coerceToType(null, obj, type);
     }
 

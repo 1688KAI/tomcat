@@ -16,7 +16,7 @@
  */
 package org.apache.jasper.compiler;
 
-import jakarta.el.ValueExpression;
+import javax.el.ValueExpression;
 
 import org.junit.Assert;
 import org.junit.Test;

@@ -18,10 +18,9 @@
  */
 package org.apache.el.parser;
 
-import jakarta.el.ELException;
-import jakarta.el.MethodInfo;
-import jakarta.el.MethodReference;
-import jakarta.el.ValueReference;
+import javax.el.ELException;
+import javax.el.MethodInfo;
+import javax.el.ValueReference;
 
 import org.apache.el.lang.EvaluationContext;
 
@@ -81,9 +80,4 @@ public interface Node {
    * @since EL 2.2
    */
   public boolean isParametersProvided();
-
-  /**
-   * @since EL 5.0
-   */
-  public MethodReference getMethodReference(EvaluationContext ctx);
 }

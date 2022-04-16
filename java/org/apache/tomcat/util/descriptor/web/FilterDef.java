@@ -20,7 +20,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-import jakarta.servlet.Filter;
+import javax.servlet.Filter;
 
 import org.apache.tomcat.util.res.StringManager;
 

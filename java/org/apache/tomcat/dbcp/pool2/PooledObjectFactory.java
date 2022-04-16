@@ -73,16 +73,15 @@ package org.apache.tomcat.dbcp.pool2;
 public interface PooledObjectFactory<T> {
 
   /**
-   * Reinitializes an instance to be returned by the pool.
+   * Creates an instance that can be served by the pool and wrap it in a
+   * {@link PooledObject} to be managed by the pool.
    *
-   * @param p a {@code PooledObject} wrapping the instance to be activated
+   * @return a {@code PooledObject} wrapping an instance that can be served by the pool
    *
-   * @throws Exception if there is a problem activating {@code obj},
-   *    this exception may be swallowed by the pool.
-   *
-   * @see #destroyObject
+   * @throws Exception if there is a problem creating a new instance,
+   *    this will be propagated to the code requesting an object.
    */
-  void activateObject(PooledObject<T> p) throws Exception;
+  PooledObject<T> makeObject() throws Exception;
 
   /**
    * Destroys an instance no longer needed by the pool, using the default (NORMAL)
@@ -112,7 +111,7 @@ public interface PooledObjectFactory<T> {
    * DestroyMode.
    *
    * @param p a {@code PooledObject} wrapping the instance to be destroyed
-   * @param destroyMode DestroyMode providing context to the factory
+   * @param mode DestroyMode providing context to the factory
    *
    * @throws Exception should be avoided as it may be swallowed by
    *    the pool implementation.
@@ -123,20 +122,29 @@ public interface PooledObjectFactory<T> {
    * @see DestroyMode
    * @since 2.9.0
    */
-  default void destroyObject(final PooledObject<T> p, final DestroyMode destroyMode) throws Exception {
-      destroyObject(p);
-  }
+  void destroyObject(final PooledObject<T> p, final DestroyMode mode) throws Exception;
 
   /**
-   * Creates an instance that can be served by the pool and wrap it in a
-   * {@link PooledObject} to be managed by the pool.
+   * Ensures that the instance is safe to be returned by the pool.
    *
-   * @return a {@code PooledObject} wrapping an instance that can be served by the pool
+   * @param p a {@code PooledObject} wrapping the instance to be validated
    *
-   * @throws Exception if there is a problem creating a new instance,
-   *    this will be propagated to the code requesting an object.
+   * @return {@code false} if {@code obj} is not valid and should
+   *         be dropped from the pool, {@code true} otherwise.
    */
-  PooledObject<T> makeObject() throws Exception;
+  boolean validateObject(PooledObject<T> p);
+
+  /**
+   * Reinitializes an instance to be returned by the pool.
+   *
+   * @param p a {@code PooledObject} wrapping the instance to be activated
+   *
+   * @throws Exception if there is a problem activating {@code obj},
+   *    this exception may be swallowed by the pool.
+   *
+   * @see #destroyObject
+   */
+  void activateObject(PooledObject<T> p) throws Exception;
 
   /**
    * Uninitializes an instance to be returned to the idle object pool.
@@ -149,14 +157,4 @@ public interface PooledObjectFactory<T> {
    * @see #destroyObject
    */
   void passivateObject(PooledObject<T> p) throws Exception;
-
-  /**
-   * Ensures that the instance is safe to be returned by the pool.
-   *
-   * @param p a {@code PooledObject} wrapping the instance to be validated
-   *
-   * @return {@code false} if {@code obj} is not valid and should
-   *         be dropped from the pool, {@code true} otherwise.
-   */
-  boolean validateObject(PooledObject<T> p);
 }

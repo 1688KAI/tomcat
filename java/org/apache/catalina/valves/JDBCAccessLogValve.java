@@ -25,7 +25,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Properties;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
 
 import org.apache.catalina.AccessLog;
 import org.apache.catalina.LifecycleException;

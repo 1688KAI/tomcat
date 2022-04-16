@@ -126,7 +126,7 @@ import org.apache.tomcat.util.security.PrivilegedSetTccl;
  *          other thread (OT) unless explicitly marked.
  * </pre>
  */
-class AsyncStateMachine {
+public class AsyncStateMachine {
 
     private static final Log log = LogFactory.getLog(AsyncStateMachine.class);
     private static final StringManager sm = StringManager.getManager(AsyncStateMachine.class);
@@ -159,19 +159,19 @@ class AsyncStateMachine {
             this.isDispatching = isDispatching;
         }
 
-        boolean isAsync() {
+        public boolean isAsync() {
             return isAsync;
         }
 
-        boolean isStarted() {
+        public boolean isStarted() {
             return isStarted;
         }
 
-        boolean isDispatching() {
+        public boolean isDispatching() {
             return isDispatching;
         }
 
-        boolean isCompleting() {
+        public boolean isCompleting() {
             return isCompleting;
         }
     }
@@ -193,32 +193,32 @@ class AsyncStateMachine {
     private final AbstractProcessor processor;
 
 
-    AsyncStateMachine(AbstractProcessor processor) {
+    public AsyncStateMachine(AbstractProcessor processor) {
         this.processor = processor;
     }
 
 
-    boolean isAsync() {
+    public boolean isAsync() {
         return state.isAsync();
     }
 
-    boolean isAsyncDispatching() {
+    public boolean isAsyncDispatching() {
         return state.isDispatching();
     }
 
-    boolean isAsyncStarted() {
+    public boolean isAsyncStarted() {
         return state.isStarted();
     }
 
-    boolean isAsyncTimingOut() {
+    public boolean isAsyncTimingOut() {
         return state == AsyncState.TIMING_OUT;
     }
 
-    boolean isAsyncError() {
+    public boolean isAsyncError() {
         return state == AsyncState.ERROR;
     }
 
-    boolean isCompleting() {
+    public boolean isCompleting() {
         return state.isCompleting();
     }
 
@@ -229,7 +229,7 @@ class AsyncStateMachine {
      * @return The time (as returned by {@link System#currentTimeMillis()}) that
      *         this connection last transitioned to async
      */
-    long getLastAsyncStart() {
+    public long getLastAsyncStart() {
         return lastAsyncStart;
     }
 
@@ -237,7 +237,7 @@ class AsyncStateMachine {
         return generation.get();
     }
 
-    synchronized void asyncStart(AsyncContextCallback asyncCtxt) {
+    public synchronized void asyncStart(AsyncContextCallback asyncCtxt) {
         if (state == AsyncState.DISPATCHED) {
             generation.incrementAndGet();
             updateState(AsyncState.STARTING);
@@ -253,7 +253,7 @@ class AsyncStateMachine {
         }
     }
 
-    synchronized void asyncOperation() {
+    public synchronized void asyncOperation() {
         if (state==AsyncState.STARTED) {
             updateState(AsyncState.READ_WRITE_OP);
         } else {
@@ -268,7 +268,7 @@ class AsyncStateMachine {
      * current state. For example, as per SRV.2.3.3.3 can now process calls to
      * complete() or dispatch().
      */
-    synchronized SocketState asyncPostProcess() {
+    public synchronized SocketState asyncPostProcess() {
         if (state == AsyncState.COMPLETE_PENDING) {
             clearNonBlockingListeners();
             updateState(AsyncState.COMPLETING);
@@ -304,7 +304,7 @@ class AsyncStateMachine {
     }
 
 
-    synchronized boolean asyncComplete() {
+    public synchronized boolean asyncComplete() {
         Request request = processor.getRequest();
         if ((request == null || !request.isRequestThread()) &&
                 (state == AsyncState.STARTING || state == AsyncState.READ_WRITE_OP)) {
@@ -349,7 +349,7 @@ class AsyncStateMachine {
     }
 
 
-    synchronized boolean asyncTimeout() {
+    public synchronized boolean asyncTimeout() {
         if (state == AsyncState.STARTED) {
             updateState(AsyncState.TIMING_OUT);
             return true;
@@ -367,7 +367,7 @@ class AsyncStateMachine {
     }
 
 
-    synchronized boolean asyncDispatch() {
+    public synchronized boolean asyncDispatch() {
         Request request = processor.getRequest();
         if ((request == null || !request.isRequestThread()) &&
                 (state == AsyncState.STARTING || state == AsyncState.READ_WRITE_OP)) {
@@ -412,7 +412,7 @@ class AsyncStateMachine {
     }
 
 
-    synchronized void asyncDispatched() {
+    public synchronized void asyncDispatched() {
         if (state == AsyncState.DISPATCHING ||
                 state == AsyncState.MUST_DISPATCH) {
             updateState(AsyncState.DISPATCHED);
@@ -425,7 +425,7 @@ class AsyncStateMachine {
     }
 
 
-    synchronized boolean asyncError() {
+    public synchronized boolean asyncError() {
         clearNonBlockingListeners();
         if (state == AsyncState.STARTING) {
             updateState(AsyncState.MUST_ERROR);
@@ -444,7 +444,7 @@ class AsyncStateMachine {
     }
 
 
-    synchronized void asyncRun(Runnable runnable) {
+    public synchronized void asyncRun(Runnable runnable) {
         if (state == AsyncState.STARTING || state ==  AsyncState.STARTED ||
                 state == AsyncState.READ_WRITE_OP) {
             // Execute the runnable using a container thread from the
@@ -466,7 +466,7 @@ class AsyncStateMachine {
                             this.getClass().getClassLoader());
                 }
 
-                processor.execute(runnable);
+                processor.getExecutor().execute(runnable);
             } finally {
                 if (Constants.IS_SECURITY_ENABLED) {
                     PrivilegedAction<Void> pa = new PrivilegedSetTccl(
@@ -495,7 +495,7 @@ class AsyncStateMachine {
     }
 
 
-    synchronized void recycle() {
+    public synchronized void recycle() {
         // Use lastAsyncStart to determine if this instance has been used since
         // it was last recycled. If it hasn't there is no need to recycle again
         // which saves the relatively expensive call to notifyAll()

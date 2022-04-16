@@ -20,16 +20,16 @@
             ===================================================
 
 Apache Tomcat @VERSION_MAJOR_MINOR@ requires a Java Standard Edition Runtime
-Environment (JRE) version 8 or later.
+Environment (JRE) version 7 or later.
 
 =============================
-Running With JRE 8 Or Later
+Running With JRE 7 Or Later
 =============================
 
 (1) Download and Install a Java SE Runtime Environment (JRE)
 
 (1.1) Download a Java SE Runtime Environment (JRE),
-      release version 8 or later, from
+      release version 7 or later, from
       http://www.oracle.com/technetwork/java/javase/downloads/index.html
 
 (1.2) Install the JRE according to the instructions included with the
@@ -272,6 +272,12 @@ In CATALINA_HOME:
 
  * lib  - Libraries and classes, as explained below
 
+ * endorsed - Libraries that override standard "Endorsed Standards"
+              libraries provided by JRE. See Classloading documentation
+              in the User Guide for details.
+              This is only supported for Java <= 8.
+              By default this "endorsed" directory is absent.
+
 In the default configuration the JAR libraries and classes both in
 CATALINA_BASE/lib and in CATALINA_HOME/lib will be added to the common
 classpath, but the ones in CATALINA_BASE will be added first and thus will
@@ -373,9 +379,10 @@ If you do use them, do not forget to read their documentation.
 Apache Tomcat Native library
 -----------------------------
 
-It is a library that allows to use the OpenSSL variant of the TLS implementation
-for the HTTP connector in Apache Tomcat. It is built around OpenSSL and Apache
-Portable Runtime (APR) libraries.
+It is a library that allows to use the "Apr" variant of HTTP and AJP
+protocol connectors in Apache Tomcat. It is built around OpenSSL and Apache
+Portable Runtime (APR) libraries. Those are the same libraries as used by
+Apache HTTPD Server project.
 
 This feature was especially important in the old days when Java performance
 was poor. It is less important nowadays, but it is still used and respected
@@ -389,9 +396,12 @@ For further reading:
 
       https://tomcat.apache.org/tomcat-@VERSION_MAJOR_MINOR@-doc/apr.html
 
-    * Documentation for the HTTP connector in the Tomcat Configuration Reference
+    * Documentation for the HTTP and AJP protocol connectors in the Tomcat
+      Configuration Reference
 
       https://tomcat.apache.org/tomcat-@VERSION_MAJOR_MINOR@-doc/config/http.html
+
+      https://tomcat.apache.org/tomcat-@VERSION_MAJOR_MINOR@-doc/config/ajp.html
 
  - Apache Tomcat Native project home
 

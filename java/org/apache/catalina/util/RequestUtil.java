@@ -16,8 +16,6 @@
  */
 package org.apache.catalina.util;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 /**
  * General purpose request parsing and encoding utility methods.
  *
@@ -27,34 +25,44 @@ import jakarta.servlet.http.HttpServletRequest;
 public final class RequestUtil {
 
     /**
-     * Build an appropriate return value for
-     * {@link HttpServletRequest#getRequestURL()} based on the provided
-     * request object. Note that this will also work for instances of
-     * {@link jakarta.servlet.http.HttpServletRequestWrapper}.
+     * Filter the specified message string for characters that are sensitive
+     * in HTML.  This avoids potential attacks caused by including JavaScript
+     * codes in the request URL that is often reported in error messages.
      *
-     * @param request The request object for which the URL should be built
+     * @param message The message string to be filtered
      *
-     * @return The request URL for the given request object
+     * @return the filtered message
+     *
+     * @deprecated This method will be removed in Tomcat 9
      */
-    public static StringBuffer getRequestURL(HttpServletRequest request) {
-        StringBuffer url = new StringBuffer();
-        String scheme = request.getScheme();
-        int port = request.getServerPort();
-        if (port < 0) {
-            // Work around java.net.URL bug
-            port = 80;
+    @Deprecated
+    public static String filter(String message) {
+
+        if (message == null) {
+            return null;
         }
 
-        url.append(scheme);
-        url.append("://");
-        url.append(request.getServerName());
-        if ((scheme.equals("http") && (port != 80))
-            || (scheme.equals("https") && (port != 443))) {
-            url.append(':');
-            url.append(port);
+        char content[] = new char[message.length()];
+        message.getChars(0, message.length(), content, 0);
+        StringBuilder result = new StringBuilder(content.length + 50);
+        for (int i = 0; i < content.length; i++) {
+            switch (content[i]) {
+            case '<':
+                result.append("&lt;");
+                break;
+            case '>':
+                result.append("&gt;");
+                break;
+            case '&':
+                result.append("&amp;");
+                break;
+            case '"':
+                result.append("&quot;");
+                break;
+            default:
+                result.append(content[i]);
+            }
         }
-        url.append(request.getRequestURI());
-
-        return url;
+        return result.toString();
     }
 }

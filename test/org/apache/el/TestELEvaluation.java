@@ -19,8 +19,8 @@ package org.apache.el;
 import java.io.File;
 import java.util.Date;
 
-import jakarta.el.ELException;
-import jakarta.el.ValueExpression;
+import javax.el.ELException;
+import javax.el.ValueExpression;
 
 import org.junit.Assert;
 import org.junit.Test;

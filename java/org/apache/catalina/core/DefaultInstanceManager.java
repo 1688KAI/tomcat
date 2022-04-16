@@ -35,16 +35,15 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.annotation.Resource;
+import javax.ejb.EJB;
 import javax.naming.Context;
 import javax.naming.NamingException;
-
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import jakarta.annotation.Resource;
-import jakarta.ejb.EJB;
-import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.PersistenceUnit;
-import jakarta.xml.ws.WebServiceRef;
+import javax.persistence.PersistenceContext;
+import javax.persistence.PersistenceUnit;
+import javax.xml.ws.WebServiceRef;
 
 import org.apache.catalina.ContainerServlet;
 import org.apache.catalina.Globals;
@@ -74,7 +73,7 @@ public class DefaultInstanceManager implements InstanceManager {
     static {
         Class<?> clazz = null;
         try {
-            clazz = Class.forName("jakarta.ejb.EJB");
+            clazz = Class.forName("javax.ejb.EJB");
         } catch (ClassNotFoundException cnfe) {
             // Expected
         }
@@ -82,7 +81,7 @@ public class DefaultInstanceManager implements InstanceManager {
 
         clazz = null;
         try {
-            clazz = Class.forName("jakarta.persistence.PersistenceContext");
+            clazz = Class.forName("javax.persistence.PersistenceContext");
         } catch (ClassNotFoundException cnfe) {
             // Expected
         }
@@ -90,7 +89,7 @@ public class DefaultInstanceManager implements InstanceManager {
 
         clazz = null;
         try {
-            clazz = Class.forName("jakarta.xml.ws.WebServiceRef");
+            clazz = Class.forName("javax.xml.ws.WebServiceRef");
         } catch (ClassNotFoundException cnfe) {
             // Expected
         }
@@ -228,8 +227,7 @@ public class DefaultInstanceManager implements InstanceManager {
                 // This will always return a new Method instance
                 // Making this instance accessible does not affect other instances
                 Method postConstruct = getMethod(clazz, entry);
-                // If this doesn't work, just let invoke() fail
-                postConstruct.trySetAccessible();
+                postConstruct.setAccessible(true);
                 postConstruct.invoke(instance);
             }
         }
@@ -265,15 +263,13 @@ public class DefaultInstanceManager implements InstanceManager {
                 // This will always return a new Method instance
                 // Making this instance accessible does not affect other instances
                 Method preDestroy = getMethod(clazz, entry);
-                // If this doesn't work, just let invoke() fail
-                preDestroy.trySetAccessible();
+                preDestroy.setAccessible(true);
                 preDestroy.invoke(instance);
             }
         }
     }
 
 
-    @Override
     public void backgroundProcess() {
         annotationCache.maintain();
     }
@@ -582,8 +578,7 @@ public class DefaultInstanceManager implements InstanceManager {
 
         // This will always be a new Field instance
         // Making this instance accessible does not affect other instances
-        // If this doens't work, just let set() fail
-        field.trySetAccessible();
+        field.setAccessible(true);
         field.set(instance, lookedupResource);
     }
 
@@ -622,8 +617,7 @@ public class DefaultInstanceManager implements InstanceManager {
 
         // This will always be a new Method instance
         // Making this instance accessible does not affect other instances
-        // If this doens't work, just let invoke() fail
-        method.trySetAccessible();
+        method.setAccessible(true);
         method.invoke(instance, lookedupResource);
     }
 

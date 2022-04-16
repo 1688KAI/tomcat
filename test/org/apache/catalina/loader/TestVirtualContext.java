@@ -16,6 +16,7 @@
  */
 package org.apache.catalina.loader;
 
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -55,7 +56,6 @@ public class TestVirtualContext extends TomcatBaseTest {
 
     @Test
     public void testVirtualClassLoader() throws Exception {
-
         Tomcat tomcat = getTomcatInstance();
 
         File appDir = new File("test/webapp-virtual-webapp/src/main/webapp-a");
@@ -266,7 +266,7 @@ public class TestVirtualContext extends TomcatBaseTest {
                 MyAnnotatedServlet.class.getSimpleName() + ".class");
                 FileOutputStream annotatedServletClassOutputStream = new FileOutputStream(new File(
                         targetPackageForAnnotatedClass, MyAnnotatedServlet.class.getSimpleName()
-                                + ".class"))) {
+                                + ".class"));) {
             IOUtils.copy(annotatedServletClassInputStream, annotatedServletClassOutputStream);
         }
 
@@ -332,7 +332,7 @@ public class TestVirtualContext extends TomcatBaseTest {
 
         if (expectedStatus == 200) {
             String result = res.toString();
-            Assert.assertTrue(result, result.contains(expectedBody));
+            Assert.assertTrue(result, result.indexOf(expectedBody) >= 0);
         }
     }
 }

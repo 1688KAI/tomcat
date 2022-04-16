@@ -36,7 +36,6 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.sql.DataSource;
 
-import org.apache.catalina.Container;
 import org.apache.catalina.Globals;
 import org.apache.catalina.Session;
 import org.apache.juli.logging.Log;
@@ -49,284 +48,8 @@ import org.apache.juli.logging.Log;
  *
  * @author Bip Thelin
  */
-public class DataSourceStore extends StoreBase {
-
-    /**
-     * Context name associated with this Store
-     */
-    private String name = null;
-
-    /**
-     * Name to register for this Store, used for logging.
-     */
-    protected static final String storeName = "dataSourceStore";
-
-    /**
-     * name of the JNDI resource
-     */
-    protected String dataSourceName = null;
-
-    /**
-     * Context local datasource.
-     */
-    private boolean localDataSource = false;
-
-    /**
-     * DataSource to use
-     */
-    protected DataSource dataSource = null;
-
-
-    // ------------------------------------------------------------ Table & cols
-
-    /**
-     * Table to use.
-     */
-    protected String sessionTable = "tomcat$sessions";
-
-    /**
-     * Column to use for /Engine/Host/Context name
-     */
-    protected String sessionAppCol = "app";
-
-    /**
-     * Id column to use.
-     */
-    protected String sessionIdCol = "id";
-
-    /**
-     * Data column to use.
-     */
-    protected String sessionDataCol = "data";
-
-    /**
-     * {@code Is Valid} column to use.
-     */
-    protected String sessionValidCol = "valid";
-
-    /**
-     * Max Inactive column to use.
-     */
-    protected String sessionMaxInactiveCol = "maxinactive";
-
-    /**
-     * Last Accessed column to use.
-     */
-    protected String sessionLastAccessedCol = "lastaccess";
-
-    // -------------------------------------------------------------- Properties
-
-    /**
-     * @return the name for this instance (built from container name)
-     */
-    public String getName() {
-        if (name == null) {
-            Container container = manager.getContext();
-            String contextName = container.getName();
-            if (!contextName.startsWith("/")) {
-                contextName = "/" + contextName;
-            }
-            String hostName = "";
-            String engineName = "";
-
-            if (container.getParent() != null) {
-                Container host = container.getParent();
-                hostName = host.getName();
-                if (host.getParent() != null) {
-                    engineName = host.getParent().getName();
-                }
-            }
-            name = "/" + engineName + "/" + hostName + contextName;
-        }
-        return name;
-    }
-
-    /**
-     * @return the name for this Store, used for logging.
-     */
-    @Override
-    public String getStoreName() {
-        return storeName;
-    }
-
-    /**
-     * Set the table for this Store.
-     *
-     * @param sessionTable The new table
-     */
-    public void setSessionTable(String sessionTable) {
-        String oldSessionTable = this.sessionTable;
-        this.sessionTable = sessionTable;
-        support.firePropertyChange("sessionTable",
-                oldSessionTable,
-                this.sessionTable);
-    }
-
-    /**
-     * @return the table for this Store.
-     */
-    public String getSessionTable() {
-        return sessionTable;
-    }
-
-    /**
-     * Set the App column for the table.
-     *
-     * @param sessionAppCol the column name
-     */
-    public void setSessionAppCol(String sessionAppCol) {
-        String oldSessionAppCol = this.sessionAppCol;
-        this.sessionAppCol = sessionAppCol;
-        support.firePropertyChange("sessionAppCol",
-                oldSessionAppCol,
-                this.sessionAppCol);
-    }
-
-    /**
-     * @return the web application name column for the table.
-     */
-    public String getSessionAppCol() {
-        return this.sessionAppCol;
-    }
-
-    /**
-     * Set the Id column for the table.
-     *
-     * @param sessionIdCol the column name
-     */
-    public void setSessionIdCol(String sessionIdCol) {
-        String oldSessionIdCol = this.sessionIdCol;
-        this.sessionIdCol = sessionIdCol;
-        support.firePropertyChange("sessionIdCol",
-                oldSessionIdCol,
-                this.sessionIdCol);
-    }
-
-    /**
-     * @return the Id column for the table.
-     */
-    public String getSessionIdCol() {
-        return this.sessionIdCol;
-    }
-
-    /**
-     * Set the Data column for the table
-     *
-     * @param sessionDataCol the column name
-     */
-    public void setSessionDataCol(String sessionDataCol) {
-        String oldSessionDataCol = this.sessionDataCol;
-        this.sessionDataCol = sessionDataCol;
-        support.firePropertyChange("sessionDataCol",
-                oldSessionDataCol,
-                this.sessionDataCol);
-    }
-
-    /**
-     * @return the data column for the table
-     */
-    public String getSessionDataCol() {
-        return this.sessionDataCol;
-    }
-
-    /**
-     * Set the {@code Is Valid} column for the table
-     *
-     * @param sessionValidCol The column name
-     */
-    public void setSessionValidCol(String sessionValidCol) {
-        String oldSessionValidCol = this.sessionValidCol;
-        this.sessionValidCol = sessionValidCol;
-        support.firePropertyChange("sessionValidCol",
-                oldSessionValidCol,
-                this.sessionValidCol);
-    }
-
-    /**
-     * @return the {@code Is Valid} column
-     */
-    public String getSessionValidCol() {
-        return this.sessionValidCol;
-    }
-
-    /**
-     * Set the {@code Max Inactive} column for the table
-     *
-     * @param sessionMaxInactiveCol The column name
-     */
-    public void setSessionMaxInactiveCol(String sessionMaxInactiveCol) {
-        String oldSessionMaxInactiveCol = this.sessionMaxInactiveCol;
-        this.sessionMaxInactiveCol = sessionMaxInactiveCol;
-        support.firePropertyChange("sessionMaxInactiveCol",
-                oldSessionMaxInactiveCol,
-                this.sessionMaxInactiveCol);
-    }
-
-    /**
-     * @return the {@code Max Inactive} column
-     */
-    public String getSessionMaxInactiveCol() {
-        return this.sessionMaxInactiveCol;
-    }
-
-    /**
-     * Set the {@code Last Accessed} column for the table
-     *
-     * @param sessionLastAccessedCol The column name
-     */
-    public void setSessionLastAccessedCol(String sessionLastAccessedCol) {
-        String oldSessionLastAccessedCol = this.sessionLastAccessedCol;
-        this.sessionLastAccessedCol = sessionLastAccessedCol;
-        support.firePropertyChange("sessionLastAccessedCol",
-                oldSessionLastAccessedCol,
-                this.sessionLastAccessedCol);
-    }
-
-    /**
-     * @return the {@code Last Accessed} column
-     */
-    public String getSessionLastAccessedCol() {
-        return this.sessionLastAccessedCol;
-    }
-
-    /**
-     * Set the JNDI name of a DataSource-factory to use for db access
-     *
-     * @param dataSourceName The JNDI name of the DataSource-factory
-     */
-    public void setDataSourceName(String dataSourceName) {
-        if (dataSourceName == null || dataSourceName.trim().isEmpty()) {
-            manager.getContext().getLogger().warn(
-                    sm.getString(getStoreName() + ".missingDataSourceName"));
-            return;
-        }
-        this.dataSourceName = dataSourceName;
-    }
-
-    /**
-     * @return the name of the JNDI DataSource-factory
-     */
-    public String getDataSourceName() {
-        return this.dataSourceName;
-    }
-
-    /**
-     * @return if the datasource will be looked up in the webapp JNDI Context.
-     */
-    public boolean getLocalDataSource() {
-        return localDataSource;
-    }
-
-    /**
-     * Set to {@code true} to cause the datasource to be looked up in the webapp
-     * JNDI Context.
-     *
-     * @param localDataSource the new flag value
-     */
-    public void setLocalDataSource(boolean localDataSource) {
-      this.localDataSource = localDataSource;
-    }
-
+@SuppressWarnings("deprecation")
+public class DataSourceStore extends JDBCStore {
 
     // --------------------------------------------------------- Public Methods
 
@@ -660,32 +383,6 @@ public class DataSourceStore extends StoreBase {
     // --------------------------------------------------------- Protected Methods
 
     /**
-     * Check the connection associated with this store, if it's
-     * <code>null</code> or closed try to reopen it.
-     * Returns <code>null</code> if the connection could not be established.
-     *
-     * @return <code>Connection</code> if the connection succeeded
-     */
-    protected Connection getConnection() {
-        Connection conn = null;
-        try {
-            conn = open();
-            if (conn == null || conn.isClosed()) {
-                manager.getContext().getLogger().info(sm.getString(getStoreName() + ".checkConnectionDBClosed"));
-                conn = open();
-                if (conn == null || conn.isClosed()) {
-                    manager.getContext().getLogger().info(sm.getString(getStoreName() + ".checkConnectionDBReOpenFail"));
-                }
-            }
-        } catch (SQLException ex) {
-            manager.getContext().getLogger().error(sm.getString(getStoreName() + ".checkConnectionSQLException",
-                    ex.toString()));
-        }
-
-        return conn;
-    }
-
-    /**
      * Open (if necessary) and return a database connection for use by
      * this Store.
      *
@@ -693,11 +390,12 @@ public class DataSourceStore extends StoreBase {
      *
      * @exception SQLException if a database error occurs
      */
+    @Override
     protected Connection open() throws SQLException {
         if (dataSourceName != null && dataSource == null) {
             org.apache.catalina.Context context = getManager().getContext();
             ClassLoader oldThreadContextCL = null;
-            if (localDataSource) {
+            if (getLocalDataSource()) {
                 oldThreadContextCL = context.bind(Globals.IS_SECURITY_ENABLED, null);
             }
 
@@ -711,7 +409,7 @@ public class DataSourceStore extends StoreBase {
                         sm.getString(getStoreName() + ".wrongDataSource",
                                 this.dataSourceName), e);
             } finally {
-                if (localDataSource) {
+                if (getLocalDataSource()) {
                     context.unbind(Globals.IS_SECURITY_ENABLED, oldThreadContextCL);
                 }
             }
@@ -729,6 +427,7 @@ public class DataSourceStore extends StoreBase {
      *
      * @param dbConnection The connection to be closed
      */
+    @Override
     protected void close(Connection dbConnection) {
 
         // Do nothing if the database connection is already closed
@@ -750,18 +449,6 @@ public class DataSourceStore extends StoreBase {
             dbConnection.close();
         } catch (SQLException e) {
             manager.getContext().getLogger().error(sm.getString(getStoreName() + ".close", e.toString())); // Just log it here
-        }
-    }
-
-    /**
-     * Release the connection, if it
-     * is associated with a connection pool.
-     *
-     * @param conn The connection to be released
-     */
-    protected void release(Connection conn) {
-        if (dataSource != null) {
-            close(conn);
         }
     }
 

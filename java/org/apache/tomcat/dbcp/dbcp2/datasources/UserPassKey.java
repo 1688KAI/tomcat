@@ -19,6 +19,7 @@ package org.apache.tomcat.dbcp.dbcp2.datasources;
 import java.io.Serializable;
 import java.util.Objects;
 
+import org.apache.tomcat.dbcp.dbcp2.Utils;
 import org.apache.tomcat.dbcp.pool2.KeyedObjectPool;
 
 /**
@@ -38,29 +39,26 @@ import org.apache.tomcat.dbcp.pool2.KeyedObjectPool;
  */
 class UserPassKey implements Serializable {
     private static final long serialVersionUID = 5142970911626584817L;
+    private final String userName;
+    private final char[] userPassword;
 
-    private final CharArray name;
-    private final CharArray password;
-
-    UserPassKey(final char[] userName, final char[] password) {
-        this(new CharArray(userName), new CharArray(password));
-    }
-
-    UserPassKey(final CharArray userName, final CharArray userPassword) {
-        this.name = userName;
-        this.password = userPassword;
-    }
-
+    /**
+     * @since 2.4.0
+     */
     UserPassKey(final String userName) {
-        this(new CharArray(userName), CharArray.NULL);
+        this(userName, (char[]) null);
     }
 
+    /**
+     * @since 2.4.0
+     */
     UserPassKey(final String userName, final char[] password) {
-        this(new CharArray(userName), new CharArray(password));
+        this.userName = userName;
+        this.userPassword = password;
     }
 
     UserPassKey(final String userName, final String userPassword) {
-        this(new CharArray(userName), new CharArray(userPassword));
+        this(userName, Utils.toCharArray(userPassword));
     }
 
     /**
@@ -78,7 +76,7 @@ class UserPassKey implements Serializable {
             return false;
         }
         final UserPassKey other = (UserPassKey) obj;
-        return Objects.equals(name, other.name);
+        return Objects.equals(userName, other.userName);
     }
 
     /**
@@ -87,7 +85,7 @@ class UserPassKey implements Serializable {
      * @return value of password.
      */
     String getPassword() {
-        return password.asString();
+        return Utils.toString(userPassword);
     }
 
     /**
@@ -96,7 +94,7 @@ class UserPassKey implements Serializable {
      * @return value of password.
      */
     char[] getPasswordCharArray() {
-        return password.get();
+        return userPassword;
     }
 
     /**
@@ -105,7 +103,7 @@ class UserPassKey implements Serializable {
      * @return value of user name.
      */
     String getUserName() {
-        return name.asString();
+        return userName;
     }
 
     /**
@@ -113,7 +111,7 @@ class UserPassKey implements Serializable {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(name);
+        return Objects.hash(userName);
     }
 
 }

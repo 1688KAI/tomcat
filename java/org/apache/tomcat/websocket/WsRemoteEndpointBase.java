@@ -19,7 +19,7 @@ package org.apache.tomcat.websocket;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import jakarta.websocket.RemoteEndpoint;
+import javax.websocket.RemoteEndpoint;
 
 public abstract class WsRemoteEndpointBase implements RemoteEndpoint {
 

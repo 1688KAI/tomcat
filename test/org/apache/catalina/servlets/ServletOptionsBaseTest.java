@@ -22,7 +22,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import jakarta.servlet.Servlet;
+import javax.servlet.Servlet;
 
 import org.junit.Assert;
 import org.junit.Test;

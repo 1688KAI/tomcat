@@ -29,10 +29,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-
-import jakarta.servlet.ServletConnection;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -44,18 +41,6 @@ public abstract class SocketWrapperBase<E> {
     private static final Log log = LogFactory.getLog(SocketWrapperBase.class);
 
     protected static final StringManager sm = StringManager.getManager(SocketWrapperBase.class);
-
-    /*
-     * At 100,000 connections a second there are enough IDs here for ~3,000,000
-     * years before it overflows (and then we have another 3,000,000 years
-     * before it gets back to zero).
-     *
-     * Local testing shows that 5 threads can obtain 60,000,000+ IDs a second
-     * from a single AtomicLong. That is about about 17ns per request. It does
-     * not appear that the introduction of this counter will cause a bottleneck
-     * for connection processing.
-     */
-    private static final AtomicLong connectionIdGenerator = new AtomicLong(0);
 
     private E socket;
     private final AbstractEndpoint<E,?> endpoint;
@@ -70,9 +55,9 @@ public abstract class SocketWrapperBase<E> {
     protected volatile IOException previousIOException = null;
 
     private volatile int keepAliveLeft = 100;
+    private volatile boolean upgraded = false;
+    private boolean secure = false;
     private String negotiatedProtocol = null;
-
-    private final String connectionId;
 
     /*
      * Following cached for speed / reduced GC
@@ -83,7 +68,6 @@ public abstract class SocketWrapperBase<E> {
     protected String remoteAddr = null;
     protected String remoteHost = null;
     protected int remotePort = -1;
-    protected volatile ServletConnection servletConnection = null;
 
     /**
      * Used to record the first IOException that occurs during non-blocking
@@ -140,7 +124,6 @@ public abstract class SocketWrapperBase<E> {
             readPending = null;
             writePending = null;
         }
-        connectionId = Long.toHexString(connectionIdGenerator.getAndIncrement());
     }
 
     public E getSocket() {
@@ -151,7 +134,7 @@ public abstract class SocketWrapperBase<E> {
         socket = closedSocket;
     }
 
-    protected AbstractEndpoint<E,?> getEndpoint() {
+    public AbstractEndpoint<E,?> getEndpoint() {
         return endpoint;
     }
 
@@ -197,6 +180,34 @@ public abstract class SocketWrapperBase<E> {
         }
     }
 
+    /**
+     * @return {@code true} if the connection has been upgraded.
+     *
+     * @deprecated Unused. Will be removed in Tomcat 10.
+     */
+    @Deprecated
+    public boolean isUpgraded() { return upgraded; }
+    /**
+     * @param upgraded {@code true} if the connection has been upgraded.
+     *
+     * @deprecated Unused. Will be removed in Tomcat 10.
+     */
+    @Deprecated
+    public void setUpgraded(boolean upgraded) { this.upgraded = upgraded; }
+    /**
+     * @return {@code true} if the connection uses TLS
+     *
+     * @deprecated Unused. Will be removed in Tomcat 10.
+     */
+    @Deprecated
+    public boolean isSecure() { return secure; }
+    /**
+     * @param secure {@code true} if the connection uses TLS
+     *
+     * @deprecated Unused. Will be removed in Tomcat 10.
+     */
+    @Deprecated
+    public void setSecure(boolean secure) { this.secure = secure; }
     public String getNegotiatedProtocol() { return negotiatedProtocol; }
     public void setNegotiatedProtocol(String negotiatedProtocol) {
         this.negotiatedProtocol = negotiatedProtocol;
@@ -814,12 +825,7 @@ public abstract class SocketWrapperBase<E> {
      */
     public abstract void doClientAuth(SSLSupport sslSupport) throws IOException;
 
-    /**
-     * Obtain an SSLSupport instance for this socket.
-     *
-     * @return An SSLSupport instance for this socket.
-     */
-    public abstract SSLSupport getSslSupport();
+    public abstract SSLSupport getSslSupport(String clientCertProvider);
 
 
     // ------------------------------------------------------- NIO 2 style APIs
@@ -1195,6 +1201,36 @@ public abstract class SocketWrapperBase<E> {
     }
 
     /**
+     * If an asynchronous read operation is pending, this method will block
+     * until the operation completes, or the specified amount of time
+     * has passed.
+     * @param timeout The maximum amount of time to wait
+     * @param unit The unit for the timeout
+     * @return <code>true</code> if the read operation is complete,
+     *  <code>false</code> if the operation is still pending and
+     *  the specified timeout has passed
+     */
+    @Deprecated
+    public boolean awaitReadComplete(long timeout, TimeUnit unit) {
+        return true;
+    }
+
+    /**
+     * If an asynchronous write operation is pending, this method will block
+     * until the operation completes, or the specified amount of time
+     * has passed.
+     * @param timeout The maximum amount of time to wait
+     * @param unit The unit for the timeout
+     * @return <code>true</code> if the read operation is complete,
+     *  <code>false</code> if the operation is still pending and
+     *  the specified timeout has passed
+     */
+    @Deprecated
+    public boolean awaitWriteComplete(long timeout, TimeUnit unit) {
+        return true;
+    }
+
+    /**
      * Scatter read. The completion handler will be called once some
      * data has been read or an error occurred. The default NIO2
      * behavior is used: the completion handler will be called as soon
@@ -1497,16 +1533,5 @@ public abstract class SocketWrapperBase<E> {
             }
         }
         return false;
-    }
-
-
-    // -------------------------------------------------------------- ID methods
-
-    public ServletConnection getServletConnection(String protocol, String protocolConnectionId) {
-        if (servletConnection == null) {
-            servletConnection = new ServletConnectionImpl(
-                    connectionId, protocol, protocolConnectionId, endpoint.isSSLEnabled());
-        }
-        return servletConnection;
     }
 }

@@ -25,13 +25,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.regex.Pattern;
 
 import javax.management.ObjectInstance;
 import javax.management.ObjectName;
-
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpUpgradeHandler;
+import javax.servlet.http.HttpUpgradeHandler;
 
 import org.apache.coyote.AbstractProtocol;
 import org.apache.coyote.CompressionConfig;
@@ -45,6 +42,7 @@ import org.apache.coyote.http11.upgrade.InternalHttpUpgradeHandler;
 import org.apache.coyote.http11.upgrade.UpgradeGroupInfo;
 import org.apache.coyote.http11.upgrade.UpgradeProcessorExternal;
 import org.apache.coyote.http11.upgrade.UpgradeProcessorInternal;
+import org.apache.coyote.http2.Http2Protocol;
 import org.apache.tomcat.util.buf.StringUtils;
 import org.apache.tomcat.util.modeler.Registry;
 import org.apache.tomcat.util.modeler.Util;
@@ -85,7 +83,9 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
         // this has completed initialisation as the upgrade protocols may expect this
         // to be initialised when the call is made
         for (UpgradeProtocol upgradeProtocol : upgradeProtocols) {
-            upgradeProtocol.setHttp11Protocol(this);
+            if (upgradeProtocol instanceof Http2Protocol) {
+                ((Http2Protocol) upgradeProtocol).setHttp11Protocol(this);
+            }
         }
     }
 
@@ -167,7 +167,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
-    private boolean allowHostHeaderMismatch = false;
+    private boolean allowHostHeaderMismatch = true;
     /**
      * Will Tomcat accept an HTTP 1.1 request where the host header does not
      * agree with the host specified (if any) in the request line?
@@ -190,7 +190,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
-    private boolean rejectIllegalHeader = true;
+    private boolean rejectIllegalHeader = false;
     /**
      * If an HTTP request is received that contains an illegal header name or
      * value (e.g. the header name is not a token) will the request be rejected
@@ -211,6 +211,35 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
      */
     public void setRejectIllegalHeader(boolean rejectIllegalHeader) {
         this.rejectIllegalHeader = rejectIllegalHeader;
+    }
+    /**
+     * If an HTTP request is received that contains an illegal header name or
+     * value (e.g. the header name is not a token) will the request be rejected
+     * (with a 400 response) or will the illegal header be ignored?
+     *
+     * @return {@code true} if the request will be rejected or {@code false} if
+     *         the header will be ignored
+     *
+     * @deprecated Now an alias for {@link #getRejectIllegalHeader()}. Will be
+     *             removed in Tomcat 10 onwards.
+     */
+    @Deprecated
+    public boolean getRejectIllegalHeaderName() { return rejectIllegalHeader; }
+    /**
+     * If an HTTP request is received that contains an illegal header name or
+     * value (e.g. the header name is not a token) should the request be
+     * rejected (with a 400 response) or should the illegal header be ignored?
+     *
+     * @param rejectIllegalHeaderName   {@code true} to reject requests with
+     *                                  illegal header names or values,
+     *                                  {@code false} to ignore the header
+     *
+     * @deprecated Now an alias for {@link #setRejectIllegalHeader(boolean)}.
+     *             Will be removed in Tomcat 10 onwards.
+     */
+    @Deprecated
+    public void setRejectIllegalHeaderName(boolean rejectIllegalHeaderName) {
+        this.rejectIllegalHeader = rejectIllegalHeaderName;
     }
 
 
@@ -317,19 +346,39 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     public String getCompression() {
         return compressionConfig.getCompression();
     }
-    protected int getCompressionLevel() {
-        return compressionConfig.getCompressionLevel();
-    }
 
 
     public String getNoCompressionUserAgents() {
         return compressionConfig.getNoCompressionUserAgents();
     }
-    protected Pattern getNoCompressionUserAgentsPattern() {
-        return compressionConfig.getNoCompressionUserAgentsPattern();
-    }
     public void setNoCompressionUserAgents(String noCompressionUserAgents) {
         compressionConfig.setNoCompressionUserAgents(noCompressionUserAgents);
+    }
+
+
+    /**
+     * @return See {@link #getCompressibleMimeType()}
+     * @deprecated Use {@link #getCompressibleMimeType()}
+     */
+    @Deprecated
+    public String getCompressableMimeType() {
+        return getCompressibleMimeType();
+    }
+    /**
+     * @param valueS See {@link #setCompressibleMimeType(String)}
+     * @deprecated Use {@link #setCompressibleMimeType(String)}
+     */
+    @Deprecated
+    public void setCompressableMimeType(String valueS) {
+        setCompressibleMimeType(valueS);
+    }
+    /**
+     * @return See {@link #getCompressibleMimeTypes()}
+     * @deprecated Use {@link #getCompressibleMimeTypes()}
+     */
+    @Deprecated
+    public String[] getCompressableMimeTypes() {
+        return getCompressibleMimeTypes();
     }
 
 
@@ -352,42 +401,29 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
+    @Deprecated
+    public boolean getNoCompressionStrongETag() {
+        return compressionConfig.getNoCompressionStrongETag();
+    }
+    @Deprecated
+    public void setNoCompressionStrongETag(boolean noCompressionStrongETag) {
+        compressionConfig.setNoCompressionStrongETag(noCompressionStrongETag);
+    }
+
+
     public boolean useCompression(Request request, Response response) {
         return compressionConfig.useCompression(request, response);
     }
 
 
-    private Pattern restrictedUserAgents = null;
     /**
-     * Get the string form of the regular expression that defines the User
-     * agents which should be restricted to HTTP/1.0 support.
-     *
-     * @return The regular expression as a String
+     * Regular expression that defines the User agents which should be
+     * restricted to HTTP/1.0 support.
      */
-    public String getRestrictedUserAgents() {
-        if (restrictedUserAgents == null) {
-            return null;
-        } else {
-            return restrictedUserAgents.toString();
-        }
-    }
-    protected Pattern getRestrictedUserAgentsPattern() {
-        return restrictedUserAgents;
-    }
-    /**
-     * Set restricted user agent list (which will downgrade the connector
-     * to HTTP/1.0 mode). Regular expression as supported by {@link Pattern}.
-     *
-     * @param restrictedUserAgents The regular expression as supported by
-     *                             {@link Pattern} for the user agents e.g.
-     *                             "gorilla|desesplorer|tigrus"
-     */
-    public void setRestrictedUserAgents(String restrictedUserAgents) {
-        if (restrictedUserAgents == null || restrictedUserAgents.length() == 0) {
-            this.restrictedUserAgents = null;
-        } else {
-            this.restrictedUserAgents = Pattern.compile(restrictedUserAgents);
-        }
+    private String restrictedUserAgents = null;
+    public String getRestrictedUserAgents() { return restrictedUserAgents; }
+    public void setRestrictedUserAgents(String valueS) {
+        restrictedUserAgents = valueS;
     }
 
 
@@ -465,7 +501,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
      * chunked encoding. They are stored in lower case.
      */
     private Set<String> allowedTrailerHeaders =
-            Collections.newSetFromMap(new ConcurrentHashMap<>());
+            Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
     public void setAllowedTrailerHeaders(String commaSeparatedHeaders) {
         // Jump through some hoops so we don't end up with an empty set while
         // doing updates.
@@ -485,9 +521,6 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
     protected Set<String> getAllowedTrailerHeadersInternal() {
         return allowedTrailerHeaders;
-    }
-    public boolean isTrailerHeaderAllowed(String headerName) {
-        return allowedTrailerHeaders.contains(headerName);
     }
     public String getAllowedTrailerHeaders() {
         // Chances of a change during execution of this line are small enough
@@ -546,8 +579,7 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
         // ALPN
         String alpnName = upgradeProtocol.getAlpnName();
         if (alpnName != null && alpnName.length() > 0) {
-            // ALPN is only available with TLS
-            if (getEndpoint().isSSLEnabled()) {
+            if (getEndpoint().isAlpnSupported()) {
                 negotiatedProtocols.put(alpnName, upgradeProtocol);
                 getEndpoint().addNegotiatedProtocol(alpnName);
                 getLog().info(sm.getString("abstractHttp11Protocol.alpnConfigured",
@@ -577,7 +609,8 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     /**
      * Map of upgrade protocol name to {@link UpgradeGroupInfo} instance.
      * <p>
-     * HTTP upgrades via {@link HttpServletRequest#upgrade(Class)} do not have
+     * HTTP upgrades via
+     * {@link javax.servlet.http.HttpServletRequest#upgrade(Class)} do not have
      * to depend on an {@code UpgradeProtocol}. To enable basic statistics to be
      * made available for these protocols, a map of protocol name to
      * {@link UpgradeGroupInfo} instances is maintained here.
@@ -674,6 +707,9 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
     public void setDefaultSSLHostConfigName(String defaultSSLHostConfigName) {
         getEndpoint().setDefaultSSLHostConfigName(defaultSSLHostConfigName);
+        if (defaultSSLHostConfig != null) {
+            defaultSSLHostConfig.setHostName(defaultSSLHostConfigName);
+        }
     }
 
 
@@ -699,11 +735,391 @@ public abstract class AbstractHttp11Protocol<S> extends AbstractProtocol<S> {
     }
 
 
+    // ----------------------------------------------- HTTPS specific properties
+    // -------------------------------------------- Handled via an SSLHostConfig
+
+    private SSLHostConfig defaultSSLHostConfig = null;
+    private void registerDefaultSSLHostConfig() {
+        if (defaultSSLHostConfig == null) {
+            for (SSLHostConfig sslHostConfig : findSslHostConfigs()) {
+                if (getDefaultSSLHostConfigName().equals(sslHostConfig.getHostName())) {
+                    defaultSSLHostConfig = sslHostConfig;
+                    break;
+                }
+            }
+            if (defaultSSLHostConfig == null) {
+                defaultSSLHostConfig = new SSLHostConfig();
+                defaultSSLHostConfig.setHostName(getDefaultSSLHostConfigName());
+                getEndpoint().addSslHostConfig(defaultSSLHostConfig);
+            }
+        }
+    }
+
+
+    // TODO: All of these SSL getters and setters can be removed once it is no
+    // longer necessary to support the old configuration attributes (Tomcat 10?)
+
+    public String getSslEnabledProtocols() {
+        registerDefaultSSLHostConfig();
+        return StringUtils.join(defaultSSLHostConfig.getEnabledProtocols());
+    }
+    public void setSslEnabledProtocols(String enabledProtocols) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setProtocols(enabledProtocols);
+    }
+    public String getSSLProtocol() {
+        registerDefaultSSLHostConfig();
+        return StringUtils.join(defaultSSLHostConfig.getEnabledProtocols());
+    }
+    public void setSSLProtocol(String sslProtocol) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setProtocols(sslProtocol);
+    }
+
+
+    public String getKeystoreFile() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateKeystoreFile();
+    }
+    public void setKeystoreFile(String keystoreFile) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateKeystoreFile(keystoreFile);
+    }
+    public String getSSLCertificateChainFile() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateChainFile();
+    }
+    public void setSSLCertificateChainFile(String certificateChainFile) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateChainFile(certificateChainFile);
+    }
+    public String getSSLCertificateFile() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateFile();
+    }
+    public void setSSLCertificateFile(String certificateFile) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateFile(certificateFile);
+    }
+    public String getSSLCertificateKeyFile() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateKeyFile();
+    }
+    public void setSSLCertificateKeyFile(String certificateKeyFile) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateKeyFile(certificateKeyFile);
+    }
+
+
+    public String getAlgorithm() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getKeyManagerAlgorithm();
+    }
+    public void setAlgorithm(String keyManagerAlgorithm) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setKeyManagerAlgorithm(keyManagerAlgorithm);
+    }
+
+
+    public String getClientAuth() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateVerificationAsString();
+    }
+    public void setClientAuth(String certificateVerification) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateVerification(certificateVerification);
+    }
+
+
+    public String getSSLVerifyClient() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateVerificationAsString();
+    }
+    public void setSSLVerifyClient(String certificateVerification) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateVerification(certificateVerification);
+    }
+
+
+    public int getTrustMaxCertLength(){
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateVerificationDepth();
+    }
+    public void setTrustMaxCertLength(int certificateVerificationDepth){
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateVerificationDepth(certificateVerificationDepth);
+    }
+    public int getSSLVerifyDepth() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateVerificationDepth();
+    }
+    public void setSSLVerifyDepth(int certificateVerificationDepth) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateVerificationDepth(certificateVerificationDepth);
+    }
+
+
+    public String getUseServerCipherSuitesOrder() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getHonorCipherOrder();
+    }
+    public void setUseServerCipherSuitesOrder(String honorCipherOrder) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setHonorCipherOrder(honorCipherOrder);
+    }
+    public String getSSLHonorCipherOrder() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getHonorCipherOrder();
+    }
+    public void setSSLHonorCipherOrder(String honorCipherOrder) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setHonorCipherOrder(honorCipherOrder);
+    }
+
+
+    public String getCiphers() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCiphers();
+    }
+    public void setCiphers(String ciphers) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCiphers(ciphers);
+    }
+    public String getSSLCipherSuite() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCiphers();
+    }
+    public void setSSLCipherSuite(String ciphers) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCiphers(ciphers);
+    }
+
+
+    public String getKeystorePass() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateKeystorePassword();
+    }
+    public void setKeystorePass(String certificateKeystorePassword) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateKeystorePassword(certificateKeystorePassword);
+    }
+
+
+    public String getKeyPass() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateKeyPassword();
+    }
+    public void setKeyPass(String certificateKeyPassword) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateKeyPassword(certificateKeyPassword);
+    }
+    public String getSSLPassword() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateKeyPassword();
+    }
+    public void setSSLPassword(String certificateKeyPassword) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateKeyPassword(certificateKeyPassword);
+    }
+
+
+    public String getCrlFile(){
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateRevocationListFile();
+    }
+    public void setCrlFile(String certificateRevocationListFile){
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateRevocationListFile(certificateRevocationListFile);
+    }
+    public String getSSLCARevocationFile() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateRevocationListFile();
+    }
+    public void setSSLCARevocationFile(String certificateRevocationListFile) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateRevocationListFile(certificateRevocationListFile);
+    }
+    public String getSSLCARevocationPath() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateRevocationListPath();
+    }
+    public void setSSLCARevocationPath(String certificateRevocationListPath) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateRevocationListPath(certificateRevocationListPath);
+    }
+
+
+    public String getKeystoreType() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateKeystoreType();
+    }
+    public void setKeystoreType(String certificateKeystoreType) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateKeystoreType(certificateKeystoreType);
+    }
+
+
+    public String getKeystoreProvider() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateKeystoreProvider();
+    }
+    public void setKeystoreProvider(String certificateKeystoreProvider) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateKeystoreProvider(certificateKeystoreProvider);
+    }
+
+
+    public String getKeyAlias() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCertificateKeyAlias();
+    }
+    public void setKeyAlias(String certificateKeyAlias) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCertificateKeyAlias(certificateKeyAlias);
+    }
+
+
+    public String getTruststoreAlgorithm(){
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getTruststoreAlgorithm();
+    }
+    public void setTruststoreAlgorithm(String truststoreAlgorithm){
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setTruststoreAlgorithm(truststoreAlgorithm);
+    }
+
+
+    public String getTruststoreFile(){
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getTruststoreFile();
+    }
+    public void setTruststoreFile(String truststoreFile){
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setTruststoreFile(truststoreFile);
+    }
+
+
+    public String getTruststorePass(){
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getTruststorePassword();
+    }
+    public void setTruststorePass(String truststorePassword){
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setTruststorePassword(truststorePassword);
+    }
+
+
+    public String getTruststoreType(){
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getTruststoreType();
+    }
+    public void setTruststoreType(String truststoreType){
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setTruststoreType(truststoreType);
+    }
+
+
+    public String getTruststoreProvider(){
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getTruststoreProvider();
+    }
+    public void setTruststoreProvider(String truststoreProvider){
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setTruststoreProvider(truststoreProvider);
+    }
+
+
+    public String getSslProtocol() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getSslProtocol();
+    }
+    public void setSslProtocol(String sslProtocol) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setSslProtocol(sslProtocol);
+    }
+
+
+    public int getSessionCacheSize(){
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getSessionCacheSize();
+    }
+    public void setSessionCacheSize(int sessionCacheSize){
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setSessionCacheSize(sessionCacheSize);
+    }
+
+
+    public int getSessionTimeout(){
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getSessionTimeout();
+    }
+    public void setSessionTimeout(int sessionTimeout){
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setSessionTimeout(sessionTimeout);
+    }
+
+
+    public String getSSLCACertificatePath() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCaCertificatePath();
+    }
+    public void setSSLCACertificatePath(String caCertificatePath) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCaCertificatePath(caCertificatePath);
+    }
+
+
+    public String getSSLCACertificateFile() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getCaCertificateFile();
+    }
+    public void setSSLCACertificateFile(String caCertificateFile) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setCaCertificateFile(caCertificateFile);
+    }
+
+
+    public boolean getSSLDisableCompression() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getDisableCompression();
+    }
+    public void setSSLDisableCompression(boolean disableCompression) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setDisableCompression(disableCompression);
+    }
+
+
+    public boolean getSSLDisableSessionTickets() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getDisableSessionTickets();
+    }
+    public void setSSLDisableSessionTickets(boolean disableSessionTickets) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setDisableSessionTickets(disableSessionTickets);
+    }
+
+
+    public String getTrustManagerClassName() {
+        registerDefaultSSLHostConfig();
+        return defaultSSLHostConfig.getTrustManagerClassName();
+    }
+    public void setTrustManagerClassName(String trustManagerClassName) {
+        registerDefaultSSLHostConfig();
+        defaultSSLHostConfig.setTrustManagerClassName(trustManagerClassName);
+    }
+
+
     // ------------------------------------------------------------- Common code
 
     @Override
     protected Processor createProcessor() {
-        Http11Processor processor = new Http11Processor(this, adapter);
+        Http11Processor processor = new Http11Processor(this, getEndpoint());
+        processor.setAdapter(getAdapter());
+        processor.setMaxKeepAliveRequests(getMaxKeepAliveRequests());
+        processor.setConnectionUploadTimeout(getConnectionUploadTimeout());
+        processor.setDisableUploadTimeout(getDisableUploadTimeout());
+        processor.setRestrictedUserAgents(getRestrictedUserAgents());
+        processor.setMaxSavePostSize(getMaxSavePostSize());
         return processor;
     }
 

@@ -29,23 +29,22 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletConnection;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletInputStream;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletMapping;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.HttpUpgradeHandler;
-import jakarta.servlet.http.Part;
-import jakarta.servlet.http.PushBuilder;
+import javax.servlet.AsyncContext;
+import javax.servlet.DispatcherType;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.servlet.http.HttpUpgradeHandler;
+import javax.servlet.http.Part;
+
+import org.apache.catalina.core.ApplicationPushBuilder;
 
 public class TesterHttpServletRequest implements HttpServletRequest {
 
@@ -195,6 +194,11 @@ public class TesterHttpServletRequest implements HttpServletRequest {
     }
 
     @Override
+    public String getRealPath(String path) {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
     public int getRemotePort() {
         throw new RuntimeException("Not implemented");
     }
@@ -257,11 +261,6 @@ public class TesterHttpServletRequest implements HttpServletRequest {
 
     @Override
     public int getIntHeader(String name) {
-        throw new RuntimeException("Not implemented");
-    }
-
-    @Override
-    public HttpServletMapping getHttpServletMapping() {
         throw new RuntimeException("Not implemented");
     }
 
@@ -355,6 +354,11 @@ public class TesterHttpServletRequest implements HttpServletRequest {
     }
 
     @Override
+    public boolean isRequestedSessionIdFromUrl() {
+        throw new RuntimeException("Not implemented");
+    }
+
+    @Override
     public long getContentLengthLong() {
         throw new RuntimeException("Not implemented");
     }
@@ -433,33 +437,7 @@ public class TesterHttpServletRequest implements HttpServletRequest {
         throw new RuntimeException("Not implemented");
     }
 
-    @Override
-    public PushBuilder newPushBuilder() {
-        throw new RuntimeException("Not implemented");
-    }
-
-    @Override
-    public boolean isTrailerFieldsReady() {
-        throw new RuntimeException("Not implemented");
-    }
-
-    @Override
-    public Map<String, String> getTrailerFields() {
-        throw new RuntimeException("Not implemented");
-    }
-
-    @Override
-    public String getRequestId() {
-        throw new RuntimeException("Not implemented");
-    }
-
-    @Override
-    public String getProtocolRequestId() {
-        throw new RuntimeException("Not implemented");
-    }
-
-    @Override
-    public ServletConnection getServletConnection() {
+    public ApplicationPushBuilder getPushBuilder() {
         throw new RuntimeException("Not implemented");
     }
 }

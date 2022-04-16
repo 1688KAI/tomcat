@@ -98,7 +98,7 @@ public class PEMFile {
         this.filename = filename;
 
         List<Part> parts = new ArrayList<>();
-        try (InputStream inputStream = ConfigFileLoader.getSource().getResource(filename).getInputStream()) {
+        try (InputStream inputStream = ConfigFileLoader.getInputStream(filename)) {
             BufferedReader reader =
                     new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.US_ASCII));
             Part part = null;

@@ -208,18 +208,7 @@ public class ResolverImpl extends Resolver {
                     }
                 }
             } else if (key.startsWith("SSL_SERVER_")) {
-                X509Certificate[] certificates = sslSupport.getLocalCertificateChain();
-                if (certificates != null && certificates.length > 0) {
-                    key = key.substring("SSL_SERVER_".length());
-                    String result = resolveSslCertificates(key, certificates);
-                    if (result != null) {
-                        return result;
-                    } else if (key.startsWith("SAN_OTHER_dnsSRV_")) {
-                        // Type otherName, which is 0
-                        key = key.substring("SAN_OTHER_dnsSRV_".length());
-                        // FIXME OID from resolveAlternateName
-                    }
-                }
+                // No access to local certificates with 8.5
             }
         } catch (IOException e) {
             // TLS access error
@@ -353,6 +342,12 @@ public class ResolverImpl extends Resolver {
         } else {
             return value;
         }
+    }
+
+    @Override
+    @Deprecated
+    public String getUriEncoding() {
+        return request.getConnector().getURIEncoding();
     }
 
     @Override

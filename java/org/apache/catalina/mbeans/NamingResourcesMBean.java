@@ -29,7 +29,6 @@ import org.apache.tomcat.util.descriptor.web.ContextResourceLink;
 import org.apache.tomcat.util.modeler.BaseModelMBean;
 import org.apache.tomcat.util.modeler.ManagedBean;
 import org.apache.tomcat.util.modeler.Registry;
-import org.apache.tomcat.util.res.StringManager;
 
 /**
  * <p>A <strong>ModelMBean</strong> implementation for the
@@ -38,8 +37,6 @@ import org.apache.tomcat.util.res.StringManager;
  * @author Amy Roh
  */
 public class NamingResourcesMBean extends BaseModelMBean {
-
-    private static final StringManager sm = StringManager.getManager(NamingResourcesMBean.class);
 
     // ----------------------------------------------------- Instance Variables
 
@@ -70,8 +67,7 @@ public class NamingResourcesMBean extends BaseModelMBean {
                 ObjectName oname = MBeanUtils.createObjectName(managed.getDomain(), env);
                 results.add(oname.toString());
             } catch (MalformedObjectNameException e) {
-                throw new IllegalArgumentException(
-                        sm.getString("namingResourcesMBean.createObjectNameError.environment", env), e);
+                throw new IllegalArgumentException ("Cannot create object name for environment " + env, e);
             }
         }
         return results.toArray(new String[0]);
@@ -91,8 +87,7 @@ public class NamingResourcesMBean extends BaseModelMBean {
                 ObjectName oname = MBeanUtils.createObjectName(managed.getDomain(), contextResource);
                 results.add(oname.toString());
             } catch (MalformedObjectNameException e) {
-                throw new IllegalArgumentException(
-                        sm.getString("namingResourcesMBean.createObjectNameError.resource", contextResource), e);
+                throw new IllegalArgumentException("Cannot create object name for resource " + contextResource, e);
             }
         }
         return results.toArray(new String[0]);
@@ -114,8 +109,7 @@ public class NamingResourcesMBean extends BaseModelMBean {
                         MBeanUtils.createObjectName(managed.getDomain(), resourceLink);
                 results.add(oname.toString());
             } catch (MalformedObjectNameException e) {
-                throw new IllegalArgumentException(
-                        sm.getString("namingResourcesMBean.createObjectNameError.resourceLink", resourceLink), e);
+                throw new IllegalArgumentException("Cannot create object name for resource " + resourceLink, e);
             }
         }
         return results.toArray(new String[0]);
@@ -142,7 +136,8 @@ public class NamingResourcesMBean extends BaseModelMBean {
         }
         ContextEnvironment env = nresources.findEnvironment(envName);
         if (env != null) {
-            throw new IllegalArgumentException(sm.getString("namingResourcesMBean.addAlreadyExists.environment", envName));
+            throw new IllegalArgumentException(
+                    "Invalid environment name - already exists '" + envName + "'");
         }
         env = new ContextEnvironment();
         env.setName(envName);
@@ -174,7 +169,8 @@ public class NamingResourcesMBean extends BaseModelMBean {
         }
         ContextResource resource = nresources.findResource(resourceName);
         if (resource != null) {
-            throw new IllegalArgumentException(sm.getString("namingResourcesMBean.addAlreadyExists.resource", resourceName));
+            throw new IllegalArgumentException(
+                    "Invalid resource name - already exists'" + resourceName + "'");
         }
         resource = new ContextResource();
         resource.setName(resourceName);
@@ -206,7 +202,8 @@ public class NamingResourcesMBean extends BaseModelMBean {
         ContextResourceLink resourceLink =
                             nresources.findResourceLink(resourceLinkName);
         if (resourceLink != null) {
-            throw new IllegalArgumentException(sm.getString("namingResourcesMBean.addAlreadyExists.resourceLink", resourceLinkName));
+            throw new IllegalArgumentException(
+                    "Invalid resource link name - already exists'" + resourceLinkName + "'");
         }
         resourceLink = new ContextResourceLink();
         resourceLink.setName(resourceLinkName);
@@ -232,7 +229,7 @@ public class NamingResourcesMBean extends BaseModelMBean {
         }
         ContextEnvironment env = nresources.findEnvironment(envName);
         if (env == null) {
-            throw new IllegalArgumentException(sm.getString("namingResourcesMBean.removeNotFound.environment", envName));
+            throw new IllegalArgumentException("Invalid environment name '" + envName + "'");
         }
         nresources.removeEnvironment(envName);
     }
@@ -251,7 +248,7 @@ public class NamingResourcesMBean extends BaseModelMBean {
         }
         ContextResource resource = nresources.findResource(resourceName);
         if (resource == null) {
-            throw new IllegalArgumentException(sm.getString("namingResourcesMBean.removeNotFound.resource", resourceName));
+            throw new IllegalArgumentException("Invalid resource name '" + resourceName + "'");
         }
         nresources.removeResource(resourceName);
     }
@@ -270,7 +267,8 @@ public class NamingResourcesMBean extends BaseModelMBean {
         }
         ContextResourceLink resourceLink = nresources.findResourceLink(resourceLinkName);
         if (resourceLink == null) {
-            throw new IllegalArgumentException(sm.getString("namingResourcesMBean.removeNotFound.resourceLink", resourceLinkName));
+            throw new IllegalArgumentException(
+                    "Invalid resource Link name '" + resourceLinkName + "'");
         }
         nresources.removeResourceLink(resourceLinkName);
     }

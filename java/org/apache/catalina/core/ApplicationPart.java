@@ -27,7 +27,7 @@ import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 
-import jakarta.servlet.http.Part;
+import javax.servlet.http.Part;
 
 import org.apache.tomcat.util.http.fileupload.FileItem;
 import org.apache.tomcat.util.http.fileupload.ParameterParser;
@@ -62,7 +62,7 @@ public class ApplicationPart implements Part {
     @Override
     public String getHeader(String name) {
         if (fileItem instanceof DiskFileItem) {
-            return fileItem.getHeaders().getHeader(name);
+            return ((DiskFileItem) fileItem).getHeaders().getHeader(name);
         }
         return null;
     }
@@ -72,7 +72,7 @@ public class ApplicationPart implements Part {
         if (fileItem instanceof DiskFileItem) {
             LinkedHashSet<String> headerNames = new LinkedHashSet<>();
             Iterator<String> iter =
-                fileItem.getHeaders().getHeaderNames();
+                ((DiskFileItem) fileItem).getHeaders().getHeaderNames();
             while (iter.hasNext()) {
                 headerNames.add(iter.next());
             }
@@ -86,7 +86,7 @@ public class ApplicationPart implements Part {
         if (fileItem instanceof DiskFileItem) {
             LinkedHashSet<String> headers = new LinkedHashSet<>();
             Iterator<String> iter =
-                fileItem.getHeaders().getHeaders(name);
+                ((DiskFileItem) fileItem).getHeaders().getHeaders(name);
             while (iter.hasNext()) {
                 headers.add(iter.next());
             }

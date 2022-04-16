@@ -35,6 +35,8 @@ import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.naming.StringRefAddr;
 
+import org.apache.catalina.ContainerEvent;
+import org.apache.catalina.ContainerListener;
 import org.apache.catalina.Context;
 import org.apache.catalina.Engine;
 import org.apache.catalina.Host;
@@ -78,7 +80,8 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @author Remy Maucherat
  */
-public class NamingContextListener implements LifecycleListener, PropertyChangeListener {
+public class NamingContextListener
+    implements LifecycleListener, ContainerListener, PropertyChangeListener {
 
     private static final Log log = LogFactory.getLog(NamingContextListener.class);
     protected static final StringManager sm = StringManager.getManager(NamingContextListener.class);
@@ -329,6 +332,24 @@ public class NamingContextListener implements LifecycleListener, PropertyChangeL
 
         }
 
+    }
+
+
+    // ---------------------------------------------- ContainerListener Methods
+
+    /**
+     * NO-OP.
+     *
+     * @param event ContainerEvent that has occurred
+     *
+     * @deprecated The {@link ContainerListener} interface and implementing
+     *             methods will be removed from this class for Tomcat 10
+     *             onwards.
+     */
+    @Deprecated
+    @Override
+    public void containerEvent(ContainerEvent event) {
+        // NO-OP
     }
 
 

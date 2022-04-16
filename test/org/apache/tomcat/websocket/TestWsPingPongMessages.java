@@ -18,15 +18,14 @@ package org.apache.tomcat.websocket;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import jakarta.websocket.ClientEndpointConfig;
-import jakarta.websocket.ContainerProvider;
-import jakarta.websocket.PongMessage;
-import jakarta.websocket.Session;
-import jakarta.websocket.WebSocketContainer;
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.ContainerProvider;
+import javax.websocket.PongMessage;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -40,7 +39,8 @@ import org.apache.tomcat.websocket.TesterMessageCountClient.TesterProgrammaticEn
 
 public class TestWsPingPongMessages extends WebSocketBaseTest {
 
-    ByteBuffer applicationData = ByteBuffer.wrap("mydata".getBytes(StandardCharsets.UTF_8));
+    ByteBuffer applicationData = ByteBuffer.wrap(new String("mydata")
+            .getBytes());
 
     @Test
     public void testPingPongMessages() throws Exception {

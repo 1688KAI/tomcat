@@ -21,9 +21,9 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-import jakarta.el.ELContext;
-import jakarta.el.PropertyNotWritableException;
-import jakarta.el.ValueExpression;
+import javax.el.ELContext;
+import javax.el.PropertyNotWritableException;
+import javax.el.ValueExpression;
 
 import org.apache.el.util.MessageFactory;
 import org.apache.el.util.ReflectionUtil;
@@ -48,9 +48,8 @@ public final class ValueExpressionLiteral extends ValueExpression implements
         this.expectedType = expectedType;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public <T> T getValue(ELContext context) {
+    public Object getValue(ELContext context) {
         context.notifyBeforeEvaluation(getExpressionString());
         Object result;
         if (this.expectedType != null) {
@@ -59,7 +58,7 @@ public final class ValueExpressionLiteral extends ValueExpression implements
             result = this.value;
         }
         context.notifyAfterEvaluation(getExpressionString());
-        return (T) result;
+        return result;
     }
 
     @Override

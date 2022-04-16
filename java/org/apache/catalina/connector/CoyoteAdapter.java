@@ -22,12 +22,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import jakarta.servlet.ReadListener;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.SessionTrackingMode;
-import jakarta.servlet.WriteListener;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ReadListener;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.SessionTrackingMode;
+import javax.servlet.WriteListener;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Authenticator;
 import org.apache.catalina.Context;
@@ -46,7 +46,6 @@ import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.CharChunk;
-import org.apache.tomcat.util.buf.HexUtils;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.ServerCookie;
 import org.apache.tomcat.util.http.ServerCookies;
@@ -68,7 +67,7 @@ public class CoyoteAdapter implements Adapter {
 
     // -------------------------------------------------------------- Constants
 
-    private static final String POWERED_BY = "Servlet/6.0 JSP/3.1 " +
+    private static final String POWERED_BY = "Servlet/3.1 JSP/2.3 " +
             "(" + ServerInfo.getServerInfo() + " Java/" +
             System.getProperty("java.vm.vendor") + "/" +
             System.getProperty("java.runtime.version") + ")";
@@ -79,8 +78,19 @@ public class CoyoteAdapter implements Adapter {
     public static final int ADAPTER_NOTES = 1;
 
 
+    protected static final boolean ALLOW_BACKSLASH =
+        Boolean.parseBoolean(System.getProperty("org.apache.catalina.connector.CoyoteAdapter.ALLOW_BACKSLASH", "false"));
+
+
     private static final ThreadLocal<String> THREAD_NAME =
-            ThreadLocal.withInitial(() -> Thread.currentThread().getName());
+            new ThreadLocal<String>() {
+
+                @Override
+                protected String initialValue() {
+                    return Thread.currentThread().getName();
+                }
+
+    };
 
     // ----------------------------------------------------------- Constructors
 
@@ -285,8 +295,8 @@ public class CoyoteAdapter implements Adapter {
             // Access logging
             if (!success || !request.isAsync()) {
                 long time = 0;
-                if (req.getStartTimeNanos() != -1) {
-                    time = System.nanoTime() - req.getStartTimeNanos();
+                if (req.getStartTime() != -1) {
+                    time = System.currentTimeMillis() - req.getStartTime();
                 }
                 Context context = request.getContext();
                 if (context != null) {
@@ -416,7 +426,7 @@ public class CoyoteAdapter implements Adapter {
                 // The other possibility is that an error occurred early in
                 // processing and the request could not be mapped to a Context.
                 // Log via the host or engine in that case.
-                long time = System.nanoTime() - req.getStartTimeNanos();
+                long time = System.currentTimeMillis() - req.getStartTime();
                 if (context != null) {
                     context.logAccess(request, response, time, false);
                 } else if (response.isError()) {
@@ -636,12 +646,6 @@ public class CoyoteAdapter implements Adapter {
         MessageBytes decodedURI = req.decodedURI();
 
         if (undecodedURI.getType() == MessageBytes.T_BYTES) {
-            if (connector.getRejectSuspiciousURIs()) {
-                if (checkSuspiciousURIs(undecodedURI.getByteChunk())) {
-                    response.sendError(400, "Invalid URI");
-                }
-            }
-
             // Copy the raw URI to the decodedURI
             decodedURI.duplicate(undecodedURI);
 
@@ -656,12 +660,13 @@ public class CoyoteAdapter implements Adapter {
                 response.sendError(400, "Invalid URI: " + ioe.getMessage());
             }
             // Normalization
-            if (normalize(req.decodedURI(), connector.getAllowBackslash())) {
+            if (normalize(req.decodedURI())) {
                 // Character decoding
                 convertURI(decodedURI, request);
-                // URIEncoding values are limited to US-ASCII supersets.
-                // Therefore it is not necessary to check that the URI remains
-                // normalized after character decoding
+                // Check that the URI is still normalized
+                if (!checkNormalize(req.decodedURI())) {
+                    response.sendError(400, "Invalid URI");
+                }
             } else {
                 response.sendError(400, "Invalid URI");
             }
@@ -672,8 +677,6 @@ public class CoyoteAdapter implements Adapter {
              *   non-normalized URI
              * - req.decodedURI() has been set to the decoded, normalized form
              *   of req.requestURI()
-             * - 'suspicious' URI filtering - if required - has already been
-             *   performed
              */
             decodedURI.toChars();
             // Remove all path parameters; any needed path parameter should be set
@@ -924,10 +927,7 @@ public class CoyoteAdapter implements Adapter {
         req.decodedURI().toBytes();
 
         ByteChunk uriBC = req.decodedURI().getByteChunk();
-        // The first character must always be '/' so start search at position 1.
-        // If the first character is ';' the URI will be rejected at the
-        // normalization stage
-        int semicolon = uriBC.indexOf(';', 1);
+        int semicolon = uriBC.indexOf(';', 0);
         // Performance optimisation. Return as soon as it is known there are no
         // path parameters;
         if (semicolon == -1) {
@@ -1103,7 +1103,7 @@ public class CoyoteAdapter implements Adapter {
 
         B2CConverter conv = request.getURIConverter();
         if (conv == null) {
-            conv = new B2CConverter(charset, false);
+            conv = new B2CConverter(charset, true);
             request.setURIConverter(conv);
         } else {
             conv.recycle();
@@ -1153,19 +1153,17 @@ public class CoyoteAdapter implements Adapter {
      * This method normalizes "\", "//", "/./" and "/../".
      *
      * @param uriMB URI to be normalized
-     * @param allowBackslash <code>true</code> if backslash characters are allowed in URLs
      *
      * @return <code>false</code> if normalizing this URI would require going
      *         above the root, or if the URI contains a null byte, otherwise
      *         <code>true</code>
      */
-    public static boolean normalize(MessageBytes uriMB, boolean allowBackslash) {
+    public static boolean normalize(MessageBytes uriMB) {
 
         ByteChunk uriBC = uriMB.getByteChunk();
         final byte[] b = uriBC.getBytes();
         final int start = uriBC.getStart();
         int end = uriBC.getEnd();
-        boolean appendedSlash = false;
 
         // An empty URL is not acceptable
         if (start == end) {
@@ -1185,7 +1183,7 @@ public class CoyoteAdapter implements Adapter {
         // Check for null byte
         for (pos = start; pos < end; pos++) {
             if (b[pos] == (byte) '\\') {
-                if (allowBackslash) {
+                if (ALLOW_BACKSLASH) {
                     b[pos] = (byte) '/';
                 } else {
                     return false;
@@ -1214,7 +1212,6 @@ public class CoyoteAdapter implements Adapter {
                     && (b[end - 3] == (byte) '/'))) {
                 b[end] = (byte) '/';
                 end++;
-                appendedSlash = true;
             }
         }
 
@@ -1259,14 +1256,74 @@ public class CoyoteAdapter implements Adapter {
             index = index2;
         }
 
-        // If a slash was appended to help normalize "/." or "/.." then remove
-        // any trailing "/" from the result unless the result is "/".
-        if (appendedSlash && end > 1 && b[end - 1]== '/') {
-            uriBC.setEnd(end -1);
+        return true;
+
+    }
+
+
+    /**
+     * Check that the URI is normalized following character decoding. This
+     * method checks for "\", 0, "//", "/./" and "/../".
+     *
+     * @param uriMB URI to be checked (should be chars)
+     *
+     * @return <code>false</code> if sequences that are supposed to be
+     *         normalized are still present in the URI, otherwise
+     *         <code>true</code>
+     */
+    public static boolean checkNormalize(MessageBytes uriMB) {
+
+        CharChunk uriCC = uriMB.getCharChunk();
+        char[] c = uriCC.getChars();
+        int start = uriCC.getStart();
+        int end = uriCC.getEnd();
+
+        int pos = 0;
+
+        // Check for '\' and 0
+        for (pos = start; pos < end; pos++) {
+            if (c[pos] == '\\') {
+                return false;
+            }
+            if (c[pos] == 0) {
+                return false;
+            }
+        }
+
+        // Check for "//"
+        for (pos = start; pos < (end - 1); pos++) {
+            if (c[pos] == '/') {
+                if (c[pos + 1] == '/') {
+                    return false;
+                }
+            }
+        }
+
+        // Check for ending with "/." or "/.."
+        if (((end - start) >= 2) && (c[end - 1] == '.')) {
+            if ((c[end - 2] == '/')
+                    || ((c[end - 2] == '.')
+                    && (c[end - 3] == '/'))) {
+                return false;
+            }
+        }
+
+        // Check for "/./"
+        if (uriCC.indexOf("/./", 0, 3, 0) >= 0) {
+            return false;
+        }
+
+        // Check for "/../"
+        if (uriCC.indexOf("/../", 0, 4, 0) >= 0) {
+            return false;
         }
 
         return true;
+
     }
+
+
+    // ------------------------------------------------------ Protected Methods
 
 
     /**
@@ -1280,87 +1337,5 @@ public class CoyoteAdapter implements Adapter {
      */
     protected static void copyBytes(byte[] b, int dest, int src, int len) {
         System.arraycopy(b, src, b, dest, len);
-    }
-
-
-    /*
-     * Examine URI segment by segment for 'suspicious' URIs.
-     */
-    private static boolean checkSuspiciousURIs(ByteChunk undecodedURI) {
-        byte[] bytes = undecodedURI.getBytes();
-        int start = undecodedURI.getStart();
-        int end = undecodedURI.getEnd();
-        int segmentStart = -1;
-        int segmentEnd = -1;
-
-        // Find first segment
-        segmentStart = undecodedURI.indexOf('/', 0);
-        if (segmentStart > -1) {
-            segmentEnd = undecodedURI.indexOf('/', segmentStart + 1);
-        }
-
-        while (segmentStart > -1) {
-            int pos = start + segmentStart + 1;
-
-            // Empty segment other than final segment with path parameters
-            if (segmentEnd > 0 && bytes[pos] == ';') {
-                return true;
-            }
-
-            // encoded dot-segments and/or dot-segments with path parameters
-            int dotCount = 0;
-            boolean encodedDot = false;
-            while (pos < end) {
-                if (bytes[pos] == '.') {
-                    dotCount++;
-                    pos++;
-                } else if (pos + 2 < end && bytes[pos] == '%' && bytes[pos + 1] == '2' && (bytes[pos+2] == 'e' || bytes[pos+2] == 'E')) {
-                    encodedDot = true;
-                    dotCount++;
-                    pos += 3;
-                } else if (bytes[pos] == ';') {
-                    if (dotCount > 0) {
-                        return true;
-                    }
-                    break;
-                } else if (bytes[pos] == '/') {
-                    break;
-                } else {
-                    dotCount = 0;
-                    break;
-                }
-            }
-            if (dotCount > 0 && encodedDot) {
-                return true;
-            }
-
-            // %nn encoded controls or '/'
-            pos = start + segmentStart + 1;
-            while (pos < end) {
-                if (pos + 2 < end && bytes[pos] == '%') {
-                    byte b1 = bytes[pos + 1];
-                    byte b2 = bytes[pos + 2];
-                    pos += 3;
-                    int decoded = (HexUtils.getDec(b1) << 4) + HexUtils.getDec(b2);
-                    if (decoded < 20 || decoded == 0x7F || decoded == 0x2F) {
-                        return true;
-                    }
-                } else {
-                    pos++;
-                }
-            }
-
-            // Move to next segment
-            if (segmentEnd == -1) {
-                segmentStart = -1;
-            } else {
-                segmentStart = segmentEnd;
-                if (segmentStart > -1) {
-                    segmentEnd = undecodedURI.indexOf('/', segmentStart + 1);
-                }
-            }
-        }
-
-        return false;
     }
 }

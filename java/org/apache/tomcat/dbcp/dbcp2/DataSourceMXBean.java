@@ -74,9 +74,7 @@ public interface DataSourceMXBean {
      * @return {@link BasicDataSource#getDefaultSchema()}.
      * @since 2.5.0
      */
-    default String getDefaultSchema() {
-        return null;
-    }
+    String getDefaultSchema();
 
     /**
      * See {@link BasicDataSource#getDefaultTransactionIsolation()}.
@@ -142,7 +140,6 @@ public interface DataSourceMXBean {
      *
      * @return {@link BasicDataSource#getMaxConnLifetimeMillis()}.
      */
-    @SuppressWarnings("javadoc")
     long getMaxConnLifetimeMillis();
 
     /**
@@ -171,7 +168,6 @@ public interface DataSourceMXBean {
      *
      * @return {@link BasicDataSource#getMaxWaitMillis()}.
      */
-    @SuppressWarnings("javadoc")
     long getMaxWaitMillis();
 
     /**
@@ -179,7 +175,6 @@ public interface DataSourceMXBean {
      *
      * @return {@link BasicDataSource#getMinEvictableIdleTimeMillis()}.
      */
-    @SuppressWarnings("javadoc")
     long getMinEvictableIdleTimeMillis();
 
     /**
@@ -229,7 +224,6 @@ public interface DataSourceMXBean {
      *
      * @return {@link BasicDataSource#getRemoveAbandonedTimeout()}.
      */
-    @SuppressWarnings("javadoc")
     int getRemoveAbandonedTimeout();
 
     /**
@@ -237,7 +231,6 @@ public interface DataSourceMXBean {
      *
      * @return {@link BasicDataSource#getSoftMinEvictableIdleTimeMillis()}.
      */
-    @SuppressWarnings("javadoc")
     long getSoftMinEvictableIdleTimeMillis();
 
     /**
@@ -266,7 +259,6 @@ public interface DataSourceMXBean {
      *
      * @return {@link BasicDataSource#getTimeBetweenEvictionRunsMillis()}.
      */
-    @SuppressWarnings("javadoc")
     long getTimeBetweenEvictionRunsMillis();
 
     /**
@@ -295,7 +287,6 @@ public interface DataSourceMXBean {
      *
      * @return {@link BasicDataSource#getValidationQueryTimeout()}.
      */
-    @SuppressWarnings("javadoc")
     int getValidationQueryTimeout();
 
     /**
@@ -311,9 +302,7 @@ public interface DataSourceMXBean {
      * @return {@link BasicDataSource#isClearStatementPoolOnReturn()}.
      * @since 2.8.0
      */
-    default boolean isClearStatementPoolOnReturn() {
-        return false;
-    }
+    boolean isClearStatementPoolOnReturn();
 
     /**
      * See {@link BasicDataSource#isClosed()}.
@@ -336,9 +325,7 @@ public interface DataSourceMXBean {
      *
      * @since 2.8.0
      */
-    default void restart() throws SQLException {
-        // do nothing by default?
-    }
+    void restart() throws SQLException;
 
     /**
      * See {@link BasicDataSource#start()}
@@ -347,7 +334,5 @@ public interface DataSourceMXBean {
      *
      * @since 2.8.0
      */
-    default void start() throws SQLException {
-        // do nothing
-    }
+    void start() throws SQLException;
 }

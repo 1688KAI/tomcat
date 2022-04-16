@@ -24,7 +24,6 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Map;
 
 import javax.management.DynamicMBean;
 import javax.management.InstanceNotFoundException;
@@ -95,32 +94,31 @@ public class Registry implements RegistryMBean, MBeanRegistration {
      * The set of ManagedBean instances for the beans this registry knows about,
      * keyed by name.
      */
-    private Map<String, ManagedBean> descriptors = new HashMap<>();
+    private HashMap<String,ManagedBean> descriptors = new HashMap<>();
 
-    /**
-     * List of managed beans, keyed by class name
+    /** List of managed beans, keyed by class name
      */
-    private Map<String, ManagedBean> descriptorsByClass = new HashMap<>();
+    private HashMap<String,ManagedBean> descriptorsByClass = new HashMap<>();
 
     // map to avoid duplicated searching or loading descriptors
-    private Map<String, URL> searchedPaths = new HashMap<>();
+    private HashMap<String,URL> searchedPaths = new HashMap<>();
 
     private Object guard;
 
     // Id - small ints to use array access. No reset on stop()
     // Used for notifications
-    private final Hashtable<String, Hashtable<String, Integer>> idDomains = new Hashtable<>();
-    private final Hashtable<String, int[]> ids = new Hashtable<>();
+    private final Hashtable<String,Hashtable<String,Integer>> idDomains =
+        new Hashtable<>();
+    private final Hashtable<String,int[]> ids = new Hashtable<>();
 
 
     // ----------------------------------------------------------- Constructors
 
-    protected Registry() {
+     public Registry() {
         super();
     }
 
-
-    // -------------------- Static methods --------------------
+    // -------------------- Static methods  --------------------
     // Factories
 
     /**
@@ -145,20 +143,8 @@ public class Registry implements RegistryMBean, MBeanRegistration {
     }
 
 
-    public static synchronized void disableRegistry() {
-        if (registry == null) {
-            registry = new NoDescriptorRegistry();
-        } else if (!(registry instanceof NoDescriptorRegistry)) {
-            log.warn(sm.getString("registry.noDisable"));
-        }
-    }
-
-
-    // -------------------- Generic methods --------------------
-
-    /**
-     * Lifecycle method - clean up the registry metadata. Called from
-     * resetMetadata().
+    /** Lifecycle method - clean up the registry metadata.
+     *  Called from resetMetadata().
      *
      * @since 1.1
      */
@@ -220,7 +206,7 @@ public class Registry implements RegistryMBean, MBeanRegistration {
         try {
             unregisterComponent(new ObjectName(oname));
         } catch (MalformedObjectNameException e) {
-            log.info(sm.getString("registry.objectNameCreateError"), e);
+            log.info("Error creating object name " + e );
         }
     }
 
@@ -256,7 +242,7 @@ public class Registry implements RegistryMBean, MBeanRegistration {
                 if (failFirst) {
                     throw t;
                 }
-                log.info(sm.getString("registry.initError"), t);
+                log.info("Error initializing " + current + " " + t.toString());
             }
         }
     }
@@ -264,8 +250,8 @@ public class Registry implements RegistryMBean, MBeanRegistration {
     // -------------------- ID registry --------------------
 
     /**
-     * Return an int ID for faster access. Will be used for notifications and
-     * for other operations we want to optimize.
+     * Return an int ID for faster access. Will be used for notifications
+     * and for other operations we want to optimize.
      *
      * @param domain Namespace
      * @param name Type of the notification
@@ -356,7 +342,7 @@ public class Registry implements RegistryMBean, MBeanRegistration {
         try {
             info = getMBeanServer().getMBeanInfo(oname);
         } catch (Exception e) {
-            log.info(sm.getString("registry.noMetadata", oname));
+            log.info( "Can't find metadata for object" + oname );
             return null;
         }
 
@@ -383,7 +369,7 @@ public class Registry implements RegistryMBean, MBeanRegistration {
         try {
             info = getMBeanServer().getMBeanInfo(oname);
         } catch (Exception e) {
-            log.info(sm.getString("registry.noMetadata", oname));
+            log.info( "Can't find metadata " + oname );
             return null;
         }
         MBeanOperationInfo attInfo[] = info.getOperations();
@@ -438,7 +424,7 @@ public class Registry implements RegistryMBean, MBeanRegistration {
                 getMBeanServer().unregisterMBean(oname);
             }
         } catch (Throwable t) {
-            log.error(sm.getString("registry.unregisterError"), t);
+            log.error("Error unregistering mbean", t);
         }
     }
 
@@ -517,7 +503,7 @@ public class Registry implements RegistryMBean, MBeanRegistration {
 
             managed = findManagedBean(type);
             if (managed == null) {
-                log.warn(sm.getString("registry.noTypeMetadata", type));
+                log.warn( "No metadata found for " + type );
                 return null;
             }
             managed.setName(type);
@@ -627,7 +613,7 @@ public class Registry implements RegistryMBean, MBeanRegistration {
         }
 
         if (bean == null) {
-            log.error(sm.getString("registry.nullBean", oname));
+            log.error("Null component " + oname );
             return;
         }
 
@@ -650,7 +636,7 @@ public class Registry implements RegistryMBean, MBeanRegistration {
 
             getMBeanServer().registerMBean(mbean, oname);
         } catch (Exception ex) {
-            log.error(sm.getString("registry.registerError", oname), ex);
+            log.error("Error registering " + oname, ex );
             throw ex;
         }
     }
@@ -685,8 +671,8 @@ public class Registry implements RegistryMBean, MBeanRegistration {
         searchedPaths.put(packageName, dURL);
         try {
             load("MbeansDescriptorsDigesterSource", dURL, null);
-        } catch (Exception ex) {
-            log.error(sm.getString("registry.loadError", dURL));
+        } catch(Exception ex ) {
+            log.error("Error loading " + dURL);
         }
     }
 

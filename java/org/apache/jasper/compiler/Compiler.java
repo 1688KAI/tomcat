@@ -31,7 +31,6 @@ import java.util.Map.Entry;
 import org.apache.jasper.JasperException;
 import org.apache.jasper.JspCompilationContext;
 import org.apache.jasper.Options;
-import org.apache.jasper.TrimSpacesOption;
 import org.apache.jasper.servlet.JspServletWrapper;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -80,32 +79,29 @@ public abstract class Compiler {
 
     // --------------------------------------------------------- Public Methods
 
-    public SmapStratum getSmap(String className) {
-
-        Map<String,SmapStratum> smaps = ctxt.getRuntimeContext().getSmaps();
-        SmapStratum smap = smaps.get(className);
-
-        if (smap == null && !options.isSmapSuppressed()) {
-            // Tomcat was restarted so cached SMAP has been lost. However, it
-            // was written to the class file so it can be recovered.
-            smap = SmapUtil.loadSmap(className, ctxt.getJspLoader());
-            if (smap != null) {
-                smaps.put(className, smap);
-            }
-        }
-
-        return smap;
+    /**
+     * <p>
+     * Retrieves the parsed nodes of the JSP page, if they are available. May
+     * return null. Used in development mode for generating detailed error
+     * messages. http://bz.apache.org/bugzilla/show_bug.cgi?id=37062.
+     * </p>
+     * @return the page nodes
+     */
+    public Node.Nodes getPageNodes() {
+        return this.pageNodes;
     }
 
 
     /**
      * Compile the jsp file into equivalent servlet in .java file
      *
-     * @return A map of class names to JSR 045 source maps
-     *
+     * @return a smap for the current JSP page, if one is generated, null
+     *         otherwise
      * @throws Exception Error generating Java source
      */
-    protected Map<String,SmapStratum> generateJava() throws Exception {
+    protected String[] generateJava() throws Exception {
+
+        String[] smapStr = null;
 
         long t1, t2, t3, t4;
 
@@ -117,7 +113,7 @@ public abstract class Compiler {
 
         // Setup page info area
         pageInfo = new PageInfo(new BeanRepository(ctxt.getClassLoader(),
-                errDispatcher), ctxt);
+                errDispatcher), ctxt.getJspFile(), ctxt.isTagFile());
 
         JspConfig jspConfig = options.getJspConfig();
         JspConfig.JspProperty jspProperty = jspConfig.findJspProperty(ctxt
@@ -131,10 +127,6 @@ public abstract class Compiler {
         if (jspProperty.isELIgnored() != null) {
             pageInfo.setELIgnored(JspUtil.booleanValue(jspProperty
                     .isELIgnored()));
-        }
-        if (jspProperty.getErrorOnELNotFound() != null) {
-            pageInfo.setErrorOnELNotFound(JspUtil.booleanValue(jspProperty
-                    .getErrorOnELNotFound()));
         }
         if (jspProperty.isScriptingInvalid() != null) {
             pageInfo.setScriptingInvalid(JspUtil.booleanValue(jspProperty
@@ -285,14 +277,9 @@ public abstract class Compiler {
             throw e;
         }
 
-        Map<String,SmapStratum> smaps = null;
-
         // JSR45 Support
         if (!options.isSmapSuppressed()) {
-            smaps = SmapUtil.generateSmap(ctxt, pageNodes);
-            // Add them to the web application wide cache for future lookup in
-            // error handling etc.
-            ctxt.getRuntimeContext().getSmaps().putAll(smaps);
+            smapStr = SmapUtil.generateSmap(ctxt, pageNodes);
         }
 
         // If any proto type .java and .class files was generated,
@@ -302,7 +289,7 @@ public abstract class Compiler {
         // generate .class again from the new .java file just generated.
         tfp.removeProtoTypeFiles(ctxt.getClassFileName());
 
-        return smaps;
+        return smapStr;
     }
 
     private ServletWriter setupContextWriter(String javaFileName)
@@ -320,12 +307,7 @@ public abstract class Compiler {
                     javaEncoding);
         }
 
-        if (ctxt.getOptions().getTrimSpaces().equals(TrimSpacesOption.EXTENDED)) {
-            writer = new NewlineReductionServletWriter(new PrintWriter(osw));
-        } else {
-            writer = new ServletWriter(new PrintWriter(osw));
-        }
-
+        writer = new ServletWriter(new PrintWriter(osw));
         ctxt.setWriter(writer);
         return writer;
     }
@@ -333,15 +315,12 @@ public abstract class Compiler {
     /**
      * Servlet compilation. This compiles the generated sources into
      * Servlets.
-     *
-     * @param smaps The source maps for the class(es) generated from the source
-     *              file
-     *
+     * @param smap The SMAP files for source debugging
      * @throws FileNotFoundException Source files not found
      * @throws JasperException Compilation error
      * @throws Exception Some other error
      */
-    protected abstract void generateClass(Map<String,SmapStratum> smaps)
+    protected abstract void generateClass(String[] smap)
             throws FileNotFoundException, JasperException, Exception;
 
     /**
@@ -392,13 +371,13 @@ public abstract class Compiler {
 
         try {
             final Long jspLastModified = ctxt.getLastModified(ctxt.getJspFile());
-            Map<String,SmapStratum> smaps = generateJava();
+            String[] smap = generateJava();
             File javaFile = new File(ctxt.getServletJavaFileName());
             if (!javaFile.setLastModified(jspLastModified.longValue())) {
                 throw new JasperException(Localizer.getMessage("jsp.error.setLastModified", javaFile));
             }
             if (compileClass) {
-                generateClass(smaps);
+                generateClass(smap);
                 // Fix for bugzilla 41606
                 // Set JspServletWrapper.servletClassLastModifiedTime after successful compile
                 File targetFile = new File(ctxt.getClassFileName());
@@ -424,7 +403,14 @@ public abstract class Compiler {
             tfp = null;
             errDispatcher = null;
             pageInfo = null;
-            pageNodes = null;
+
+            // Only get rid of the pageNodes if in production.
+            // In development mode, they are used for detailed
+            // error messages.
+            // http://bz.apache.org/bugzilla/show_bug.cgi?id=37062
+            if (!this.options.getDevelopment()) {
+                pageNodes = null;
+            }
 
             if (ctxt.getWriter() != null) {
                 ctxt.getWriter().close();

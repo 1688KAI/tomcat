@@ -139,7 +139,7 @@ public class TestDefaultInstanceManager extends TomcatBaseTest {
     }
 
 
-    private static class InstanceManagerRunnable implements Runnable {
+    private class InstanceManagerRunnable implements Runnable {
 
         private final InstanceManager im;
 

@@ -25,7 +25,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.Files;
 import java.util.Map;
@@ -193,7 +192,9 @@ public class DiskFileItem
     public InputStream getInputStream()
         throws IOException {
         if (!isInMemory()) {
-            return Files.newInputStream(dfos.getFile().toPath());
+            // Uses old code to avoid JVM bug
+            // https://bz.apache.org/bugzilla/show_bug.cgi?id=65710
+            return new FileInputStream(dfos.getFile());
         }
 
         if (cachedContent == null) {
@@ -288,10 +289,10 @@ public class DiskFileItem
      * @return The contents of the file as an array of bytes
      * or {@code null} if the data cannot be read
      *
-     * @throws UncheckedIOException if an I/O error occurs
+     * @throws IOException if an I/O error occurs
      */
     @Override
-    public byte[] get() throws UncheckedIOException {
+    public byte[] get() throws IOException {
         if (isInMemory()) {
             if (cachedContent == null && dfos != null) {
                 cachedContent = dfos.getData();
@@ -303,8 +304,6 @@ public class DiskFileItem
 
         try (InputStream fis = Files.newInputStream(dfos.getFile().toPath())) {
             IOUtils.readFully(fis, fileData);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
         return fileData;
     }
@@ -535,7 +534,6 @@ public class DiskFileItem
     /**
      * Removes the file contents from the temporary storage.
      */
-    @SuppressWarnings("deprecation") // Need Commons FileUpload to address this
     @Override
     protected void finalize() throws Throwable {
         if (dfos == null || dfos.isInMemory()) {

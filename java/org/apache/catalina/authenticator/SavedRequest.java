@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import jakarta.servlet.http.Cookie;
+import javax.servlet.http.Cookie;
 
 import org.apache.tomcat.util.buf.ByteChunk;
 

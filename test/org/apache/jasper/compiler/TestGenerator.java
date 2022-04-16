@@ -20,34 +20,28 @@ import java.beans.BeanInfo;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.beans.PropertyEditorSupport;
-import java.io.File;
 import java.io.IOException;
 import java.util.Date;
-import java.util.Scanner;
 
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.jsp.JspException;
-import jakarta.servlet.jsp.PageContext;
-import jakarta.servlet.jsp.tagext.BodyTagSupport;
-import jakarta.servlet.jsp.tagext.DynamicAttributes;
-import jakarta.servlet.jsp.tagext.JspIdConsumer;
-import jakarta.servlet.jsp.tagext.Tag;
-import jakarta.servlet.jsp.tagext.TagData;
-import jakarta.servlet.jsp.tagext.TagExtraInfo;
-import jakarta.servlet.jsp.tagext.TagSupport;
-import jakarta.servlet.jsp.tagext.TryCatchFinally;
-import jakarta.servlet.jsp.tagext.VariableInfo;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.jsp.JspException;
+import javax.servlet.jsp.PageContext;
+import javax.servlet.jsp.tagext.BodyTagSupport;
+import javax.servlet.jsp.tagext.DynamicAttributes;
+import javax.servlet.jsp.tagext.JspIdConsumer;
+import javax.servlet.jsp.tagext.Tag;
+import javax.servlet.jsp.tagext.TagData;
+import javax.servlet.jsp.tagext.TagExtraInfo;
+import javax.servlet.jsp.tagext.TagSupport;
+import javax.servlet.jsp.tagext.TryCatchFinally;
+import javax.servlet.jsp.tagext.VariableInfo;
 
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
-import org.apache.catalina.Wrapper;
-import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
-import org.apache.jasper.servlet.JasperInitializer;
 import org.apache.tomcat.util.buf.ByteChunk;
 
 public class TestGenerator extends TomcatBaseTest {
@@ -227,7 +221,7 @@ public class TestGenerator extends TomcatBaseTest {
                 response.contains("[1:attribute1: '', attribute2: '']"));
         Assert.assertTrue(response,
                 response.contains("[2:attribute1: '', attribute2: '']"));
-    }
+   }
 
     public static class Bug56529 extends TagSupport {
 
@@ -286,63 +280,6 @@ public class TestGenerator extends TomcatBaseTest {
         String result = res.toString();
         Assert.assertTrue(result.startsWith("0 Hello world!\n"));
         Assert.assertTrue(result.endsWith("999 Hello world!\n"));
-    }
-
-
-    // https://bz.apache.org/bugzilla/show_bug.cgi?id=43400
-    @Test
-    public void testTagsWithEnums() throws Exception {
-        getTomcatInstanceTestWebapp(false, true);
-
-        ByteChunk res = getUrl("http://localhost:" + getPort() + "/test/bug43nnn/bug43400.jsp");
-
-        String result = res.toString();
-        System.out.println(result);
-        assertEcho(result, "ASYNC");
-    }
-
-    @Test
-    public void testTrimSpacesExtended01() throws Exception {
-        doTestTrimSpacesExtended(false);
-    }
-
-    @Test
-    public void testTrimSpacesExtended02() throws Exception {
-        doTestTrimSpacesExtended(true);
-    }
-
-    private void doTestTrimSpacesExtended(boolean removeBlankLines) throws Exception {
-        Tomcat tomcat = getTomcatInstance();
-
-        File appDir = new File("test/webapp");
-        Context ctxt = tomcat.addContext("", appDir.getAbsolutePath());
-        ctxt.addServletContainerInitializer(new JasperInitializer(), null);
-
-        Tomcat.initWebappDefaults(ctxt);
-        Wrapper w = (Wrapper) ctxt.findChild("jsp");
-        if (removeBlankLines) {
-            w.addInitParameter("trimSpaces", "extended");
-        }
-
-        tomcat.start();
-
-        ByteChunk res = getUrl("http://localhost:" + getPort() + "/jsp/trim-spaces-extended.jsp");
-
-        String result = res.toString();
-        Scanner scanner = new Scanner(result);
-        int blankLineCount = 0;
-        while (scanner.hasNextLine()) {
-            String line = scanner.nextLine();
-            if (line.length() == 0) {
-                blankLineCount++;
-            }
-        }
-        if (!removeBlankLines && blankLineCount == 0) {
-            Assert.fail("TrimSpaceOptions.EXTENDED not configured but balnk lines have been removed");
-        } else if (removeBlankLines && blankLineCount > 0) {
-            Assert.fail("TrimSpaceOptions.EXTENDED does not allow the line to be just a new line character");
-        }
-        scanner.close();
     }
 
     @Test
@@ -434,11 +371,6 @@ public class TestGenerator extends TomcatBaseTest {
         Assert.assertNotEquals(ids[0], ids[1]);
     }
 
-    @Test
-    public void testTryCatchFinally02() throws Exception {
-        doTestJsp("try-catch-finally-02.jsp");
-    }
-
     public static class JspIdTag extends TagSupport implements JspIdConsumer {
 
         private static final long serialVersionUID = 1L;
@@ -474,21 +406,6 @@ public class TestGenerator extends TomcatBaseTest {
             }
             return super.doStartTag();
         }
-
-        @Override
-        public void doCatch(Throwable t) throws Throwable {
-            // NO-OP
-        }
-
-        @Override
-        public void doFinally() {
-            // NO-OP
-        }
-    }
-
-    public static class TryCatchFinallyTag extends TagSupport implements TryCatchFinally {
-
-        private static final long serialVersionUID = 1L;
 
         @Override
         public void doCatch(Throwable t) throws Throwable {
@@ -819,7 +736,7 @@ public class TestGenerator extends TomcatBaseTest {
     public void testUseBean05() throws Exception {
         // Whether this test passes or fails depends on the Java version used
         // and the JRE settings.
-        // For the test to pass use --illegal-access=deny
+        // For the test to pass use Java 9+ with --illegal-access=deny
         doTestJsp("usebean-05.jsp", HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
 
@@ -840,7 +757,7 @@ public class TestGenerator extends TomcatBaseTest {
 
     @Test
     public void testCustomTag01() throws Exception {
-        doTestJsp("try-catch-finally-01.jsp");
+        doTestJsp("try-catch-finally.jsp");
     }
 
     @Test

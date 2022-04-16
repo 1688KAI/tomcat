@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
 
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
@@ -136,7 +136,7 @@ public final class RemoteCIDRValve extends RequestFilterValve {
         }
         if (getAddConnectorPort()) {
             property = property + ";" +
-                request.getConnector().getPortWithOffset();
+                request.getConnector().getPort();
         }
         process(property, request, response);
     }

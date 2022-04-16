@@ -16,17 +16,12 @@
  */
 package org.apache.catalina.core;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.TreeMap;
-
-import jakarta.servlet.SessionCookieConfig;
-import jakarta.servlet.http.Cookie;
+import javax.servlet.SessionCookieConfig;
+import javax.servlet.http.Cookie;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleState;
 import org.apache.catalina.util.SessionConfig;
-import org.apache.tomcat.util.descriptor.web.Constants;
 import org.apache.tomcat.util.res.StringManager;
 
 public class ApplicationSessionCookieConfig implements SessionCookieConfig {
@@ -36,13 +31,13 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
      */
     private static final StringManager sm = StringManager.getManager(ApplicationSessionCookieConfig.class);
 
-    private static final int DEFAULT_MAX_AGE = -1;
-    private static final boolean DEFAULT_HTTP_ONLY = false;
-    private static final boolean DEFAULT_SECURE = false;
-
-    private final Map<String,String> attributes = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-
+    private boolean httpOnly;
+    private boolean secure;
+    private int maxAge = -1;
+    private String comment;
+    private String domain;
     private String name;
+    private String path;
     private StandardContext context;
 
     public ApplicationSessionCookieConfig(StandardContext context) {
@@ -51,21 +46,17 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
 
     @Override
     public String getComment() {
-        return null;
+        return comment;
     }
 
     @Override
     public String getDomain() {
-        return getAttribute(Constants.COOKIE_DOMAIN_ATTR);
+        return domain;
     }
 
     @Override
     public int getMaxAge() {
-        String maxAge = getAttribute(Constants.COOKIE_MAX_AGE_ATTR);
-        if (maxAge == null) {
-            return DEFAULT_MAX_AGE;
-        }
-        return Integer.parseInt(maxAge);
+        return maxAge;
     }
 
     @Override
@@ -75,25 +66,17 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
 
     @Override
     public String getPath() {
-        return getAttribute(Constants.COOKIE_PATH_ATTR);
+        return path;
     }
 
     @Override
     public boolean isHttpOnly() {
-        String httpOnly = getAttribute(Constants.COOKIE_HTTP_ONLY_ATTR);
-        if (httpOnly == null) {
-            return DEFAULT_HTTP_ONLY;
-        }
-        return Boolean.parseBoolean(httpOnly);
+        return httpOnly;
     }
 
     @Override
     public boolean isSecure() {
-        String secure = getAttribute(Constants.COOKIE_SECURE_ATTR);
-        if (secure == null) {
-            return DEFAULT_SECURE;
-        }
-        return Boolean.parseBoolean(secure);
+        return secure;
     }
 
     @Override
@@ -103,6 +86,7 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
                     "applicationSessionCookieConfig.ise", "comment",
                     context.getPath()));
         }
+        this.comment = comment;
     }
 
     @Override
@@ -112,7 +96,7 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
                     "applicationSessionCookieConfig.ise", "domain name",
                     context.getPath()));
         }
-        setAttribute(Constants.COOKIE_DOMAIN_ATTR, domain);
+        this.domain = domain;
     }
 
     @Override
@@ -122,7 +106,7 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
                     "applicationSessionCookieConfig.ise", "HttpOnly",
                     context.getPath()));
         }
-        setAttribute(Constants.COOKIE_HTTP_ONLY_ATTR, Boolean.toString(httpOnly));
+        this.httpOnly = httpOnly;
     }
 
     @Override
@@ -132,7 +116,7 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
                     "applicationSessionCookieConfig.ise", "max age",
                     context.getPath()));
         }
-        setAttribute(Constants.COOKIE_MAX_AGE_ATTR, Integer.toString(maxAge));
+        this.maxAge = maxAge;
     }
 
     @Override
@@ -152,7 +136,7 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
                     "applicationSessionCookieConfig.ise", "path",
                     context.getPath()));
         }
-        setAttribute(Constants.COOKIE_PATH_ATTR, path);
+        this.path = path;
     }
 
     @Override
@@ -162,29 +146,7 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
                     "applicationSessionCookieConfig.ise", "secure",
                     context.getPath()));
         }
-        setAttribute(Constants.COOKIE_SECURE_ATTR, Boolean.toString(secure));
-    }
-
-
-    @Override
-    public void setAttribute(String name, String value) {
-        if (!context.getState().equals(LifecycleState.STARTING_PREP)) {
-            throw new IllegalStateException(sm.getString(
-                    "applicationSessionCookieConfig.ise", name,
-                    context.getPath()));
-        }
-        attributes.put(name, value);
-    }
-
-    @Override
-    public String getAttribute(String name) {
-        return attributes.get(name);
-    }
-
-
-    @Override
-    public Map<String, String> getAttributes() {
-        return Collections.unmodifiableMap(attributes);
+        this.secure = secure;
     }
 
     /**
@@ -212,6 +174,7 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
 
         // Just apply the defaults.
         cookie.setMaxAge(scc.getMaxAge());
+        cookie.setComment(scc.getComment());
 
         if (context.getSessionCookieDomain() == null) {
             // Avoid possible NPE
@@ -233,23 +196,6 @@ public class ApplicationSessionCookieConfig implements SessionCookieConfig {
         }
 
         cookie.setPath(SessionConfig.getSessionCookiePath(context));
-
-        // Other attributes
-        for (Map.Entry<String,String> attribute : scc.getAttributes().entrySet()) {
-            switch (attribute.getKey()) {
-            case Constants.COOKIE_COMMENT_ATTR:
-            case Constants.COOKIE_DOMAIN_ATTR:
-            case Constants.COOKIE_MAX_AGE_ATTR:
-            case Constants.COOKIE_PATH_ATTR:
-            case Constants.COOKIE_SECURE_ATTR:
-            case Constants.COOKIE_HTTP_ONLY_ATTR:
-                // Handled above so NO-OP
-                break;
-            default: {
-                cookie.setAttribute(attribute.getKey(), attribute.getValue());
-            }
-            }
-        }
 
         return cookie;
     }

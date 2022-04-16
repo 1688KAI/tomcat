@@ -16,7 +16,7 @@
  */
 package org.apache.coyote.http11.upgrade;
 
-import jakarta.servlet.http.HttpUpgradeHandler;
+import javax.servlet.http.HttpUpgradeHandler;
 
 import org.apache.tomcat.util.net.AbstractEndpoint.Handler.SocketState;
 import org.apache.tomcat.util.net.SSLSupport;
@@ -40,11 +40,5 @@ public interface InternalHttpUpgradeHandler extends HttpUpgradeHandler {
 
     void pause();
 
-    default boolean hasAsyncIO() {
-        return false;
-    }
-
-    default UpgradeInfo getUpgradeInfo() {
-        return null;
-    }
+    UpgradeInfo getUpgradeInfo();
 }

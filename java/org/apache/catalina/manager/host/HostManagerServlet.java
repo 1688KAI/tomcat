@@ -28,12 +28,11 @@ import java.util.StringTokenizer;
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
-
-import jakarta.servlet.ServletException;
-import jakarta.servlet.UnavailableException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.UnavailableException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Container;
 import org.apache.catalina.ContainerServlet;
@@ -489,7 +488,7 @@ public class HostManagerServlet
             Container child = engine.findChild(name);
             engine.removeChild(child);
             if ( child instanceof ContainerBase ) {
-                child.destroy();
+                ((ContainerBase)child).destroy();
             }
         } catch (Exception e) {
             writer.println(smClient.getString("hostManagerServlet.exception",

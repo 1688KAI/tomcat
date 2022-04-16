@@ -18,10 +18,9 @@ package org.apache.tomcat.util.descriptor.web;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 
-import jakarta.servlet.DispatcherType;
+import javax.servlet.DispatcherType;
 
 import org.apache.tomcat.util.buf.UDecoder;
 
@@ -179,7 +178,7 @@ public class FilterMap extends XmlEncodingBase implements Serializable {
     }
 
     public String[] getDispatcherNames() {
-        List<String> result = new ArrayList<>();
+        ArrayList<String> result = new ArrayList<>();
         if ((dispatcherMapping & FORWARD) != 0) {
             result.add(DispatcherType.FORWARD.name());
         }

@@ -60,17 +60,10 @@ public class CatalinaProperties {
     private static void loadProperties() {
 
         InputStream is = null;
-        String fileName = "catalina.properties";
-
         try {
             String configUrl = System.getProperty("catalina.config");
             if (configUrl != null) {
-                if (configUrl.indexOf('/') == -1) {
-                    // No '/'. Must be a file name rather than a URL
-                    fileName = configUrl;
-                } else {
-                    is = (new URL(configUrl)).openStream();
-                }
+                is = (new URL(configUrl)).openStream();
             }
         } catch (Throwable t) {
             handleThrowable(t);
@@ -80,7 +73,7 @@ public class CatalinaProperties {
             try {
                 File home = new File(Bootstrap.getCatalinaBase());
                 File conf = new File(home, "conf");
-                File propsFile = new File(conf, fileName);
+                File propsFile = new File(conf, "catalina.properties");
                 is = new FileInputStream(propsFile);
             } catch (Throwable t) {
                 handleThrowable(t);
@@ -107,14 +100,14 @@ public class CatalinaProperties {
                 try {
                     is.close();
                 } catch (IOException ioe) {
-                    log.warn("Could not close catalina properties file", ioe);
+                    log.warn("Could not close catalina.properties", ioe);
                 }
             }
         }
 
         if ((is == null)) {
             // Do something
-            log.warn("Failed to load catalina properties file");
+            log.warn("Failed to load catalina.properties");
             // That's fine - we have reasonable defaults.
             properties = new Properties();
         }

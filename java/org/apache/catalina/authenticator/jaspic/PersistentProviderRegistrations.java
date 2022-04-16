@@ -43,7 +43,7 @@ import org.xml.sax.SAXException;
  * Utility class for the loading and saving of JASPIC persistent provider
  * registrations.
  */
-public final class PersistentProviderRegistrations {
+final class PersistentProviderRegistrations {
 
     private static final Log log = LogFactory.getLog(PersistentProviderRegistrations.class);
     private static final StringManager sm =
@@ -236,16 +236,6 @@ public final class PersistentProviderRegistrations {
 
         public void addProperty(Property property) {
             properties.put(property.getName(), property.getValue());
-        }
-
-        /**
-         * Used by IntrospectionUtils via reflection.
-         * @param name - the name of of the property to set on this object
-         * @param value - the value to set
-         * @see #addProperty(String, String)
-         */
-        public void setProperty(String name, String value) {
-            addProperty(name, value);
         }
         void addProperty(String name, String value) {
             properties.put(name, value);

@@ -22,7 +22,7 @@ package org.apache.jasper;
  *
  * @author Anil K. Vijendran
  */
-public class JasperException extends jakarta.servlet.ServletException {
+public class JasperException extends javax.servlet.ServletException {
 
     private static final long serialVersionUID = 1L;
 

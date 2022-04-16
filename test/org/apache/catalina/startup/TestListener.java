@@ -18,11 +18,11 @@ package org.apache.catalina.startup;
 
 import java.util.Set;
 
-import jakarta.servlet.ServletContainerInitializer;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletContextEvent;
-import jakarta.servlet.ServletContextListener;
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletContainerInitializer;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletContextListener;
+import javax.servlet.ServletException;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -86,6 +86,11 @@ public class TestListener extends TomcatBaseTest {
         public void contextInitialized(ServletContextEvent sce) {
             initialized = true;
         }
+
+        @Override
+        public void contextDestroyed(ServletContextEvent sce) {
+            // NOOP
+        }
     }
 
     public static class SCL2 implements ServletContextListener {
@@ -94,6 +99,11 @@ public class TestListener extends TomcatBaseTest {
         public void contextInitialized(ServletContextEvent sce) {
             ServletContext sc = sce.getServletContext();
             sc.addListener(SCL3.class.getName());
+        }
+
+        @Override
+        public void contextDestroyed(ServletContextEvent sce) {
+            // NOOP
         }
     }
 
@@ -104,6 +114,11 @@ public class TestListener extends TomcatBaseTest {
         @Override
         public void contextInitialized(ServletContextEvent sce) {
             initialized = true;
+        }
+
+        @Override
+        public void contextDestroyed(ServletContextEvent sce) {
+            // NOOP
         }
     }
 }

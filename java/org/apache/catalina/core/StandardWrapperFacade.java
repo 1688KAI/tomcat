@@ -19,8 +19,8 @@ package org.apache.catalina.core;
 
 import java.util.Enumeration;
 
-import jakarta.servlet.ServletConfig;
-import jakarta.servlet.ServletContext;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
 
 
 /**

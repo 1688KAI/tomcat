@@ -17,14 +17,11 @@ package org.apache.catalina.valves;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.SessionCookieConfig;
-import jakarta.servlet.http.Cookie;
+import javax.servlet.ServletContext;
+import javax.servlet.SessionCookieConfig;
+import javax.servlet.http.Cookie;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,7 +34,6 @@ import org.apache.catalina.Valve;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 import org.apache.catalina.core.StandardPipeline;
-import org.apache.tomcat.util.descriptor.web.Constants;
 import org.easymock.EasyMock;
 import org.easymock.IMocksControl;
 
@@ -195,8 +191,12 @@ public class TestLoadBalancerDrainingValve {
     private static class CookieConfig implements SessionCookieConfig {
 
         private String name;
-
-        private final Map<String,String> attributes = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        private String domain;
+        private String path;
+        private String comment;
+        private boolean httpOnly;
+        private boolean secure;
+        private int maxAge;
 
         @Override
         public String getName() {
@@ -208,75 +208,51 @@ public class TestLoadBalancerDrainingValve {
         }
         @Override
         public String getDomain() {
-            return attributes.get(Constants.COOKIE_DOMAIN_ATTR);
+            return domain;
         }
         @Override
         public void setDomain(String domain) {
-            attributes.put(Constants.COOKIE_DOMAIN_ATTR, domain);
+            this.domain = domain;
         }
         @Override
         public String getPath() {
-            return attributes.get(Constants.COOKIE_PATH_ATTR);
+            return path;
         }
         @Override
         public void setPath(String path) {
-            attributes.put(Constants.COOKIE_PATH_ATTR, path);
+            this.path = path;
         }
         @Override
         public String getComment() {
-            return null;
+            return comment;
         }
         @Override
         public void setComment(String comment) {
-            // NO-OP
+            this.comment = comment;
         }
         @Override
         public boolean isHttpOnly() {
-            String httpOnly = getAttribute(Constants.COOKIE_HTTP_ONLY_ATTR);
-            if (httpOnly == null) {
-                return false;
-            }
-            return Boolean.parseBoolean(httpOnly);
+            return httpOnly;
         }
         @Override
         public void setHttpOnly(boolean httpOnly) {
-            setAttribute(Constants.COOKIE_HTTP_ONLY_ATTR, Boolean.toString(httpOnly));
+            this.httpOnly = httpOnly;
         }
         @Override
         public boolean isSecure() {
-            String secure = getAttribute(Constants.COOKIE_SECURE_ATTR);
-            if (secure == null) {
-                return false;
-            }
-            return Boolean.parseBoolean(secure);
+            return secure;
         }
         @Override
         public void setSecure(boolean secure) {
-            setAttribute(Constants.COOKIE_SECURE_ATTR, Boolean.toString(secure));
+            this.secure = secure;
         }
         @Override
         public int getMaxAge() {
-            String maxAge = getAttribute(Constants.COOKIE_MAX_AGE_ATTR);
-            if (maxAge == null) {
-                return -1;
-            }
-            return Integer.parseInt(maxAge);
+            return maxAge;
         }
         @Override
         public void setMaxAge(int maxAge) {
-            setAttribute(Constants.COOKIE_MAX_AGE_ATTR, Integer.toString(maxAge));
-        }
-        @Override
-        public void setAttribute(String name, String value) {
-            attributes.put(name, value);
-        }
-        @Override
-        public String getAttribute(String name) {
-            return attributes.get(name);
-        }
-        @Override
-        public Map<String, String> getAttributes() {
-            return Collections.unmodifiableMap(attributes);
+            this.maxAge = maxAge;
         }
     }
 

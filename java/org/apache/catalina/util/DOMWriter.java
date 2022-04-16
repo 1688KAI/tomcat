@@ -19,7 +19,6 @@ package org.apache.catalina.util;
 import java.io.PrintWriter;
 import java.io.Writer;
 
-import org.apache.tomcat.util.security.Escape;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
@@ -27,15 +26,49 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
- * A DOM writer optimised for use by WebDAV.
+ * A sample DOM writer. This sample program illustrates how to traverse a DOM
+ * tree in order to print a document that is parsed.
  */
 public class DOMWriter {
 
-    private final PrintWriter out;
+    /** Default Encoding */
+    private static final String PRINTWRITER_ENCODING = "UTF8";
+
+    /** Print writer.
+     *
+     * @deprecated Will be made private in Tomcat 9.
+     */
+    @Deprecated
+    protected final PrintWriter out;
+
+    /** Canonical output.
+     *
+     * @deprecated Will be made private in Tomcat 9.
+     */
+    @Deprecated
+    protected final boolean canonical;
 
 
     public DOMWriter(Writer writer) {
+        this (writer, true);
+    }
+
+
+    @Deprecated
+    public DOMWriter(Writer writer, boolean canonical) {
         out = new PrintWriter(writer);
+        this.canonical = canonical;
+    }
+
+
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 9.
+     *
+     * @return Always <code>UTF-8</code>
+     */
+    @Deprecated
+    public static String getWriterEncoding() {
+        return (PRINTWRITER_ENCODING);
     }
 
 
@@ -54,6 +87,9 @@ public class DOMWriter {
         switch (type) {
             // print document
             case Node.DOCUMENT_NODE:
+                if (!canonical) {
+                    out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+                }
                 print(((Document) node).getDocumentElement());
                 out.flush();
                 break;
@@ -68,7 +104,7 @@ public class DOMWriter {
                     out.print(attr.getLocalName());
 
                     out.print("=\"");
-                    out.print(Escape.xml("", true, attr.getNodeValue()));
+                    out.print(normalize(attr.getNodeValue()));
                     out.print('"');
                 }
                 out.print('>');
@@ -77,17 +113,29 @@ public class DOMWriter {
 
             // handle entity reference nodes
             case Node.ENTITY_REFERENCE_NODE:
-                printChildren(node);
+                if (canonical) {
+                    printChildren(node);
+                } else {
+                    out.print('&');
+                    out.print(node.getLocalName());
+                    out.print(';');
+                }
                 break;
 
             // print cdata sections
             case Node.CDATA_SECTION_NODE:
-                out.print(Escape.xml("", true, node.getNodeValue()));
+                if (canonical) {
+                    out.print(normalize(node.getNodeValue()));
+                } else {
+                    out.print("<![CDATA[");
+                    out.print(node.getNodeValue());
+                    out.print("]]>");
+                }
                 break;
 
             // print text
             case Node.TEXT_NODE:
-                out.print(Escape.xml("", true, node.getNodeValue()));
+               out.print(normalize(node.getNodeValue()));
                 break;
 
             // print processing instruction
@@ -130,8 +178,11 @@ public class DOMWriter {
      * Returns a sorted list of attributes.
      * @param attrs The map to sort
      * @return a sorted attribute array
+     *
+     * @deprecated Will be made private in Tomcat 9.
      */
-    private Attr[] sortAttributes(NamedNodeMap attrs) {
+    @Deprecated
+    protected Attr[] sortAttributes(NamedNodeMap attrs) {
         if (attrs == null) {
             return new Attr[0];
         }
@@ -161,5 +212,54 @@ public class DOMWriter {
         }
 
         return array;
+    }
+
+    /**
+     * Normalizes the given string.
+     * @param s The string to escape
+     * @return the escaped string
+     *
+     * @deprecated Will be made private in Tomcat 9.
+     */
+    @Deprecated
+    protected String normalize(String s) {
+        if (s == null) {
+            return "";
+        }
+
+        StringBuilder str = new StringBuilder();
+
+        int len = s.length();
+        for (int i = 0; i < len; i++) {
+            char ch = s.charAt(i);
+            switch (ch) {
+                case '<':
+                    str.append("&lt;");
+                    break;
+                case '>':
+                    str.append("&gt;");
+                    break;
+                case '&':
+                    str.append("&amp;");
+                    break;
+                case '"':
+                    str.append("&quot;");
+                    break;
+                case '\r':
+                case '\n':
+                    if (canonical) {
+                        str.append("&#");
+                        str.append(Integer.toString(ch));
+                        str.append(';');
+                        break;
+                    }
+                    // else, default append char
+                //$FALL-THROUGH$
+                default:
+                    str.append(ch);
+            }
+        }
+
+        return str.toString();
     }
 }

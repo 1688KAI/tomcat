@@ -22,9 +22,9 @@ import java.nio.ByteBuffer;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -32,7 +32,6 @@ import org.junit.Test;
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.startup.Tomcat;
-import org.apache.coyote.http11.AbstractHttp11Protocol;
 
 public class TestCancelledUpload extends Http2TestBase {
 
@@ -42,7 +41,7 @@ public class TestCancelledUpload extends Http2TestBase {
 
         LogManager.getLogManager().getLogger("org.apache.coyote.http2").setLevel(Level.ALL);
         try {
-            ((AbstractHttp11Protocol<?>) http2Protocol.getHttp11Protocol()).setAllowedTrailerHeaders(TRAILER_HEADER_NAME);
+            http2Protocol.setAllowedTrailerHeaders(TRAILER_HEADER_NAME);
 
             int bodySize = 8192;
             int bodyCount = 20;

@@ -16,8 +16,8 @@
  */
 package org.apache.el.lang;
 
-import jakarta.el.ValueExpression;
-import jakarta.el.VariableMapper;
+import javax.el.ValueExpression;
+import javax.el.VariableMapper;
 
 import org.apache.el.util.MessageFactory;
 

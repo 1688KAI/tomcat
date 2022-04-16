@@ -448,7 +448,7 @@ public class DeltaSession extends StandardSession implements Externalizable,Clus
         if (this.expiring) {
             return true;
         }
-        if (activityCheck && accessCount.get() > 0) {
+        if (ACTIVITY_CHECK && accessCount.get() > 0) {
             return true;
         }
         if (maxInactiveInterval > 0) {
@@ -1039,11 +1039,11 @@ public class DeltaSession extends StandardSession implements Externalizable,Clus
     }
 
     protected void setAccessCount(int count) {
-        if (accessCount == null && activityCheck) {
+        if ( accessCount == null && ACTIVITY_CHECK ) {
             accessCount = new AtomicInteger();
         }
-        if (accessCount != null) {
-            accessCount.set(count);
+        if ( accessCount != null ) {
+            super.accessCount.set(count);
         }
     }
 }

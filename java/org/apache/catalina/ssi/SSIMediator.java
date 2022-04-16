@@ -21,14 +21,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TimeZone;
-import java.util.regex.Matcher;
 
 import org.apache.catalina.util.Strftime;
 import org.apache.catalina.util.URLEncoder;
-import org.apache.tomcat.util.res.StringManager;
 import org.apache.tomcat.util.security.Escape;
 
 /**
@@ -42,8 +41,6 @@ import org.apache.tomcat.util.security.Escape;
  * @author David Becker
  */
 public class SSIMediator {
-    private static final StringManager sm = StringManager.getManager(SSIMediator.class);
-
     protected static final String ENCODING_NONE = "none";
     protected static final String ENCODING_ENTITY = "entity";
     protected static final String ENCODING_URL = "url";
@@ -60,7 +57,6 @@ public class SSIMediator {
     protected final long lastModifiedDate;
     protected Strftime strftime;
     protected final SSIConditionalState conditionalState = new SSIConditionalState();
-    protected  int lastMatchCount = 0;
 
 
     public SSIMediator(SSIExternalResolver ssiExternalResolver,
@@ -126,7 +122,13 @@ public class SSIMediator {
         variableNames.add("LAST_MODIFIED");
         ssiExternalResolver.addVariableNames(variableNames);
         //Remove any variables that are reserved by this class
-        variableNames.removeIf(this::isNameReserved);
+        Iterator<String> iter = variableNames.iterator();
+        while (iter.hasNext()) {
+            String name = iter.next();
+            if (isNameReserved(name)) {
+                iter.remove();
+            }
+        }
         return variableNames;
     }
 
@@ -300,7 +302,7 @@ public class SSIMediator {
             retVal = Escape.htmlElementContent(value);
         } else {
             //This shouldn't be possible
-            throw new IllegalArgumentException(sm.getString("ssiMediator.unknownEncoding", encoding));
+            throw new IllegalArgumentException("Unknown encoding: " + encoding);
         }
         return retVal;
     }
@@ -343,26 +345,6 @@ public class SSIMediator {
             setVariableValue("LAST_MODIFIED", null);
             ssiExternalResolver.setVariableValue(className + ".LAST_MODIFIED",
                     retVal);
-        }
-    }
-
-
-    protected void clearMatchGroups() {
-        for (int i = 1; i <= lastMatchCount; i++) {
-            setVariableValue(Integer.toString(i), "");
-        }
-        lastMatchCount = 0;
-    }
-
-
-    protected void populateMatchGroups(Matcher matcher) {
-        lastMatchCount = matcher.groupCount();
-        // $0 is not used
-        if (lastMatchCount == 0) {
-            return;
-        }
-        for (int i = 1; i <= lastMatchCount; i++) {
-            setVariableValue(Integer.toString(i), matcher.group(i));
         }
     }
 }

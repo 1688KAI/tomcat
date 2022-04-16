@@ -21,26 +21,28 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.zip.ZipFile;
 
 import org.apache.catalina.WebResource;
 import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.util.ResourceSet;
+import org.apache.tomcat.util.compat.JreCompat;
 
 public abstract class AbstractArchiveResourceSet extends AbstractResourceSet {
 
     private URL baseUrl;
     private String baseUrlString;
+
     private JarFile archive = null;
-    protected Map<String,JarEntry> archiveEntries = null;
+    protected HashMap<String,JarEntry> archiveEntries = null;
     protected final Object archiveLock = new Object();
     private long archiveUseCount = 0;
-    private JarContents jarContents;
+
 
     protected final void setBaseUrl(URL baseUrl) {
         this.baseUrl = baseUrl;
@@ -170,7 +172,7 @@ public abstract class AbstractArchiveResourceSet extends AbstractResourceSet {
      * @return The archives entries mapped to their names or null if
      *         {@link #getArchiveEntry(String)} should be used.
      */
-    protected abstract Map<String,JarEntry> getArchiveEntries(boolean single);
+    protected abstract HashMap<String,JarEntry> getArchiveEntries(boolean single);
 
 
     /**
@@ -209,14 +211,6 @@ public abstract class AbstractArchiveResourceSet extends AbstractResourceSet {
         checkPath(path);
         String webAppMount = getWebAppMount();
         WebResourceRoot root = getRoot();
-
-        /*
-         * If jarContents reports that this resource definitely does not contain
-         * the path, we can end this method and move on to the next jar.
-         */
-        if (jarContents != null && !jarContents.mightContainResource(path, webAppMount)) {
-            return new EmptyResource(root, path);
-        }
 
         /*
          * Implementation notes
@@ -311,11 +305,7 @@ public abstract class AbstractArchiveResourceSet extends AbstractResourceSet {
     protected JarFile openJarFile() throws IOException {
         synchronized (archiveLock) {
             if (archive == null) {
-                archive = new JarFile(new File(getBase()), true, ZipFile.OPEN_READ, Runtime.version());
-                WebResourceRoot root = getRoot();
-                if ((root.getContext() != null) && root.getContext().getUseBloomFilterForArchives()) {
-                    jarContents = new JarContents(archive);
-                }
+                archive = JreCompat.getInstance().jarFileNewInstance(getBase());
             }
             archiveUseCount++;
             return archive;
@@ -339,7 +329,6 @@ public abstract class AbstractArchiveResourceSet extends AbstractResourceSet {
                 }
                 archive = null;
                 archiveEntries = null;
-                jarContents = null;
             }
         }
     }

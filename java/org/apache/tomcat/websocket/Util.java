@@ -34,21 +34,20 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import javax.naming.NamingException;
-
-import jakarta.websocket.CloseReason.CloseCode;
-import jakarta.websocket.CloseReason.CloseCodes;
-import jakarta.websocket.Decoder;
-import jakarta.websocket.Decoder.Binary;
-import jakarta.websocket.Decoder.BinaryStream;
-import jakarta.websocket.Decoder.Text;
-import jakarta.websocket.Decoder.TextStream;
-import jakarta.websocket.DeploymentException;
-import jakarta.websocket.Encoder;
-import jakarta.websocket.EndpointConfig;
-import jakarta.websocket.Extension;
-import jakarta.websocket.MessageHandler;
-import jakarta.websocket.PongMessage;
-import jakarta.websocket.Session;
+import javax.websocket.CloseReason.CloseCode;
+import javax.websocket.CloseReason.CloseCodes;
+import javax.websocket.Decoder;
+import javax.websocket.Decoder.Binary;
+import javax.websocket.Decoder.BinaryStream;
+import javax.websocket.Decoder.Text;
+import javax.websocket.Decoder.TextStream;
+import javax.websocket.DeploymentException;
+import javax.websocket.Encoder;
+import javax.websocket.EndpointConfig;
+import javax.websocket.Extension;
+import javax.websocket.MessageHandler;
+import javax.websocket.PongMessage;
+import javax.websocket.Session;
 
 import org.apache.tomcat.InstanceManager;
 import org.apache.tomcat.util.res.StringManager;
@@ -330,6 +329,25 @@ public class Util {
             throw new IllegalArgumentException(sm.getString(
                     "util.invalidType", value, type.getName()));
         }
+    }
+
+
+    /**
+     * Build the list of decoder entries from a set of decoder implementations.
+     *
+     * @param decoderClazzes Decoder implementation classes
+     *
+     * @return List of mappings from target type to associated decoder
+     *
+     * @throws DeploymentException If a provided decoder class is not valid
+     *
+     * @deprecated Will be removed in Tomcat 10.1.x.
+     *             Use {@link Util#getDecoders(List, InstanceManager)}
+     */
+    @Deprecated
+    public static List<DecoderEntry> getDecoders(List<Class<? extends Decoder>> decoderClazzes)
+            throws DeploymentException {
+        return getDecoders(decoderClazzes, null);
     }
 
 

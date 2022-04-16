@@ -25,8 +25,6 @@ import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 import org.apache.tomcat.util.descriptor.web.SecurityConstraint;
 import org.ietf.jgss.GSSContext;
-import org.ietf.jgss.GSSCredential;
-import org.ietf.jgss.GSSName;
 
 /**
  * A <b>Realm</b> is a read-only facade for an underlying security realm
@@ -116,17 +114,6 @@ public interface Realm extends Contained {
      * @return the associated principal, or <code>null</code> if there is none
      */
     public Principal authenticate(GSSContext gssContext, boolean storeCreds);
-
-
-    /**
-     * Try to authenticate using a {@link GSSName}
-     *
-     * @param gssName The {@link GSSName} of the principal to look up
-     * @param gssCredential The {@link GSSCredential} of the principal, may be
-     *                      {@code null}
-     * @return the associated principal, or {@code null} if there is none
-     */
-    public Principal authenticate(GSSName gssName, GSSCredential gssCredential);
 
 
     /**
@@ -221,10 +208,19 @@ public interface Realm extends Contained {
 
 
     /**
+     * Return roles associated with given principal
+     * @param principal the {@link Principal} to get the roles for.
+     * @return principal roles
+     * @deprecated This will be removed in Tomcat 10.
+     */
+    @Deprecated
+    public String[] getRoles(Principal principal);
+
+
+    /**
      * Return the availability of the realm for authentication.
      * @return <code>true</code> if the realm is able to perform authentication
      */
-    public default boolean isAvailable() {
-        return true;
-    }
+    public boolean isAvailable();
+
 }

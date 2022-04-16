@@ -20,7 +20,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.security.DomainLoadStoreParameter;
 import java.security.Key;
 import java.security.KeyStore;
 import java.security.cert.CRL;
@@ -39,7 +38,6 @@ import java.security.cert.X509CertSelector;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.List;
@@ -57,6 +55,7 @@ import javax.net.ssl.X509KeyManager;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.file.ConfigFileLoader;
 import org.apache.tomcat.util.net.jsse.JSSEKeyManager;
 import org.apache.tomcat.util.net.jsse.PEMFile;
@@ -188,15 +187,15 @@ public abstract class SSLUtilBase implements SSLUtil {
                 ks = KeyStore.getInstance(type, provider);
             }
             if ("DKS".equalsIgnoreCase(type)) {
-                URI uri = ConfigFileLoader.getSource().getURI(path);
-                ks.load(new DomainLoadStoreParameter(uri, Collections.emptyMap()));
+                URI uri = ConfigFileLoader.getURI(path);
+                ks.load(JreCompat.getInstance().getDomainLoadStoreParameter(uri));
             } else {
                 // Some key store types (e.g. hardware) expect the InputStream
                 // to be null
                 if(!("PKCS11".equalsIgnoreCase(type) ||
                         path.isEmpty() ||
                         "NONE".equalsIgnoreCase(path))) {
-                    istream = ConfigFileLoader.getSource().getResource(path).getInputStream();
+                    istream = ConfigFileLoader.getInputStream(path);
                 }
 
                 // The digester cannot differentiate between null and "".
@@ -317,7 +316,8 @@ public abstract class SSLUtilBase implements SSLUtil {
                     keyPass);
             PEMFile certificateFile = new PEMFile(certificate.getCertificateFile());
 
-            Collection<Certificate> chain = new ArrayList<>(certificateFile.getCertificates());
+            Collection<Certificate> chain = new ArrayList<>();
+            chain.addAll(certificateFile.getCertificates());
             if (certificate.getCertificateChainFile() != null) {
                 PEMFile certificateChainFile = new PEMFile(certificate.getCertificateChainFile());
                 chain.addAll(certificateChainFile.getCertificates());
@@ -529,7 +529,7 @@ public abstract class SSLUtilBase implements SSLUtil {
         Collection<? extends CRL> crls = null;
         try {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            try (InputStream is = ConfigFileLoader.getSource().getResource(crlf).getInputStream()) {
+            try (InputStream is = ConfigFileLoader.getInputStream(crlf)) {
                 crls = cf.generateCRLs(is);
             }
         } catch(IOException iex) {

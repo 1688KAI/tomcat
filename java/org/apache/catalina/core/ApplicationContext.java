@@ -32,31 +32,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.naming.NamingException;
-
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterRegistration;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.Servlet;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletContextAttributeEvent;
-import jakarta.servlet.ServletContextAttributeListener;
-import jakarta.servlet.ServletContextListener;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRegistration;
-import jakarta.servlet.ServletRegistration.Dynamic;
-import jakarta.servlet.ServletRequestAttributeListener;
-import jakarta.servlet.ServletRequestListener;
-import jakarta.servlet.ServletSecurityElement;
-import jakarta.servlet.SessionCookieConfig;
-import jakarta.servlet.SessionTrackingMode;
-import jakarta.servlet.annotation.ServletSecurity;
-import jakarta.servlet.descriptor.JspConfigDescriptor;
-import jakarta.servlet.http.HttpServletMapping;
-import jakarta.servlet.http.HttpSessionAttributeListener;
-import jakarta.servlet.http.HttpSessionIdListener;
-import jakarta.servlet.http.HttpSessionListener;
+import javax.servlet.Filter;
+import javax.servlet.FilterRegistration;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.Servlet;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletContextAttributeEvent;
+import javax.servlet.ServletContextAttributeListener;
+import javax.servlet.ServletContextListener;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRegistration;
+import javax.servlet.ServletRegistration.Dynamic;
+import javax.servlet.ServletRequestAttributeListener;
+import javax.servlet.ServletRequestListener;
+import javax.servlet.ServletSecurityElement;
+import javax.servlet.SessionCookieConfig;
+import javax.servlet.SessionTrackingMode;
+import javax.servlet.annotation.ServletSecurity;
+import javax.servlet.descriptor.JspConfigDescriptor;
+import javax.servlet.http.HttpSessionAttributeListener;
+import javax.servlet.http.HttpSessionIdListener;
+import javax.servlet.http.HttpSessionListener;
 
 import org.apache.catalina.Container;
 import org.apache.catalina.Context;
@@ -90,6 +89,22 @@ import org.apache.tomcat.util.res.StringManager;
  */
 public class ApplicationContext implements ServletContext {
 
+    protected static final boolean STRICT_SERVLET_COMPLIANCE;
+
+    protected static final boolean GET_RESOURCE_REQUIRE_SLASH;
+
+
+    static {
+        STRICT_SERVLET_COMPLIANCE = Globals.STRICT_SERVLET_COMPLIANCE;
+
+        String requireSlash = System.getProperty(
+                "org.apache.catalina.core.ApplicationContext.GET_RESOURCE_REQUIRE_SLASH");
+        if (requireSlash == null) {
+            GET_RESOURCE_REQUIRE_SLASH = STRICT_SERVLET_COMPLIANCE;
+        } else {
+            GET_RESOURCE_REQUIRE_SLASH = Boolean.parseBoolean(requireSlash);
+        }
+    }
 
     // ----------------------------------------------------------- Constructors
 
@@ -139,6 +154,18 @@ public class ApplicationContext implements ServletContext {
 
 
     /**
+     * Empty String collection to serve as the basis for empty enumerations.
+     */
+    private static final List<String> emptyString = Collections.emptyList();
+
+
+    /**
+     * Empty Servlet collection to serve as the basis for empty enumerations.
+     */
+    private static final List<Servlet> emptyServlet = Collections.emptyList();
+
+
+    /**
      * The facade around this object.
      */
     private final ServletContext facade = new ApplicationContextFacade(this);
@@ -147,7 +174,7 @@ public class ApplicationContext implements ServletContext {
     /**
      * The merged context initialization parameters for this Context.
      */
-    private final Map<String,String> parameters = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String,String> parameters = new ConcurrentHashMap<>();
 
 
     /**
@@ -455,7 +482,7 @@ public class ApplicationContext implements ServletContext {
             Wrapper wrapper = mappingData.wrapper;
             String wrapperPath = mappingData.wrapperPath.toString();
             String pathInfo = mappingData.pathInfo.toString();
-            HttpServletMapping mapping = new ApplicationMapping(mappingData).getHttpServletMapping();
+            ApplicationMappingImpl mapping = new ApplicationMapping(mappingData).getHttpServletMapping();
 
             // Construct a RequestDispatcher to process this request
             return new ApplicationDispatcher(wrapper, uri, wrapperPath, pathInfo,
@@ -504,7 +531,7 @@ public class ApplicationContext implements ServletContext {
     @Override
     public URL getResource(String path) throws MalformedURLException {
 
-        String validatedPath = validateResourcePath(path, !context.getContextGetResourceRequiresSlash());
+        String validatedPath = validateResourcePath(path, !GET_RESOURCE_REQUIRE_SLASH);
 
         if (validatedPath == null) {
             throw new MalformedURLException(
@@ -523,7 +550,7 @@ public class ApplicationContext implements ServletContext {
     @Override
     public InputStream getResourceAsStream(String path) {
 
-        String validatedPath = validateResourcePath(path, !context.getContextGetResourceRequiresSlash());
+        String validatedPath = validateResourcePath(path, !GET_RESOURCE_REQUIRE_SLASH);
 
         if (validatedPath == null) {
             return null;
@@ -586,14 +613,42 @@ public class ApplicationContext implements ServletContext {
 
 
     @Override
+    @Deprecated
+    public Servlet getServlet(String name) {
+        return null;
+    }
+
+
+    @Override
     public String getServletContextName() {
         return context.getDisplayName();
     }
 
 
     @Override
+    @Deprecated
+    public Enumeration<String> getServletNames() {
+        return Collections.enumeration(emptyString);
+    }
+
+
+    @Override
+    @Deprecated
+    public Enumeration<Servlet> getServlets() {
+        return Collections.enumeration(emptyServlet);
+    }
+
+
+    @Override
     public void log(String message) {
         context.getLogger().info(message);
+    }
+
+
+    @Override
+    @Deprecated
+    public void log(Exception exception, String message) {
+        context.getLogger().error(message, exception);
     }
 
 
@@ -811,7 +866,6 @@ public class ApplicationContext implements ServletContext {
     }
 
 
-    @Override
     public Dynamic addJspFile(String jspName, String jspFile) {
 
         // jspName is validated in addServlet()
@@ -1247,13 +1301,11 @@ public class ApplicationContext implements ServletContext {
     }
 
 
-    @Override
     public int getSessionTimeout() {
         return context.getSessionTimeout();
     }
 
 
-    @Override
     public void setSessionTimeout(int sessionTimeout) {
         if (!context.getState().equals(LifecycleState.STARTING_PREP)) {
             throw new IllegalStateException(
@@ -1265,13 +1317,11 @@ public class ApplicationContext implements ServletContext {
     }
 
 
-    @Override
     public String getRequestCharacterEncoding() {
         return context.getRequestCharacterEncoding();
     }
 
 
-    @Override
     public void setRequestCharacterEncoding(String encoding) {
         if (!context.getState().equals(LifecycleState.STARTING_PREP)) {
             throw new IllegalStateException(
@@ -1283,13 +1333,11 @@ public class ApplicationContext implements ServletContext {
     }
 
 
-    @Override
     public String getResponseCharacterEncoding() {
         return context.getResponseCharacterEncoding();
     }
 
 
-    @Override
     public void setResponseCharacterEncoding(String encoding) {
         if (!context.getState().equals(LifecycleState.STARTING_PREP)) {
             throw new IllegalStateException(

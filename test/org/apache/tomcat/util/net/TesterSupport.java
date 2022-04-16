@@ -29,6 +29,7 @@ import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Locale;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -42,14 +43,12 @@ import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509TrustManager;
 import javax.security.auth.x500.X500Principal;
-
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
-import org.junit.Assume;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.authenticator.SSLAuthenticator;
@@ -61,11 +60,11 @@ import org.apache.catalina.startup.Tomcat;
 import org.apache.tomcat.jni.Library;
 import org.apache.tomcat.jni.LibraryNotFoundError;
 import org.apache.tomcat.jni.SSL;
+import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.descriptor.web.LoginConfig;
 import org.apache.tomcat.util.descriptor.web.SecurityCollection;
 import org.apache.tomcat.util.descriptor.web.SecurityConstraint;
 import org.apache.tomcat.util.net.SSLHostConfigCertificate.Type;
-import org.apache.tomcat.util.net.jsse.JSSEImplementation;
 
 public final class TesterSupport {
 
@@ -86,7 +85,6 @@ public final class TesterSupport {
     public static final String LOCALHOST_RSA_KEY_PEM = SSL_DIR + "localhost-rsa-key.pem";
     public static final boolean OPENSSL_AVAILABLE;
     public static final int OPENSSL_VERSION;
-    public static final String OPENSSL_ERROR;
     public static final boolean TLSV13_AVAILABLE;
 
     public static final String ROLE = "testrole";
@@ -98,18 +96,16 @@ public final class TesterSupport {
     static {
         boolean available = false;
         int version = 0;
-        String err = "";
         try {
             Library.initialize(null);
             available = true;
             version = SSL.version();
             Library.terminate();
         } catch (Exception | LibraryNotFoundError ex) {
-            err = ex.getMessage();
+            // Ignore
         }
         OPENSSL_AVAILABLE = available;
         OPENSSL_VERSION = version;
-        OPENSSL_ERROR = err;
 
         available = false;
         try {
@@ -148,22 +144,29 @@ public final class TesterSupport {
         sslHostConfig.addCertificate(certificate);
         connector.addSslHostConfig(sslHostConfig);
 
-        String sslImplementation = System.getProperty("tomcat.test.sslImplementation");
-        if (sslImplementation != null && !"${test.sslImplementation}".equals(sslImplementation)) {
-            StandardServer server = (StandardServer) tomcat.getServer();
-            AprLifecycleListener listener = new AprLifecycleListener();
-            listener.setSSLRandomSeed("/dev/urandom");
-            server.addLifecycleListener(listener);
-            Assert.assertTrue(connector.setProperty("sslImplementationName", sslImplementation));
-        }
-        sslHostConfig.setSslProtocol("tls");
-        certificate.setCertificateKeystoreFile(new File(keystore).getAbsolutePath());
-        sslHostConfig.setTruststoreFile(new File(CA_JKS).getAbsolutePath());
-        if (keystorePass != null) {
-            certificate.setCertificateKeystorePassword(keystorePass);
-        }
-        if (keyPass != null) {
-            certificate.setCertificateKeyPassword(keyPass);
+        String protocol = tomcat.getConnector().getProtocolHandlerClassName();
+        if (!protocol.contains("Apr")) {
+            String sslImplementation = System.getProperty("tomcat.test.sslImplementation");
+            if (sslImplementation != null && !"${test.sslImplementation}".equals(sslImplementation)) {
+                StandardServer server = (StandardServer) tomcat.getServer();
+                AprLifecycleListener listener = new AprLifecycleListener();
+                listener.setSSLRandomSeed("/dev/urandom");
+                server.addLifecycleListener(listener);
+                Assert.assertTrue(connector.setProperty("sslImplementationName", sslImplementation));
+            }
+            sslHostConfig.setSslProtocol("tls");
+            certificate.setCertificateKeystoreFile(new File(keystore).getAbsolutePath());
+            sslHostConfig.setTruststoreFile(new File(CA_JKS).getAbsolutePath());
+            if (keystorePass != null) {
+                certificate.setCertificateKeystorePassword(keystorePass);
+            }
+            if (keyPass != null) {
+                certificate.setCertificateKeyPassword(keyPass);
+            }
+        } else {
+            certificate.setCertificateFile(new File(LOCALHOST_RSA_CERT_PEM).getAbsolutePath());
+            certificate.setCertificateKeyFile(new File(LOCALHOST_RSA_KEY_PEM).getAbsolutePath());
+            sslHostConfig.setCaCertificateFile(new File(CA_CERT_PEM).getAbsolutePath());
         }
     }
 
@@ -220,24 +223,37 @@ public final class TesterSupport {
         return ks;
     }
 
-    protected static boolean isClientRenegotiationSupported(Tomcat tomcat) {
-        // Disabled for Tomcat Native (part of response to CVE-2009-3555)
-        // Only JRE provided JSSE implementation supports this
-        String sslImplementation = (String) tomcat.getConnector().getProperty("sslImplementationName");
-        if (!JSSEImplementation.class.getName().equals(sslImplementation)) {
+    protected static boolean isMacOs() {
+        return System.getProperty("os.name").toLowerCase(Locale.ENGLISH).startsWith("mac os x");
+    }
+
+    public static boolean isRenegotiationSupported(Tomcat tomcat) {
+        String protocol = tomcat.getConnector().getProtocolHandlerClassName();
+        if (protocol.contains("Apr")) {
+            // Disabled by default in 1.1.20 windows binary (2010-07-27)
             return false;
         }
 
         return true;
     }
 
-    public static void configureSSLImplementation(Tomcat tomcat, String sslImplementationName) {
-        try {
-            Class.forName(sslImplementationName);
-        } catch (Exception e) {
-            Assume.assumeNoException(e);
+    protected static boolean isClientRenegotiationSupported(Tomcat tomcat) {
+        String protocol = tomcat.getConnector().getProtocolHandlerClassName();
+        if (protocol.contains("Apr")) {
+            // Disabled by default in 1.1.20 windows binary (2010-07-27)
+            return false;
         }
-        Assert.assertTrue(tomcat.getConnector().setProperty("sslImplementationName", sslImplementationName));
+        if (protocol.contains("NioProtocol") || (protocol.contains("Nio2Protocol") && isMacOs())) {
+            // Doesn't work on all platforms - see BZ 56448.
+            return false;
+        }
+        String sslImplementation = System.getProperty("tomcat.test.sslImplementation");
+        if (sslImplementation != null && !"${test.sslImplementation}".equals(sslImplementation)) {
+            // Assume custom SSL is not supporting this
+            return false;
+        }
+
+        return true;
     }
 
     public static void configureClientCertContext(Tomcat tomcat) {
@@ -246,10 +262,16 @@ public final class TesterSupport {
         /* When running on Java 11, TLSv1.3 is enabled by default. The JSSE
          * implementation of TLSv1.3 does not support
          * certificateVerification="optional", a setting on which these tests
-         * depend. Therefore, force these tests to use TLSv1.2 so that they pass
-         * when running on TLSv1.3.
+         * depend.
+         * Java 7 does not enable TLSv1.1 or TLS1.2 by default
+         *
+         * Ensure these tests pass with all JREs from Java 7 onwards.
          */
-        tomcat.getConnector().findSslHostConfigs()[0].setProtocols(Constants.SSL_PROTO_TLSv1_2);
+        if (JreCompat.isJre8Available()) {
+            tomcat.getConnector().findSslHostConfigs()[0].setProtocols(Constants.SSL_PROTO_TLSv1_2);
+        } else {
+            tomcat.getConnector().findSslHostConfigs()[0].setProtocols(Constants.SSL_PROTO_TLSv1);
+        }
 
         // Need a web application with a protected and unprotected URL
         // No file system docBase required
@@ -647,5 +669,37 @@ public final class TesterSupport {
             }
             return socket;
         }
+    }
+
+
+    /*
+     * We want to use TLS 1.3 where we can but this requires TLS 1.3 to be
+     * supported on the client and the server.
+     */
+    public static String getDefaultTLSProtocolForTesting(Connector connector) {
+        // Clients always use JSSE
+        if (!TLSV13_AVAILABLE) {
+            // Client doesn't support TLS 1.3 so we have to use TLS 1.2
+            return Constants.SSL_PROTO_TLSv1_2;
+        }
+
+        if (connector.getProtocolHandlerClassName().contains("Apr")) {
+            // APR connector so OpenSSL is used for TLS.
+            if (SSL.version() >= 0x1010100f) {
+                return Constants.SSL_PROTO_TLSv1_3;
+            } else {
+                return Constants.SSL_PROTO_TLSv1_2;
+            }
+        } else {
+            // NIO or NIO2. Tests do not use JSSE+OpenSSL so JSSE will be used.
+            // Due to check above, it is known that TLS 1.3 is available
+            return Constants.SSL_PROTO_TLSv1_3;
+        }
+    }
+
+
+    public static boolean isDefaultTLSProtocolForTesting13(Connector connector) {
+        return Constants.SSL_PROTO_TLSv1_3.equals(
+                TesterSupport.getDefaultTLSProtocolForTesting(connector));
     }
 }

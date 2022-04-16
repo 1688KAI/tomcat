@@ -33,19 +33,23 @@ public final class Library {
 
     private Library() throws Exception {
         boolean loaded = false;
+        String path = System.getProperty("java.library.path");
+        String [] paths = path.split(File.pathSeparator);
         StringBuilder err = new StringBuilder();
-        File binLib = new File(System.getProperty("catalina.home"), "bin");
         for (int i = 0; i < NAMES.length; i++) {
-            File library = new File(binLib, System.mapLibraryName(NAMES[i]));
             try {
-                System.load(library.getAbsolutePath());
+                System.loadLibrary(NAMES[i]);
                 loaded = true;
             } catch (ThreadDeath | VirtualMachineError t) {
                 throw t;
             } catch (Throwable t) {
-                if (library.exists()) {
-                    // File exists but failed to load
-                    throw t;
+                String name = System.mapLibraryName(NAMES[i]);
+                for (int j = 0; j < paths.length; j++) {
+                    java.io.File fd = new java.io.File(paths[j] , name);
+                    if (fd.exists()) {
+                        // File exists but failed to load
+                        throw t;
+                    }
                 }
                 if (i > 0) {
                     err.append(", ");
@@ -54,34 +58,6 @@ public final class Library {
             }
             if (loaded) {
                 break;
-            }
-        }
-        if (!loaded) {
-            String path = System.getProperty("java.library.path");
-            String [] paths = path.split(File.pathSeparator);
-            for (String value : NAMES) {
-                try {
-                    System.loadLibrary(value);
-                    loaded = true;
-                } catch (ThreadDeath | VirtualMachineError t) {
-                    throw t;
-                } catch (Throwable t) {
-                    String name = System.mapLibraryName(value);
-                    for (String s : paths) {
-                        File fd = new File(s, name);
-                        if (fd.exists()) {
-                            // File exists but failed to load
-                            throw t;
-                        }
-                    }
-                    if (err.length() > 0) {
-                        err.append(", ");
-                    }
-                    err.append(t.getMessage());
-                }
-                if (loaded) {
-                    break;
-                }
             }
         }
         if (!loaded) {
@@ -168,12 +144,6 @@ public final class Library {
     /* Is the O_NONBLOCK flag inherited from listening sockets?
      */
     public static boolean APR_O_NONBLOCK_INHERITED  = false;
-    /* Poll operations are interruptable by apr_pollset_wakeup().
-     */
-    public static boolean APR_POLLSET_WAKEABLE      = false;
-    /* Support for Unix Domain Sockets.
-     */
-    public static boolean APR_HAVE_UNIX             = false;
 
 
     public static int APR_SIZEOF_VOIDP;
@@ -242,8 +212,6 @@ public final class Library {
             APR_CHARSET_EBCDIC      = has(18);
             APR_TCP_NODELAY_INHERITED = has(19);
             APR_O_NONBLOCK_INHERITED  = has(20);
-            APR_POLLSET_WAKEABLE      = has(21);
-            APR_HAVE_UNIX             = has(22);
             if (APR_MAJOR_VERSION < 1) {
                 throw new UnsatisfiedLinkError("Unsupported APR Version (" +
                                                aprVersionString() + ")");

@@ -53,6 +53,13 @@ public class CombinedRealm extends RealmBase {
     protected final List<Realm> realms = new LinkedList<>();
 
     /**
+     * Descriptive information about this Realm implementation.
+     * @deprecated This will be removed in Tomcat 9 onwards.
+     */
+    @Deprecated
+    protected static final String name = "CombinedRealm";
+
+    /**
      * Add a realm to the list of realms that will be used to authenticate
      * users.
      * @param theRealm realm which should be wrapped by the combined realm
@@ -387,6 +394,7 @@ public class CombinedRealm extends RealmBase {
     /**
      * {@inheritDoc}
      */
+    @SuppressWarnings("deprecation")
     @Override
     public Principal authenticate(GSSName gssName, GSSCredential gssCredential) {
         Principal authenticatedUser = null;
@@ -397,7 +405,16 @@ public class CombinedRealm extends RealmBase {
                         gssName, realm.getClass().getName()));
             }
 
-            authenticatedUser = realm.authenticate(gssName, gssCredential);
+            if (!(realm instanceof org.apache.catalina.GSSRealm)) {
+                if (log.isDebugEnabled()) {
+                    log.debug(sm.getString("combinedRealm.authFail",
+                            gssName, realm.getClass().getName()));
+                }
+
+                continue;
+            }
+
+            authenticatedUser = ((org.apache.catalina.GSSRealm) realm).authenticate(gssName, gssCredential);
 
             if (authenticatedUser == null) {
                 if (log.isDebugEnabled()) {
@@ -426,6 +443,12 @@ public class CombinedRealm extends RealmBase {
             }
         }
         return false;
+    }
+
+    @Override
+    @Deprecated
+    protected String getName() {
+        return name;
     }
 
     @Override

@@ -21,6 +21,7 @@ import java.util.Map;
 
 import javax.net.ssl.SSLSession;
 
+import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.net.SSLHostConfigCertificate;
 import org.apache.tomcat.util.net.SSLImplementation;
 import org.apache.tomcat.util.net.SSLSupport;
@@ -42,6 +43,12 @@ public class JSSEImplementation extends SSLImplementation {
         JSSESupport.init();
     }
 
+    @Deprecated
+    @Override
+    public SSLSupport getSSLSupport(SSLSession session) {
+        return getSSLSupport(session, null);
+    }
+
     @Override
     public SSLSupport getSSLSupport(SSLSession session, Map<String, List<String>> additionalAttributes) {
         return new JSSESupport(session, additionalAttributes);
@@ -50,5 +57,10 @@ public class JSSEImplementation extends SSLImplementation {
     @Override
     public SSLUtil getSSLUtil(SSLHostConfigCertificate certificate) {
         return new JSSEUtil(certificate);
+    }
+
+    @Override
+    public boolean isAlpnSupported() {
+        return JreCompat.isAlpnSupported();
     }
 }

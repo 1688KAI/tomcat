@@ -22,11 +22,11 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import org.apache.coyote.CloseNowException;
 import org.apache.coyote.InputBuffer;
 import org.apache.coyote.Request;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
+import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.HeaderUtil;
 import org.apache.tomcat.util.http.MimeHeaders;
@@ -241,6 +241,22 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
 
     // ---------------------------------------------------- InputBuffer Methods
 
+    /**
+     * @deprecated Unused. Will be removed in Tomcat 9. Use
+     *             {@link #doRead(ApplicationBufferHandler)}
+     */
+    @Deprecated
+    @Override
+    public int doRead(ByteChunk chunk) throws IOException {
+
+        if (lastActiveFilter == -1) {
+            return inputStreamInputBuffer.doRead(chunk);
+        } else {
+            return activeFilters[lastActiveFilter].doRead(chunk);
+        }
+
+    }
+
     @Override
     public int doRead(ApplicationBufferHandler handler) throws IOException {
         if (lastActiveFilter == -1) {
@@ -338,8 +354,7 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
      * @return true if data is properly fed; false if no data is available
      * immediately and thread should be freed
      */
-    boolean parseRequestLine(boolean keptAlive, int connectionTimeout, int keepAliveTimeout)
-            throws IOException {
+    boolean parseRequestLine(boolean keptAlive) throws IOException {
 
         // check state
         if (!parsingRequestLine) {
@@ -355,7 +370,7 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
                     if (keptAlive) {
                         // Haven't read any request data yet so use the keep-alive
                         // timeout.
-                        wrapper.setReadTimeout(keepAliveTimeout);
+                        wrapper.setReadTimeout(wrapper.getEndpoint().getKeepAliveTimeout());
                     }
                     if (!fill(false)) {
                         // A read is pending, so no longer in initial state
@@ -364,7 +379,7 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
                     }
                     // At least one byte of the request has been received.
                     // Switch to the socket timeout.
-                    wrapper.setReadTimeout(connectionTimeout);
+                    wrapper.setReadTimeout(wrapper.getEndpoint().getConnectionTimeout());
                 }
                 if (!keptAlive && byteBuffer.position() == 0 && byteBuffer.limit() >= CLIENT_PREFACE_START.length - 1) {
                     boolean prefaceMatch = true;
@@ -381,8 +396,8 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
                 }
                 // Set the start time once we start reading data (even if it is
                 // just skipping blank lines)
-                if (request.getStartTimeNanos() < 0) {
-                    request.setStartTimeNanos(System.nanoTime());
+                if (request.getStartTime() < 0) {
+                    request.setStartTime(System.currentTimeMillis());
                 }
                 chr = byteBuffer.get();
             } while ((chr == Constants.CR) || (chr == Constants.LF));
@@ -736,16 +751,6 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
     }
 
 
-    boolean isChunking() {
-        for (int i = 0; i < lastActiveFilter; i++) {
-            if (activeFilters[i] == filterLibrary[Constants.CHUNKED_FILTER]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-
     void init(SocketWrapperBase<?> socketWrapper) {
 
         wrapper = socketWrapper;
@@ -800,12 +805,7 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
                 byteBuffer.position(byteBuffer.limit());
             }
             byteBuffer.limit(byteBuffer.capacity());
-            SocketWrapperBase<?> socketWrapper = this.wrapper;
-            if (socketWrapper != null) {
-                nRead = socketWrapper.read(block, byteBuffer);
-            } else {
-                throw new CloseNowException(sm.getString("iib.eof.error"));
-            }
+            nRead = wrapper.read(block, byteBuffer);
         } finally {
             // Ensure that the buffer limit and position are returned to a
             // consistent "ready for read" state if an error occurs during in
@@ -1175,6 +1175,30 @@ public class Http11InputBuffer implements InputBuffer, ApplicationBufferHandler 
      * stream.
      */
     private class SocketInputBuffer implements InputBuffer {
+
+        /**
+         *
+         * @deprecated Unused. Will be removed in Tomcat 9. Use
+         *             {@link #doRead(ApplicationBufferHandler)}
+         */
+        @Deprecated
+        @Override
+        public int doRead(ByteChunk chunk) throws IOException {
+
+            if (byteBuffer.position() >= byteBuffer.limit()) {
+                // The application is reading the HTTP request body which is
+                // always a blocking operation.
+                if (!fill(true)) {
+                    return -1;
+                }
+            }
+
+            int length = byteBuffer.remaining();
+            chunk.setBytes(byteBuffer.array(), byteBuffer.position(), length);
+            byteBuffer.position(byteBuffer.limit());
+
+            return length;
+        }
 
         @Override
         public int doRead(ApplicationBufferHandler handler) throws IOException {

@@ -23,8 +23,8 @@ import java.security.Principal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.Realm;
@@ -391,7 +391,7 @@ public class DigestAuthenticator extends AuthenticatorBase {
             setOpaque(sessionIdGenerator.generateSessionId());
         }
 
-        nonces = new LinkedHashMap<>() {
+        nonces = new LinkedHashMap<String, DigestAuthenticator.NonceInfo>() {
 
             private static final long serialVersionUID = 1L;
             private static final long LOG_SUPPRESS_TIME = 5 * 60 * 1000;

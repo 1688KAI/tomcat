@@ -16,8 +16,8 @@
  */
 package org.apache.tomcat.websocket;
 
-import jakarta.websocket.DeploymentException;
-import jakarta.websocket.Endpoint;
+import javax.websocket.DeploymentException;
+import javax.websocket.Endpoint;
 
 import org.apache.tomcat.InstanceManager;
 

@@ -21,13 +21,12 @@ import java.lang.reflect.Array;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import jakarta.el.ELException;
-import jakarta.el.ELResolver;
-import jakarta.el.LambdaExpression;
-import jakarta.el.MethodInfo;
-import jakarta.el.MethodReference;
-import jakarta.el.PropertyNotFoundException;
-import jakarta.el.ValueReference;
+import javax.el.ELException;
+import javax.el.ELResolver;
+import javax.el.LambdaExpression;
+import javax.el.MethodInfo;
+import javax.el.PropertyNotFoundException;
+import javax.el.ValueReference;
 
 import org.apache.el.lang.ELSupport;
 import org.apache.el.lang.EvaluationContext;
@@ -264,25 +263,6 @@ public final class AstValue extends SimpleNode {
             throw new ELException(cause);
         }
         return result;
-    }
-
-    @Override
-    public MethodReference getMethodReference(EvaluationContext ctx) {
-        Target t = getTarget(ctx);
-        Method m = null;
-        Object[] values = null;
-        Class<?>[] types = null;
-        if (isParametersProvided()) {
-            values = ((AstMethodParameters) this.jjtGetChild(
-                    this.jjtGetNumChildren() - 1)).getParameters(ctx);
-            types = getTypesFromValues(values);
-        }
-        m = ReflectionUtil.getMethod(ctx, t.base, t.property, types, values);
-
-        // Handle varArgs and any coercion required
-        values = convertArgs(ctx, values, m);
-
-        return new MethodReference(t.base, getMethodInfo(ctx, types), m.getAnnotations(), values);
     }
 
     private Object[] convertArgs(EvaluationContext ctx, Object[] src, Method m) {

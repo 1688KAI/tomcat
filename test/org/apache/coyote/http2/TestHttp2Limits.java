@@ -30,7 +30,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.connector.Connector;
-import org.apache.coyote.http11.AbstractHttp11Protocol;
 import org.apache.coyote.http2.HpackEncoder.State;
 import org.apache.tomcat.util.http.MimeHeaders;
 import org.apache.tomcat.util.res.StringManager;
@@ -42,7 +41,7 @@ public class TestHttp2Limits extends Http2TestBase {
 
     @Test
     public void testSettingsOverheadLimits() throws Exception {
-        http2Connect();
+        http2Connect(false);
 
         for (int i = 0; i < 100; i++) {
             try {
@@ -229,11 +228,11 @@ public class TestHttp2Limits extends Http2TestBase {
         }
 
         enableHttp2();
-        configureAndStartWebApplication();
 
         http2Protocol.setMaxHeaderCount(maxHeaderCount);
-        ((AbstractHttp11Protocol<?>) http2Protocol.getHttp11Protocol()).setMaxHttpHeaderSize(maxHeaderSize);
+        http2Protocol.setMaxHeaderSize(maxHeaderSize);
 
+        configureAndStartWebApplication();
         openClientConnection();
         doHttpUpgrade();
         sendClientPreface();
@@ -288,12 +287,12 @@ public class TestHttp2Limits extends Http2TestBase {
             // expression (since we don't know the connection ID). Generate the
             // string as a regular expression and then replace '[' and ']' with
             // the escaped values.
-            String limitMessage = sm.getString("http2Parser.headerLimitSize", "\\p{XDigit}++", "3");
+            String limitMessage = sm.getString("http2Parser.headerLimitSize", "\\d++", "3");
             limitMessage = limitMessage.replace("[", "\\[").replace("]", "\\]");
             // Connection reset. Connection ID will vary so use a pattern
-            // On some platform / Connector combinations the TCP connection close
-            // will be processed before the client gets a chance to read the
-            // connection close frame which will trigger an
+            // On some platform / Connector combinations (e.g. Windows / APR),
+            // the TCP connection close will be processed before the client gets
+            // a chance to read the connection close frame which will trigger an
             // IOException when we try to read the frame.
             // Note: Some platforms will allow the read if if the write fails
             //       above.
@@ -471,14 +470,14 @@ public class TestHttp2Limits extends Http2TestBase {
     private void doTestPostWithTrailerHeaders(int maxTrailerCount, int maxTrailerSize,
             FailureMode failMode) throws Exception {
         enableHttp2();
-        configureAndStartWebApplication();
 
-        ((AbstractHttp11Protocol<?>) http2Protocol.getHttp11Protocol()).setAllowedTrailerHeaders(TRAILER_HEADER_NAME);
+        http2Protocol.setAllowedTrailerHeaders(TRAILER_HEADER_NAME);
         http2Protocol.setMaxTrailerCount(maxTrailerCount);
-        ((AbstractHttp11Protocol<?>) http2Protocol.getHttp11Protocol()).setMaxTrailerSize(maxTrailerSize);
+        http2Protocol.setMaxTrailerSize(maxTrailerSize);
         // Disable overhead protection for window update as it breaks some tests
         http2Protocol.setOverheadWindowUpdateThreshold(0);
 
+        configureAndStartWebApplication();
         openClientConnection();
         doHttpUpgrade();
         sendClientPreface();
@@ -546,7 +545,7 @@ public class TestHttp2Limits extends Http2TestBase {
             // expression (since we don't know the connection ID). Generate the
             // string as a regular expression and then replace '[' and ']' with
             // the escaped values.
-            String limitMessage = sm.getString("http2Parser.headerLimitSize", "\\p{XDigit}++", "3");
+            String limitMessage = sm.getString("http2Parser.headerLimitSize", "\\d++", "3");
             limitMessage = limitMessage.replace("[", "\\[").replace("]", "\\]");
             MatcherAssert.assertThat(output.getTrace(), RegexMatcher.matchesRegex(
                     "0-Goaway-\\[3\\]-\\[11\\]-\\[" + limitMessage + "\\]"));

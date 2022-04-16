@@ -21,16 +21,16 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletRequestWrapper;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletRequestWrapper;
 
 
 /**
- * Wrapper around a <code>jakarta.servlet.ServletRequest</code>
+ * Wrapper around a <code>javax.servlet.ServletRequest</code>
  * that transforms an application request object (which might be the original
  * one passed to a servlet, or might be based on the 2.3
- * <code>jakarta.servlet.ServletRequestWrapper</code> class)
+ * <code>javax.servlet.ServletRequestWrapper</code> class)
  * back into an internal <code>org.apache.catalina.Request</code>.
  * <p>
  * <strong>WARNING</strong>:  Due to Java's lack of support for multiple
@@ -55,13 +55,11 @@ class ApplicationRequest extends ServletRequestWrapper {
       RequestDispatcher.INCLUDE_SERVLET_PATH,
       RequestDispatcher.INCLUDE_PATH_INFO,
       RequestDispatcher.INCLUDE_QUERY_STRING,
-      RequestDispatcher.INCLUDE_MAPPING,
       RequestDispatcher.FORWARD_REQUEST_URI,
       RequestDispatcher.FORWARD_CONTEXT_PATH,
       RequestDispatcher.FORWARD_SERVLET_PATH,
       RequestDispatcher.FORWARD_PATH_INFO,
-      RequestDispatcher.FORWARD_QUERY_STRING,
-      RequestDispatcher.FORWARD_MAPPING};
+      RequestDispatcher.FORWARD_QUERY_STRING };
 
 
     // ----------------------------------------------------------- Constructors

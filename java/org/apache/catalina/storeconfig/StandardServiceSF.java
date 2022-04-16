@@ -20,6 +20,7 @@ import java.io.PrintWriter;
 
 import org.apache.catalina.Engine;
 import org.apache.catalina.Executor;
+import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.core.StandardService;
@@ -44,7 +45,8 @@ public class StandardServiceSF extends StoreFactoryBase {
         if (aService instanceof StandardService) {
             StandardService service = (StandardService) aService;
             // Store nested <Listener> elements
-            LifecycleListener listeners[] = service.findLifecycleListeners();
+            LifecycleListener listeners[] = ((Lifecycle) service)
+                    .findLifecycleListeners();
             storeElementArray(aWriter, indent, listeners);
 
             // Store nested <Executor> elements

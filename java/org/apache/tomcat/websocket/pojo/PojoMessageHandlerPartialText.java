@@ -18,7 +18,7 @@ package org.apache.tomcat.websocket.pojo;
 
 import java.lang.reflect.Method;
 
-import jakarta.websocket.Session;
+import javax.websocket.Session;
 
 /**
  * Text specific concrete implementation for handling partial messages.

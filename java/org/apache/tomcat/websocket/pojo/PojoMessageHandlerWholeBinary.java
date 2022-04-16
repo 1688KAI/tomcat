@@ -23,13 +23,12 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import javax.naming.NamingException;
-
-import jakarta.websocket.DecodeException;
-import jakarta.websocket.Decoder;
-import jakarta.websocket.Decoder.Binary;
-import jakarta.websocket.Decoder.BinaryStream;
-import jakarta.websocket.EndpointConfig;
-import jakarta.websocket.Session;
+import javax.websocket.DecodeException;
+import javax.websocket.Decoder;
+import javax.websocket.Decoder.Binary;
+import javax.websocket.Decoder.BinaryStream;
+import javax.websocket.EndpointConfig;
+import javax.websocket.Session;
 
 import org.apache.tomcat.util.res.StringManager;
 

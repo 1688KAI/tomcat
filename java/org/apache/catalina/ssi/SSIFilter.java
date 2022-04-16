@@ -28,13 +28,14 @@ import java.io.Reader;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.GenericFilter;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 /**
  * Filter to process SSI requests within a webpage. Mapped to a content types
  * from within web.xml.
@@ -42,8 +43,8 @@ import jakarta.servlet.http.HttpServletResponse;
  * @author David Becker
  * @see org.apache.catalina.ssi.SSIServlet
  */
-public class SSIFilter extends GenericFilter {
-    private static final long serialVersionUID = 1L;
+public class SSIFilter implements Filter {
+    protected FilterConfig config = null;
     /** Debug level for this servlet. */
     protected int debug = 0;
     /** Expiration time in seconds for the doc. */
@@ -60,27 +61,30 @@ public class SSIFilter extends GenericFilter {
 
 
     @Override
-    public void init() throws ServletException {
-        if (getInitParameter("debug") != null) {
-            debug = Integer.parseInt(getInitParameter("debug"));
+    public void init(FilterConfig config) throws ServletException {
+        this.config = config;
+
+        if (config.getInitParameter("debug") != null) {
+            debug = Integer.parseInt(config.getInitParameter("debug"));
         }
 
-        if (getInitParameter("contentType") != null) {
-            contentTypeRegEx = Pattern.compile(getInitParameter("contentType"));
+        if (config.getInitParameter("contentType") != null) {
+            contentTypeRegEx = Pattern.compile(config.getInitParameter("contentType"));
         } else {
             contentTypeRegEx = shtmlRegEx;
         }
 
-        isVirtualWebappRelative = Boolean.parseBoolean(getInitParameter("isVirtualWebappRelative"));
+        isVirtualWebappRelative =
+            Boolean.parseBoolean(config.getInitParameter("isVirtualWebappRelative"));
 
-        if (getInitParameter("expires") != null) {
-            expires = Long.valueOf(getInitParameter("expires"));
+        if (config.getInitParameter("expires") != null) {
+            expires = Long.valueOf(config.getInitParameter("expires"));
         }
 
-        allowExec = Boolean.parseBoolean(getInitParameter("allowExec"));
+        allowExec = Boolean.parseBoolean(config.getInitParameter("allowExec"));
 
         if (debug > 0) {
-            getServletContext().log(
+            config.getServletContext().log(
                     "SSIFilter.init() SSI invoker started with 'debug'=" + debug);
         }
     }
@@ -112,7 +116,7 @@ public class SSIFilter extends GenericFilter {
 
             // set up SSI processing
             SSIExternalResolver ssiExternalResolver =
-                new SSIServletExternalResolver(getServletContext(), req,
+                new SSIServletExternalResolver(config.getServletContext(), req,
                         res, isVirtualWebappRelative, debug, encoding);
             SSIProcessor ssiProcessor = new SSIProcessor(ssiExternalResolver,
                     debug, allowExec);
@@ -145,7 +149,7 @@ public class SSIFilter extends GenericFilter {
             Matcher shtmlMatcher =
                 shtmlRegEx.matcher(responseIncludeWrapper.getContentType());
             if (shtmlMatcher.matches()) {
-                // Convert SHTML mime type to ordinary HTML mime type but preserve
+                // Convert shtml mime type to ordinary html mime type but preserve
                 // encoding, if any.
                 String enc = shtmlMatcher.group(1);
                 res.setContentType("text/html" + ((enc != null) ? enc : ""));
@@ -164,5 +168,10 @@ public class SSIFilter extends GenericFilter {
         } else {
             out.write(bytes);
         }
+    }
+
+    @Override
+    public void destroy() {
+        // NOOP
     }
 }

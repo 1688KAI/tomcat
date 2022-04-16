@@ -20,10 +20,13 @@ import java.io.CharArrayReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 
-import jakarta.servlet.jsp.JspWriter;
-import jakarta.servlet.jsp.tagext.BodyContent;
+import javax.servlet.jsp.JspWriter;
+import javax.servlet.jsp.tagext.BodyContent;
 
+import org.apache.jasper.Constants;
 import org.apache.jasper.compiler.Localizer;
 
 /**
@@ -38,8 +41,40 @@ import org.apache.jasper.compiler.Localizer;
  */
 public class BodyContentImpl extends BodyContent {
 
-    private final boolean limitBuffer;
-    private final int tagBufferSize;
+    private static final boolean LIMIT_BUFFER;
+    private static final int TAG_BUFFER_SIZE;
+
+    static {
+        if (System.getSecurityManager() == null) {
+            LIMIT_BUFFER = Boolean.parseBoolean(System.getProperty(
+                    "org.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER", "false"));
+            TAG_BUFFER_SIZE = Integer.getInteger(
+                    "org.apache.jasper.runtime.BodyContentImpl.BUFFER_SIZE",
+                    Constants.DEFAULT_TAG_BUFFER_SIZE).intValue();
+        } else {
+            LIMIT_BUFFER = AccessController.doPrivileged(
+                    new PrivilegedAction<Boolean>() {
+                        @Override
+                        public Boolean run() {
+                            return Boolean.valueOf(System.getProperty(
+                                    "org.apache.jasper.runtime.BodyContentImpl.LIMIT_BUFFER",
+                                    "false"));
+                        }
+                    }
+            ).booleanValue();
+            TAG_BUFFER_SIZE = AccessController.doPrivileged(
+                    new PrivilegedAction<Integer>() {
+                        @Override
+                        public Integer run() {
+                            return Integer.getInteger(
+                                    "org.apache.jasper.runtime.BodyContentImpl.BUFFER_SIZE",
+                                    Constants.DEFAULT_TAG_BUFFER_SIZE);
+                        }
+                    }
+            ).intValue();
+        }
+    }
+
 
     private char[] cb;
     private int nextChar;
@@ -53,14 +88,10 @@ public class BodyContentImpl extends BodyContent {
     /**
      * Constructor.
      * @param enclosingWriter The wrapped writer
-     * @param limitBuffer <code>true</code> to discard large buffers
-     * @param tagBufferSize the buffer size
      */
-    public BodyContentImpl(JspWriter enclosingWriter, boolean limitBuffer, int tagBufferSize) {
+    public BodyContentImpl(JspWriter enclosingWriter) {
         super(enclosingWriter);
-        this.limitBuffer = limitBuffer;
-        this.tagBufferSize = tagBufferSize;
-        cb = new char[tagBufferSize];
+        cb = new char[TAG_BUFFER_SIZE];
         bufferSize = cb.length;
         nextChar = 0;
         closed = false;
@@ -519,8 +550,8 @@ public class BodyContentImpl extends BodyContent {
             throw new IOException();
         } else {
             nextChar = 0;
-            if (limitBuffer && (cb.length > tagBufferSize)) {
-                cb = new char[tagBufferSize];
+            if (LIMIT_BUFFER && (cb.length > TAG_BUFFER_SIZE)) {
+                cb = new char[TAG_BUFFER_SIZE];
                 bufferSize = cb.length;
             }
         }

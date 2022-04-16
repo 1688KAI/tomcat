@@ -27,7 +27,7 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.servlet.ServletContext;
+import javax.servlet.ServletContext;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.Globals;

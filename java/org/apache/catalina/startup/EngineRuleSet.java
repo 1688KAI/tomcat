@@ -16,8 +16,10 @@
  */
 package org.apache.catalina.startup;
 
+
 import org.apache.tomcat.util.digester.Digester;
-import org.apache.tomcat.util.digester.RuleSet;
+import org.apache.tomcat.util.digester.RuleSetBase;
+
 
 /**
  * <p><strong>RuleSet</strong> for processing the contents of a
@@ -27,9 +29,12 @@ import org.apache.tomcat.util.digester.RuleSet;
  *
  * @author Craig R. McClanahan
  */
-public class EngineRuleSet implements RuleSet {
+@SuppressWarnings("deprecation")
+public class EngineRuleSet extends RuleSetBase {
+
 
     // ----------------------------------------------------- Instance Variables
+
 
     /**
      * The matching pattern prefix to use for recognizing our elements.
@@ -38,6 +43,7 @@ public class EngineRuleSet implements RuleSet {
 
 
     // ------------------------------------------------------------ Constructor
+
 
     /**
      * Construct an instance of this <code>RuleSet</code> with the default
@@ -61,6 +67,7 @@ public class EngineRuleSet implements RuleSet {
 
 
     // --------------------------------------------------------- Public Methods
+
 
     /**
      * <p>Add the set of Rule instances defined in this RuleSet to the
@@ -114,5 +121,8 @@ public class EngineRuleSet implements RuleSet {
         digester.addSetNext(prefix + "Engine/Valve",
                             "addValve",
                             "org.apache.catalina.Valve");
+
     }
+
+
 }

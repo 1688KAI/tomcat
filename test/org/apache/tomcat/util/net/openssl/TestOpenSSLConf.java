@@ -27,9 +27,6 @@ import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
 
-import org.apache.catalina.connector.Connector;
-import org.apache.catalina.core.AprLifecycleListener;
-import org.apache.catalina.core.StandardServer;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.jni.SSLContext;
@@ -52,16 +49,22 @@ public class TestOpenSSLConf extends TomcatBaseTest {
         return OPENSSL_VERSION >= OPENSSL_TLS13_SUPPORT_MIN_VERSION;
     }
 
-    private SSLHostConfig initOpenSSLConfCmd(String... commands) throws Exception {
+    public SSLHostConfig initOpenSSLConfCmd(String... commands) throws Exception {
         Assert.assertNotNull(commands);
         Assert.assertTrue("Invalid length", commands.length % 2 == 0);
 
         Tomcat tomcat = getTomcatInstance();
-        Connector connector = tomcat.getConnector();
 
         TesterSupport.initSsl(tomcat);
 
-        Assert.assertTrue(connector.setProperty("sslImplementationName", OpenSSLImplementation.class.getName()));
+        String protocol = tomcat.getConnector().getProtocolHandlerClassName();
+        // The tests are only supported for APR and OpenSSL
+        if (!protocol.contains("Apr")) {
+            String sslImplementation = String.valueOf(
+                    tomcat.getConnector().getProperty("sslImplementationName"));
+            Assume.assumeTrue("This test is only for OpenSSL based SSL connectors",
+                    sslImplementation.contains("openssl"));
+        }
 
         OpenSSLConf conf = new OpenSSLConf();
         for (int i = 0; i < commands.length;) {
@@ -71,19 +74,21 @@ public class TestOpenSSLConf extends TomcatBaseTest {
             conf.addCmd(cmd);
         }
 
-        SSLHostConfig[] sslHostConfigs = connector.getProtocolHandler().findSslHostConfigs();
+        SSLHostConfig[] sslHostConfigs = tomcat.getConnector().
+                                         getProtocolHandler().findSslHostConfigs();
         Assert.assertEquals("Wrong SSLHostConfigCount", 1, sslHostConfigs.length);
         sslHostConfigs[0].setOpenSslConf(conf);
 
         tomcat.start();
 
-        sslHostConfigs = connector.getProtocolHandler().findSslHostConfigs();
+        sslHostConfigs = tomcat.getConnector().getProtocolHandler().findSslHostConfigs();
         Assert.assertEquals("Wrong SSLHostConfigCount", 1, sslHostConfigs.length);
         return sslHostConfigs[0];
     }
 
     @Test
     public void testOpenSSLConfCmdCipher() throws Exception {
+        log.info("Found OpenSSL version 0x" + Integer.toHexString(OPENSSL_VERSION));
         SSLHostConfig sslHostConfig;
         if (hasTLS13()) {
             // Ensure TLSv1.3 ciphers aren't returned
@@ -102,6 +107,7 @@ public class TestOpenSSLConf extends TomcatBaseTest {
 
     @Test
     public void testOpenSSLConfCmdProtocol() throws Exception {
+        log.info("Found OpenSSL version 0x" + Integer.toHexString(OPENSSL_VERSION));
         Set<String> disabledProtocols = new HashSet<>(Arrays.asList(DISABLED_PROTOCOLS));
         StringBuilder sb = new StringBuilder();
         for (String protocol : DISABLED_PROTOCOLS) {
@@ -128,21 +134,5 @@ public class TestOpenSSLConf extends TomcatBaseTest {
             Assert.assertTrue("Protocol " + protocol + " is not enabled",
                     enabledProtocols.contains(protocol));
         }
-    }
-
-
-    @Override
-    public void setUp() throws Exception {
-        super.setUp();
-
-        // Tests are only intended for OpenSSL
-        Assume.assumeTrue(TesterSupport.isOpensslAvailable());
-
-        Tomcat tomcat = getTomcatInstance();
-
-        AprLifecycleListener listener = new AprLifecycleListener();
-        Assume.assumeTrue(AprLifecycleListener.isAprAvailable());
-        StandardServer server = (StandardServer) tomcat.getServer();
-        server.addLifecycleListener(listener);
     }
 }

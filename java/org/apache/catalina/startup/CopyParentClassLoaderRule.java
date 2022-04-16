@@ -70,12 +70,6 @@ public class CopyParentClassLoaderRule extends Rule {
             (ClassLoader) method.invoke(parent, new Object[0]);
         child.setParentClassLoader(classLoader);
 
-        StringBuilder code = digester.getGeneratedCode();
-        if (code != null) {
-            code.append(digester.toVariableName(child)).append(".setParentClassLoader(");
-            code.append(digester.toVariableName(parent)).append(".getParentClassLoader());");
-            code.append(System.lineSeparator());
-        }
     }
 
 

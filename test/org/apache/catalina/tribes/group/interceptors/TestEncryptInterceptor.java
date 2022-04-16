@@ -72,7 +72,7 @@ public class TestEncryptInterceptor {
     @BeforeClass
     public static void setupClass() {
         Security.setProperty("jdk.tls.disabledAlgorithms", "");
-        Security.setProperty("crypto.policy", "unlimited");
+        Security.setProperty("crypto.policy", "unlimited"); // For Java 9+
     }
 
     @AfterClass

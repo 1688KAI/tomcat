@@ -134,7 +134,6 @@ public class StandardJarScanFilter implements JarScanFilter {
     }
 
 
-    @Override
     public boolean isSkipAll() {
         return defaultSkipAll;
     }

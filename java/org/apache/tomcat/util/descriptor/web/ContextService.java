@@ -19,7 +19,6 @@ package org.apache.tomcat.util.descriptor.web;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 
 
 /**
@@ -188,7 +187,7 @@ public class ContextService extends ResourceBase {
      *
      * The instantiation of the handler have to be done.
      */
-    private final Map<String, ContextHandler> handlers = new HashMap<>();
+    private final HashMap<String, ContextHandler> handlers = new HashMap<>();
 
     public Iterator<String> getHandlers() {
         return handlers.keySet().iterator();

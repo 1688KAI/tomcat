@@ -22,11 +22,6 @@ import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -80,15 +75,14 @@ public class GroupChannel extends ChannelInterceptorBase
 
     /**
      * If <code>heartbeat == true</code> then how often do we want this
-     * heartbeat to run. The default value is 5000 milliseconds.
+     * heartbeat to run. default is one minute
      */
-    protected long heartbeatSleeptime = 5*1000;
+    protected long heartbeatSleeptime = 5*1000;//every 5 seconds
 
     /**
-     * Internal heartbeat future
+     * Internal heartbeat thread
      */
-    protected ScheduledFuture<?> heartbeatFuture = null;
-    protected ScheduledFuture<?> monitorFuture;
+    protected HeartbeatThread hbthread = null;
 
     /**
      * The  <code>ChannelCoordinator</code> coordinates the bottom layer components:<br>
@@ -139,11 +133,6 @@ public class GroupChannel extends ChannelInterceptorBase
      * If set to true, this channel is registered with jmx.
      */
     private boolean jmxEnabled = true;
-
-    /**
-     * Executor service.
-     */
-    protected ScheduledExecutorService utilityExecutor = null;
 
     /**
      * the ObjectName of this channel.
@@ -367,13 +356,13 @@ public class GroupChannel extends ChannelInterceptorBase
             if ( log.isWarnEnabled() ) {
                 log.warn(sm.getString("groupChannel.receiving.error"),x);
             }
-            throw new RemoteProcessException(sm.getString("groupChannel.receiving.error"),x);
+            throw new RemoteProcessException("Exception:"+x.getMessage(),x);
         }
     }
 
     /**
      * Sends a <code>NoRpcChannelReply</code> message to a member<br>
-     * This method gets invoked by the channel if an RPC message comes in
+     * This method gets invoked by the channel if a RPC message comes in
      * and no channel listener accepts the message. This avoids timeout
      * @param msg RpcMessage
      * @param destination Member - the destination for the reply
@@ -477,8 +466,6 @@ public class GroupChannel extends ChannelInterceptorBase
 
     }
 
-    protected boolean ownExecutor = false;
-
     /**
      * Starts the channel.
      * @param svc int - what service to start
@@ -496,27 +483,10 @@ public class GroupChannel extends ChannelInterceptorBase
         if (jmxRegistry != null) {
             this.oname = jmxRegistry.registerJmx(",component=Channel", this);
         }
-        if (utilityExecutor == null) {
-            log.warn(sm.getString("groupChannel.warn.noUtilityExecutor"));
-            utilityExecutor = new ScheduledThreadPoolExecutor(1);
-            ownExecutor = true;
-        }
         super.start(svc);
-        monitorFuture = utilityExecutor.scheduleWithFixedDelay(this::startHeartbeat, 0, 60, TimeUnit.SECONDS);
-    }
-
-    protected void startHeartbeat() {
-        if (heartbeat && (heartbeatFuture == null || (heartbeatFuture != null && heartbeatFuture.isDone()))) {
-            if (heartbeatFuture != null && heartbeatFuture.isDone()) {
-                // There was an error executing the scheduled task, get it and log it
-                try {
-                    heartbeatFuture.get();
-                } catch (InterruptedException | ExecutionException e) {
-                    log.error(sm.getString("groupChannel.unable.sendHeartbeat"), e);
-                }
-            }
-            heartbeatFuture = utilityExecutor.scheduleWithFixedDelay(new HeartbeatRunnable(),
-                    heartbeatSleeptime, heartbeatSleeptime, TimeUnit.MILLISECONDS);
+        if ( hbthread == null && heartbeat ) {
+            hbthread = new HeartbeatThread(this,heartbeatSleeptime);
+            hbthread.start();
         }
     }
 
@@ -528,20 +498,11 @@ public class GroupChannel extends ChannelInterceptorBase
      */
     @Override
     public synchronized void stop(int svc) throws ChannelException {
-        if (monitorFuture != null) {
-            monitorFuture.cancel(true);
-            monitorFuture = null;
-        }
-        if (heartbeatFuture != null) {
-            heartbeatFuture.cancel(true);
-            heartbeatFuture = null;
+        if (hbthread != null) {
+            hbthread.stopHeartbeat();
+            hbthread = null;
         }
         super.stop(svc);
-        if (ownExecutor) {
-            utilityExecutor.shutdown();
-            utilityExecutor = null;
-            ownExecutor = false;
-        }
         if (oname != null) {
             JmxRegistry.getRegistry(this).unregisterJmx(oname);
             oname = null;
@@ -558,16 +519,6 @@ public class GroupChannel extends ChannelInterceptorBase
         } else {
             return coordinator;
         }
-    }
-
-    @Override
-    public ScheduledExecutorService getUtilityExecutor() {
-        return utilityExecutor;
-    }
-
-    @Override
-    public void setUtilityExecutor(ScheduledExecutorService utilityExecutor) {
-        this.utilityExecutor = utilityExecutor;
     }
 
     /**
@@ -841,16 +792,58 @@ public class GroupChannel extends ChannelInterceptorBase
     }
 
     /**
-     * <p>Title: Internal heartbeat runnable</p>
+     *
+     * <p>Title: Internal heartbeat thread</p>
      *
      * <p>Description: if <code>Channel.getHeartbeat()==true</code> then a thread of this class
      * is created</p>
+     *
+     * @version 1.0
      */
-    public class HeartbeatRunnable implements Runnable {
+    public static class HeartbeatThread extends Thread {
+        private static final Log log = LogFactory.getLog(HeartbeatThread.class);
+        protected static int counter = 1;
+        protected static synchronized int inc() {
+            return counter++;
+        }
+
+        protected volatile boolean doRun = true;
+        protected final GroupChannel channel;
+        protected final long sleepTime;
+        public HeartbeatThread(GroupChannel channel, long sleepTime) {
+            super();
+            this.setPriority(MIN_PRIORITY);
+            String channelName = "";
+            if (channel.getName() != null) {
+                channelName = "[" + channel.getName() + "]";
+            }
+            setName("GroupChannel-Heartbeat" + channelName + "-" +inc());
+            setDaemon(true);
+            this.channel = channel;
+            this.sleepTime = sleepTime;
+        }
+        public void stopHeartbeat() {
+            doRun = false;
+            interrupt();
+        }
+
         @Override
         public void run() {
-            heartbeat();
-        }
-    }
+            while (doRun) {
+                try {
+                    Thread.sleep(sleepTime);
+                    channel.heartbeat();
+                } catch ( InterruptedException x ) {
+                    // Ignore. Probably triggered by a call to stopHeartbeat().
+                    // In the highly unlikely event it was a different trigger,
+                    // simply ignore it and continue.
+                } catch ( Exception x ) {
+                    log.error(sm.getString("groupChannel.unable.sendHeartbeat"),x);
+                }//catch
+            }//while
+        }//run
+    }//HeartbeatThread
+
+
 
 }

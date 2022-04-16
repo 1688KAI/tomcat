@@ -17,7 +17,6 @@
 package org.apache.coyote.http2;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 
 import org.apache.coyote.http2.Http2TestBase.TestOutput;
 
@@ -39,7 +38,7 @@ public class TesterHttp2Parser extends Http2Parser {
     }
 
     @Override
-    protected void readPushPromiseFrame(int streamId, int flags, int payloadSize, ByteBuffer buffer) throws Http2Exception, IOException {
+    protected void readPushPromiseFrame(int streamId, int flags, int payloadSize) throws Http2Exception, IOException {
 
         // Parse flags used in this method
         boolean hasPadding = Flags.hasPadding(flags);
@@ -49,21 +48,13 @@ public class TesterHttp2Parser extends Http2Parser {
         int paddingSize = 0;
         if (hasPadding) {
             byte[] bPadSize = new byte[1];
-            if (buffer == null) {
-                input.fill(true, bPadSize);
-            } else {
-                buffer.get(bPadSize);
-            }
+            input.fill(true, bPadSize);
             paddingSize = ByteUtil.getOneByte(bPadSize, 0);
         }
 
         // Pushed stream ID
         byte[] bPushedStreamId = new byte[4];
-        if (buffer == null) {
-            input.fill(true, bPushedStreamId);
-        } else {
-            buffer.get(bPushedStreamId);
-        }
+        input.fill(true, bPushedStreamId);
         int pushedStreamId = ByteUtil.get31Bits(bPushedStreamId, 0);
 
         output.pushPromise(streamId, pushedStreamId);
@@ -76,10 +67,10 @@ public class TesterHttp2Parser extends Http2Parser {
         HpackDecoder hpackDecoder = output.getHpackDecoder();
         hpackDecoder.setHeaderEmitter(output.headersStart(pushedStreamId, headersEndStream));
 
-        readHeaderPayload(pushedStreamId, headerSize, buffer);
+        readHeaderPayload(pushedStreamId, headerSize);
 
         if (hasPadding) {
-            swallowPayload(streamId, FrameType.PUSH_PROMISE.getId(), paddingSize, true, buffer);
+            swallowPayload(streamId, FrameType.PUSH_PROMISE.getId(), paddingSize, true);
         }
     }
 }

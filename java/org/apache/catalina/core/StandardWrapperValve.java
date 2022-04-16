@@ -20,12 +20,12 @@ package org.apache.catalina.core;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.Servlet;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.UnavailableException;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.DispatcherType;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.Servlet;
+import javax.servlet.ServletException;
+import javax.servlet.UnavailableException;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Container;
 import org.apache.catalina.Context;
@@ -75,7 +75,7 @@ final class StandardWrapperValve extends ValveBase {
 
     /**
      * Invoke the servlet we are managing, respecting the rules regarding
-     * servlet lifecycle support.
+     * servlet lifecycle and SingleThreadModel support.
      *
      * @param request Request to be processed
      * @param response Response to be produced

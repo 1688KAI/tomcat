@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import jakarta.servlet.jsp.tagext.FunctionInfo;
+import javax.servlet.jsp.tagext.FunctionInfo;
 
 import org.apache.jasper.JasperException;
 

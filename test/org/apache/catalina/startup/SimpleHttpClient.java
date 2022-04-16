@@ -29,8 +29,6 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -98,7 +96,6 @@ public abstract class SimpleHttpClient {
     private boolean useCookies = true;
     private boolean useHttp09 = false;
     private int requestPause = 1000;
-    private Charset requestBodyEncoding = StandardCharsets.ISO_8859_1;
 
     private String responseLine;
     private List<String> responseHeaders = new ArrayList<>();
@@ -109,7 +106,6 @@ public abstract class SimpleHttpClient {
 
     private String responseBody;
     private List<String> bodyUriElements = null;
-    private Charset responseBodyEncoding = StandardCharsets.ISO_8859_1;
 
     public void setPort(int thePort) {
         port = thePort;
@@ -154,10 +150,6 @@ public abstract class SimpleHttpClient {
         return responseHeaders;
     }
 
-    public void setResponseBodyEncoding(Charset charset) {
-        responseBodyEncoding = charset;
-    }
-
     public String getResponseBody() {
         return responseBody;
     }
@@ -195,14 +187,15 @@ public abstract class SimpleHttpClient {
 
     public void connect(int connectTimeout, int soTimeout)
            throws UnknownHostException, IOException {
+        final String encoding = "ISO-8859-1";
         SocketAddress addr = new InetSocketAddress("localhost", port);
         socket = new Socket();
         socket.setSoTimeout(soTimeout);
         socket.connect(addr,connectTimeout);
         OutputStream os = createOutputStream(socket);
-        writer = new OutputStreamWriter(os, requestBodyEncoding);
+        writer = new OutputStreamWriter(os, encoding);
         InputStream is = socket.getInputStream();
-        Reader r = new InputStreamReader(is, responseBodyEncoding);
+        Reader r = new InputStreamReader(is, encoding);
         reader = new BufferedReader(r);
     }
     public void connect() throws UnknownHostException, IOException {
@@ -323,8 +316,8 @@ public abstract class SimpleHttpClient {
             if (useContentLength && (contentLength > -1)) {
                 char[] body = new char[contentLength];
                 int read = reader.read(body);
-                builder.append(body, 0 , read);
-                Assert.assertEquals(contentLength, builder.toString().getBytes(responseBodyEncoding).length);
+                Assert.assertEquals(contentLength, read);
+                builder.append(body);
             } else {
                 // not using content length, so just read it line by line
                 String line = null;
@@ -368,7 +361,7 @@ public abstract class SimpleHttpClient {
     }
 
     /*
-     * Scan an HTML body for a given HTML uri element, starting from the
+     * Scan an html body for a given html uri element, starting from the
      * given index into the source string. If any are found, simply
      * accumulate them as literal strings, including angle brackets.
      * note: nested elements will not be collected.

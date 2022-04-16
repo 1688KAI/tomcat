@@ -31,7 +31,7 @@
   <module name="RegexpHeader">
     <property name="headerFile" value="${basedir}/res/checkstyle/header-al2.txt"/>
     <property name="multiLines" value="1, 2, 3, 4"/>
-    <property name="fileExtensions" value="java,xml,jsp,txt,sh,bat,properties,yaml"/>
+    <property name="fileExtensions" value="java,xml,jsp,txt,sh,bat,properties"/>
   </module>
 
   <!-- Whitespace -->
@@ -69,7 +69,7 @@
         <property name="illegalPkgs" value="sun,junit.framework"/>
     </module>
     <module name="ImportOrder">
-        <property name="groups" value="java,javax,jakarta,org.hamcrest,org.junit,org,async,jsp2,util"/>
+        <property name="groups" value="java,javax,org.hamcrest,org.junit,org,async,jsp2,util"/>
         <property name="ordered" value="true"/>
         <property name="separated" value="true"/>
         <property name="option" value="above"/>
@@ -94,7 +94,7 @@
     <module name="GenericWhitespace"/>
     <module name="EmptyForInitializerPad"/>
     <module name="EmptyForIteratorPad"/>
-    <!--  ~ 1100 errors
+    <!--  ~ 1200 errors
     <module name="OperatorWrap">
       <property name="option" value="eol"/>
     </module>

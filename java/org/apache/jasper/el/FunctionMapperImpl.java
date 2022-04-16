@@ -18,10 +18,10 @@ package org.apache.jasper.el;
 
 import java.lang.reflect.Method;
 
-import jakarta.servlet.jsp.el.FunctionMapper;
+import javax.servlet.jsp.el.FunctionMapper;
 
 @Deprecated
-public final class FunctionMapperImpl extends jakarta.el.FunctionMapper {
+public final class FunctionMapperImpl extends javax.el.FunctionMapper {
 
     private final FunctionMapper fnMapper;
 

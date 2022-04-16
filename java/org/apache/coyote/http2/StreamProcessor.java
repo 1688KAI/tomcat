@@ -16,15 +16,13 @@
  */
 package org.apache.coyote.http2;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import jakarta.servlet.ServletConnection;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.coyote.AbstractProcessor;
 import org.apache.coyote.ActionCode;
@@ -34,6 +32,7 @@ import org.apache.coyote.ErrorState;
 import org.apache.coyote.Request;
 import org.apache.coyote.RequestGroupInfo;
 import org.apache.coyote.Response;
+import org.apache.coyote.http11.AbstractHttp11Protocol;
 import org.apache.coyote.http11.filters.GzipOutputFilter;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -43,7 +42,6 @@ import org.apache.tomcat.util.http.MimeHeaders;
 import org.apache.tomcat.util.http.parser.HttpParser;
 import org.apache.tomcat.util.net.AbstractEndpoint.Handler.SocketState;
 import org.apache.tomcat.util.net.DispatchType;
-import org.apache.tomcat.util.net.SendfileState;
 import org.apache.tomcat.util.net.SocketEvent;
 import org.apache.tomcat.util.net.SocketWrapperBase;
 import org.apache.tomcat.util.res.StringManager;
@@ -57,8 +55,6 @@ class StreamProcessor extends AbstractProcessor {
 
     private final Http2UpgradeHandler handler;
     private final Stream stream;
-    private SendfileData sendfileData = null;
-    private SendfileState sendfileState = null;
 
     static {
         H2_PSEUDO_HEADERS_REQUEST.add(":method");
@@ -69,9 +65,10 @@ class StreamProcessor extends AbstractProcessor {
 
     StreamProcessor(Http2UpgradeHandler handler, Stream stream, Adapter adapter,
             SocketWrapperBase<?> socketWrapper) {
-        super(adapter, stream.getCoyoteRequest(), stream.getCoyoteResponse());
+        super(socketWrapper.getEndpoint(), stream.getCoyoteRequest(), stream.getCoyoteResponse());
         this.handler = handler;
         this.stream = stream;
+        setAdapter(adapter);
         setSocketWrapper(socketWrapper);
     }
 
@@ -144,33 +141,14 @@ class StreamProcessor extends AbstractProcessor {
     @Override
     protected final void prepareResponse() throws IOException {
         response.setCommitted(true);
-        if (handler.hasAsyncIO() && handler.getProtocol().getUseSendfile()) {
-            prepareSendfile();
-        }
-        prepareHeaders(request, response, sendfileData == null, handler.getProtocol(), stream);
+        prepareHeaders(request, response, handler.getProtocol(), stream);
         stream.writeHeaders();
-    }
-
-
-    private void prepareSendfile() {
-        String fileName = (String) stream.getCoyoteRequest().getAttribute(
-                org.apache.coyote.Constants.SENDFILE_FILENAME_ATTR);
-        if (fileName != null) {
-            sendfileData = new SendfileData();
-            sendfileData.path = new File(fileName).toPath();
-            sendfileData.pos = ((Long) stream.getCoyoteRequest().getAttribute(
-                    org.apache.coyote.Constants.SENDFILE_FILE_START_ATTR)).longValue();
-            sendfileData.end = ((Long) stream.getCoyoteRequest().getAttribute(
-                    org.apache.coyote.Constants.SENDFILE_FILE_END_ATTR)).longValue();
-            sendfileData.left = sendfileData.end - sendfileData.pos;
-            sendfileData.stream = stream;
-        }
     }
 
 
     // Static so it can be used by Stream to build the MimeHeaders required for
     // an ACK. For that use case coyoteRequest, protocol and stream will be null.
-    static void prepareHeaders(Request coyoteRequest, Response coyoteResponse, boolean noSendfile,
+    static void prepareHeaders(Request coyoteRequest, Response coyoteResponse,
             Http2Protocol protocol, Stream stream) {
         MimeHeaders headers = coyoteResponse.getMimeHeaders();
         int statusCode = coyoteResponse.getStatus();
@@ -182,8 +160,7 @@ class StreamProcessor extends AbstractProcessor {
         // Compression can't be used with sendfile
         // Need to check for compression (and set headers appropriately) before
         // adding headers below
-        if (noSendfile && protocol != null &&
-                protocol.useCompression(coyoteRequest, coyoteResponse)) {
+        if (protocol != null && protocol.useCompression(coyoteRequest, coyoteResponse)) {
             // Enable compression. Headers will have been set. Need to configure
             // output filter at this point.
             stream.addOutputFilter(new GzipOutputFilter());
@@ -225,10 +202,7 @@ class StreamProcessor extends AbstractProcessor {
 
     @Override
     protected final void finishResponse() throws IOException {
-        sendfileState = handler.processSendfile(sendfileData);
-        if (!(sendfileState == SendfileState.PENDING)) {
-            stream.getOutputBuffer().end();
-        }
+        stream.getOutputBuffer().end();
     }
 
 
@@ -366,20 +340,14 @@ class StreamProcessor extends AbstractProcessor {
 
 
     @Override
-    protected boolean isTrailerFieldsReady() {
-        return stream.isTrailerFieldsReady();
+    protected Object getConnectionID() {
+        return stream.getConnectionId();
     }
 
 
     @Override
-    protected boolean isTrailerFieldsSupported() {
-        return stream.isTrailerFieldsSupported();
-    }
-
-
-    @Override
-    protected String getProtocolRequestId() {
-        return stream.getIdAsString();
+    protected Object getStreamID() {
+        return stream.getIdAsString().toString();
     }
 
 
@@ -398,18 +366,13 @@ class StreamProcessor extends AbstractProcessor {
         // Clear fields that can be cleared to aid GC and trigger NPEs if this
         // is reused
         setSocketWrapper(null);
+        setAdapter(null);
     }
 
 
     @Override
     protected final Log getLog() {
         return log;
-    }
-
-
-    @Override
-    protected ServletConnection getServletConnection() {
-        return handler.getServletConnection();
     }
 
 
@@ -437,9 +400,7 @@ class StreamProcessor extends AbstractProcessor {
             setErrorState(ErrorState.CLOSE_NOW, e);
         }
 
-        if (sendfileState == SendfileState.PENDING) {
-            return SocketState.SENDFILE;
-        } else if (getErrorState().isError()) {
+        if (getErrorState().isError()) {
             action(ActionCode.CLOSE, null);
             request.updateCounters();
             return SocketState.CLOSED;
@@ -473,8 +434,9 @@ class StreamProcessor extends AbstractProcessor {
      * The checks performed below are based on the checks in Http11InputBuffer.
      */
     private boolean validateRequest() {
-        HttpParser httpParser = new HttpParser(handler.getProtocol().getHttp11Protocol().getRelaxedPathChars(),
-                handler.getProtocol().getHttp11Protocol().getRelaxedQueryChars());
+        HttpParser httpParser = new HttpParser(
+                ((AbstractHttp11Protocol<?>) handler.getProtocol().getHttp11Protocol()).getRelaxedPathChars(),
+                ((AbstractHttp11Protocol<?>) handler.getProtocol().getHttp11Protocol()).getRelaxedQueryChars());
 
         // Method name must be a token
         String method = request.method().toString();

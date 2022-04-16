@@ -17,7 +17,6 @@
 package org.apache.catalina.tribes.transport.nio;
 
 import java.io.IOException;
-import java.lang.ref.Cleaner;
 import java.net.UnknownHostException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -47,16 +46,12 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
 
     private static final Log log = LogFactory.getLog(ParallelNioSender.class);
     protected static final StringManager sm = StringManager.getManager(ParallelNioSender.class);
-
-    private static final Cleaner cleaner = Cleaner.create();
-
-    private final InternalState state;
-
     protected final long selectTimeout = 5000; //default 5 seconds, same as send timeout
+    protected final Selector selector;
+    protected final HashMap<Member, NioSender> nioSenders = new HashMap<>();
 
     public ParallelNioSender() throws IOException {
-        state = new InternalState(Selector.open());
-        cleaner.register(this, state);
+        selector = Selector.open();
         setConnected(true);
     }
 
@@ -148,7 +143,7 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
         SendResult result = new SendResult();
         int selectedKeys;
         try {
-            selectedKeys = state.selector.select(selectTimeOut);
+            selectedKeys = selector.select(selectTimeOut);
         } catch (IOException ioe) {
             throw new ChannelException(sm.getString("parallelNioSender.send.failed"), ioe);
         }
@@ -157,7 +152,7 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
             return result;
         }
 
-        Iterator<SelectionKey> it = state.selector.selectedKeys().iterator();
+        Iterator<SelectionKey> it = selector.selectedKeys().iterator();
         while (it.hasNext()) {
             SelectionKey sk = it.next();
             it.remove();
@@ -292,17 +287,17 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
         ChannelException cx = null;
         NioSender[] result = new NioSender[destination.length];
         for ( int i=0; i<destination.length; i++ ) {
-            NioSender sender = state.nioSenders.get(destination[i]);
+            NioSender sender = nioSenders.get(destination[i]);
             try {
 
                 if (sender == null) {
                     sender = new NioSender();
                     AbstractSender.transferProperties(this, sender);
-                    state.nioSenders.put(destination[i], sender);
+                    nioSenders.put(destination[i], sender);
                 }
                 sender.reset();
                 sender.setDestination(destination[i]);
-                sender.setSelector(state.selector);
+                sender.setSelector(selector);
                 sender.setUdpBased(isUdpBased());
                 result[i] = sender;
             }catch ( UnknownHostException x ) {
@@ -328,20 +323,21 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
 
     private synchronized void close() throws ChannelException  {
         ChannelException x = null;
-        Iterator<Map.Entry<Member,NioSender>> iter = state.nioSenders.entrySet().iterator();
-        while (iter.hasNext()) {
-            Map.Entry<Member,NioSender> entry = iter.next();
+        Object[] members = nioSenders.keySet().toArray();
+        for (Object member : members) {
+            Member mbr = (Member) member;
             try {
-                entry.getValue().disconnect();
+                NioSender sender = nioSenders.get(mbr);
+                sender.disconnect();
             } catch (Exception e) {
                 if (x == null) {
                     x = new ChannelException(e);
                 }
-                x.addFaultyMember(entry.getKey(), e);
+                x.addFaultyMember(mbr, e);
             }
-            iter.remove();
+            nioSenders.remove(mbr);
         }
-        if (x != null) {
+        if ( x != null ) {
             throw x;
         }
     }
@@ -354,7 +350,7 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
     @Override
     public void remove(Member member) {
         //disconnect senders
-        NioSender sender = state.nioSenders.remove(member);
+        NioSender sender = nioSenders.remove(member);
         if ( sender != null ) {
             sender.disconnect();
         }
@@ -372,9 +368,22 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
     }
 
     @Override
+    public void finalize() throws Throwable {
+        try {disconnect(); }catch ( Exception e){/*Ignore*/}
+        try {
+            selector.close();
+        }catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Failed to close selector", e);
+            }
+        }
+        super.finalize();
+    }
+
+    @Override
     public boolean keepalive() {
         boolean result = false;
-        for (Iterator<Entry<Member,NioSender>> i = state.nioSenders.entrySet().iterator(); i.hasNext();) {
+        for (Iterator<Entry<Member,NioSender>> i = nioSenders.entrySet().iterator(); i.hasNext();) {
             Map.Entry<Member, NioSender> entry = i.next();
             NioSender sender = entry.getValue();
             if ( sender.keepalive() ) {
@@ -397,40 +406,8 @@ public class ParallelNioSender extends AbstractSender implements MultiPointSende
         }
         //clean up any cancelled keys
         if ( result ) {
-            try { state.selector.selectNow(); }catch (Exception e){/*Ignore*/}
+            try { selector.selectNow(); }catch (Exception e){/*Ignore*/}
         }
         return result;
-    }
-
-
-    private static class InternalState implements Runnable {
-
-        private final Selector selector;
-        private final HashMap<Member, NioSender> nioSenders = new HashMap<>();
-
-        private InternalState(Selector selector) {
-            this.selector = selector;
-        }
-
-        @Override
-        public void run() {
-            Iterator<NioSender> iter = nioSenders.values().iterator();
-            while (iter.hasNext()) {
-                NioSender nioSender = iter.next();
-                try {
-                    nioSender.disconnect();
-                } catch (Exception e) {
-                    // Ignore
-                }
-                iter.remove();
-            }
-            try {
-                selector.close();
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Failed to close selector", e);
-                }
-            }
-        }
     }
 }

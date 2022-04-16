@@ -18,7 +18,7 @@ package org.apache.tomcat.websocket;
 
 import java.nio.ByteBuffer;
 
-import jakarta.websocket.SendHandler;
+import javax.websocket.SendHandler;
 
 class MessagePart {
     private final boolean fin;

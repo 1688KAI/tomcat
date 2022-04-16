@@ -18,6 +18,8 @@ package org.apache.tomcat.dbcp.dbcp2.datasources;
 
 import javax.sql.PooledConnection;
 
+import org.apache.tomcat.dbcp.dbcp2.Utils;
+
 /**
  * Immutable poolable object holding a {@link PooledConnection} along with the user name and password used to create the
  * connection.
@@ -25,32 +27,31 @@ import javax.sql.PooledConnection;
  * @since 2.0
  */
 final class PooledConnectionAndInfo {
-
     private final PooledConnection pooledConnection;
-
-    private final UserPassKey userPassKey;
+    private final char[] userPassword;
+    private final String userName;
+    private final UserPassKey upKey;
 
     /**
      * Constructs a new instance.
      *
      * @since 2.4.0
      */
-    PooledConnectionAndInfo(final PooledConnection pooledConnection, final char[] userName, final char[] userPassword) {
-        this(pooledConnection, new UserPassKey(userName, userPassword));
-    }
-
-    PooledConnectionAndInfo(final PooledConnection pooledConnection, final UserPassKey userPassKey) {
-        this.pooledConnection = pooledConnection;
-        this.userPassKey = userPassKey;
+    PooledConnectionAndInfo(final PooledConnection pc, final String userName, final char[] userPassword) {
+        this.pooledConnection = pc;
+        this.userName = userName;
+        this.userPassword = userPassword;
+        this.upKey = new UserPassKey(userName, userPassword);
     }
 
     /**
-     * Gets the value of password.
+     * Constructs a new instance.
      *
-     * @return value of password.
+     * @deprecated Since 2.4.0
      */
-    String getPassword() {
-        return userPassKey.getPassword();
+    @Deprecated
+    PooledConnectionAndInfo(final PooledConnection pc, final String userName, final String userPassword) {
+        this(pc, userName, Utils.toCharArray(userPassword));
     }
 
     /**
@@ -62,16 +63,35 @@ final class PooledConnectionAndInfo {
         return pooledConnection;
     }
 
+    UserPassKey getUserPassKey() {
+        return upKey;
+    }
+
+    /**
+     * Gets the value of password.
+     *
+     * @return value of password.
+     */
+    String getPassword() {
+        return Utils.toString(userPassword);
+    }
+
+    /**
+     * Gets the value of password.
+     *
+     * @return value of password.
+     * @since 2.4.0
+     */
+    char[] getPasswordCharArray() {
+        return userPassword;
+    }
+
     /**
      * Gets the value of userName.
      *
      * @return value of userName.
      */
-    String getUserName() {
-        return userPassKey.getUserName();
-    }
-
-    UserPassKey getUserPassKey() {
-        return userPassKey;
+    String getUsername() {
+        return userName;
     }
 }

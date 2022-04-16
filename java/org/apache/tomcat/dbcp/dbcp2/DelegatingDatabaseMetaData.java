@@ -587,19 +587,6 @@ public class DelegatingDatabaseMetaData implements DatabaseMetaData {
         }
     }
 
-    /**
-     * @since 2.5.0
-     */
-    @Override
-    public long getMaxLogicalLobSize() throws SQLException {
-        try {
-            return databaseMetaData.getMaxLogicalLobSize();
-        } catch (final SQLException e) {
-            handleException(e);
-            return 0;
-        }
-    }
-
     @Override
     public int getMaxProcedureNameLength() throws SQLException {
         try {
@@ -1655,19 +1642,6 @@ public class DelegatingDatabaseMetaData implements DatabaseMetaData {
     public boolean supportsPositionedUpdate() throws SQLException {
         try {
             return databaseMetaData.supportsPositionedUpdate();
-        } catch (final SQLException e) {
-            handleException(e);
-            return false;
-        }
-    }
-
-    /**
-     * @since 2.5.0
-     */
-    @Override
-    public boolean supportsRefCursors() throws SQLException {
-        try {
-            return databaseMetaData.supportsRefCursors();
         } catch (final SQLException e) {
             handleException(e);
             return false;

@@ -543,7 +543,7 @@ public final class MessageBytes implements Cloneable, Serializable {
 
     // Used for headers conversion
     /**
-     * Convert the buffer to a long, cache the value.
+     * Convert the buffer to an long, cache the value.
      * @return the long value
      */
     public long getLong() {

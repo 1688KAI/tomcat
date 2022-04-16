@@ -30,18 +30,21 @@ import java.util.NoSuchElementException;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.WriteListener;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpServletResponseWrapper;
-import jakarta.servlet.http.MappingMatch;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletRequestWrapper;
+import javax.servlet.ServletResponse;
+import javax.servlet.WriteListener;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponseWrapper;
 
+import org.apache.catalina.core.ApplicationMapping;
+import org.apache.catalina.core.ApplicationMappingImpl;
+import org.apache.catalina.core.ApplicationMappingMatch;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 
@@ -1256,6 +1259,27 @@ public class ExpiresFilter extends FilterBase {
      * <p>
      * {@code protected} for extension.
      *
+     * @param response The wrapped HTTP response
+     *
+     * @return the expiration date
+     * @see HttpServletResponse#getContentType()
+     *
+     * @deprecated  Will be removed in Tomcat 10.
+     *              Use {@link #getExpirationDate(HttpServletRequest, XHttpServletResponse)}
+     */
+    @Deprecated
+    protected Date getExpirationDate(XHttpServletResponse response) {
+        return getExpirationDate((HttpServletRequest) null, response);
+    }
+
+
+    /**
+     * Returns the expiration date of the given {@link XHttpServletResponse} or
+     * {@code null} if no expiration date has been configured for the
+     * declared content type.
+     * <p>
+     * {@code protected} for extension.
+     *
      * @param request  The HTTP request
      * @param response The wrapped HTTP response
      *
@@ -1264,17 +1288,24 @@ public class ExpiresFilter extends FilterBase {
      */
     protected Date getExpirationDate(HttpServletRequest request, XHttpServletResponse response) {
         String contentType = response.getContentType();
-        if (contentType == null && request != null &&
-                request.getHttpServletMapping().getMappingMatch() == MappingMatch.DEFAULT &&
-                response.getStatus() == HttpServletResponse.SC_NOT_MODIFIED) {
-            // Default servlet normally sets the content type but does not for
-            // 304 responses. Look it up.
-            String servletPath = request.getServletPath();
-            if (servletPath != null) {
-                int lastSlash = servletPath.lastIndexOf('/');
-                if (lastSlash > -1) {
-                    String fileName = servletPath.substring(lastSlash + 1);
-                    contentType = request.getServletContext().getMimeType(fileName);
+        if (contentType == null && request != null) {
+            ServletRequest innerRequest = request;
+            while (innerRequest instanceof ServletRequestWrapper) {
+                innerRequest = ((ServletRequestWrapper) innerRequest).getRequest();
+            }
+
+            ApplicationMappingImpl mapping = ApplicationMapping.getHttpServletMapping(request);
+            if (mapping.getMappingMatch() == ApplicationMappingMatch.DEFAULT &&
+                    response.getStatus() == HttpServletResponse.SC_NOT_MODIFIED) {
+                // Default servlet normally sets the content type but does not for
+                // 304 responses. Look it up.
+                String servletPath = request.getServletPath();
+                if (servletPath != null) {
+                    int lastSlash = servletPath.lastIndexOf('/');
+                    if (lastSlash > -1) {
+                        String fileName = servletPath.substring(lastSlash + 1);
+                        contentType = request.getServletContext().getMimeType(fileName);
+                    }
                 }
             }
         }

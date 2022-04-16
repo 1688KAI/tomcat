@@ -32,9 +32,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.descriptor.JspConfigDescriptor;
-import jakarta.servlet.descriptor.TaglibDescriptor;
+import javax.servlet.ServletContext;
+import javax.servlet.descriptor.JspConfigDescriptor;
+import javax.servlet.descriptor.TaglibDescriptor;
 
 import org.apache.jasper.compiler.JarScannerFactory;
 import org.apache.jasper.compiler.Localizer;

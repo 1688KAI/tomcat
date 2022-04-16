@@ -18,7 +18,7 @@ package org.apache.tomcat.websocket;
 
 import java.nio.ByteBuffer;
 
-import jakarta.websocket.PongMessage;
+import javax.websocket.PongMessage;
 
 public class WsPongMessage implements PongMessage {
 

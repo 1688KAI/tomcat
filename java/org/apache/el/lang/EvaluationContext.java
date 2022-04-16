@@ -20,12 +20,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import jakarta.el.ELContext;
-import jakarta.el.ELResolver;
-import jakarta.el.EvaluationListener;
-import jakarta.el.FunctionMapper;
-import jakarta.el.ImportHandler;
-import jakarta.el.VariableMapper;
+import javax.el.ELContext;
+import javax.el.ELResolver;
+import javax.el.EvaluationListener;
+import javax.el.FunctionMapper;
+import javax.el.ImportHandler;
+import javax.el.VariableMapper;
 
 public final class EvaluationContext extends ELContext {
 
@@ -57,7 +57,8 @@ public final class EvaluationContext extends ELContext {
     }
 
     @Override
-    public Object getContext(Class<?> key) {
+    // Can't use Class<?> because API needs to match specification in superclass
+    public Object getContext(@SuppressWarnings("rawtypes") Class key) {
         return elContext.getContext(key);
     }
 
@@ -72,7 +73,9 @@ public final class EvaluationContext extends ELContext {
     }
 
     @Override
-    public void putContext(Class<?> key, Object contextObject) {
+    // Can't use Class<?> because API needs to match specification in superclass
+    public void putContext(@SuppressWarnings("rawtypes") Class key,
+            Object contextObject) {
         elContext.putContext(key, contextObject);
     }
 
@@ -147,7 +150,7 @@ public final class EvaluationContext extends ELContext {
     }
 
     @Override
-    public <T> T convertToType(Object obj, Class<T> type) {
+    public Object convertToType(Object obj, Class<?> type) {
         return elContext.convertToType(obj, type);
     }
 }

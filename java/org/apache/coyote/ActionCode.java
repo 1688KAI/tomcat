@@ -129,7 +129,7 @@ public enum ActionCode {
 
     /**
      * Callback for an async call to
-     * {@link jakarta.servlet.AsyncContext#dispatch()}.
+     * {@link javax.servlet.AsyncContext#dispatch()}.
      */
     ASYNC_DISPATCH,
 
@@ -141,13 +141,13 @@ public enum ActionCode {
 
     /**
      * Callback for an async call to
-     * {@link jakarta.servlet.AsyncContext#start(Runnable)}.
+     * {@link javax.servlet.AsyncContext#start(Runnable)}.
      */
     ASYNC_RUN,
 
     /**
      * Callback for an async call to
-     * {@link jakarta.servlet.AsyncContext#complete()}.
+     * {@link javax.servlet.AsyncContext#complete()}.
      */
     ASYNC_COMPLETE,
 
@@ -163,7 +163,7 @@ public enum ActionCode {
 
     /**
      * Callback for an async call to
-     * {@link jakarta.servlet.AsyncContext#setTimeout(long)}
+     * {@link javax.servlet.AsyncContext#setTimeout(long)}
      */
     ASYNC_SETTIMEOUT,
 
@@ -258,29 +258,14 @@ public enum ActionCode {
     PUSH_REQUEST,
 
     /**
-     * Are the request trailer fields ready to be read? Note that this returns
-     * true if it is known that request trailer fields are not supported so an
-     * empty collection of trailers can then be read.
+     * Obtain the connection identifier for the request. Used with multiplexing
+     * protocols such as HTTP/2.
      */
-    IS_TRAILER_FIELDS_READY,
+    CONNECTION_ID,
 
     /**
-     * Are HTTP trailer fields supported for the current response? Note that
-     * once an HTTP/1.1 response has been committed, it will no longer support
-     * trailer fields.
+     * Obtain the stream identifier for the request. Used with multiplexing
+     * protocols such as HTTP/2.
      */
-    IS_TRAILER_FIELDS_SUPPORTED,
-
-    /**
-     * Obtain the request identifier for this request as defined by the protocol
-     * in use. Note that some protocols do not define such an identifier. E.g.
-     * this will be Stream ID for HTTP/2.
-     */
-    PROTOCOL_REQUEST_ID,
-
-    /**
-     * Obtain the servlet connection instance for the network connection
-     * supporting the current request.
-     */
-    SERVLET_CONNECTION
+    STREAM_ID
 }

@@ -22,20 +22,21 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import jakarta.servlet.ServletContext;
+import javax.servlet.ServletContext;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.descriptor.DigesterFactory;
 import org.apache.tomcat.util.descriptor.XmlErrorHandler;
 import org.apache.tomcat.util.digester.Digester;
-import org.apache.tomcat.util.digester.RuleSet;
+import org.apache.tomcat.util.digester.RuleSetBase;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
  * Parser for Tag Plugin descriptors.
  */
+@SuppressWarnings("deprecation")
 public class TagPluginParser {
     private final Log log = LogFactory.getLog(TagPluginParser.class); // must not be static
     private static final String PREFIX = "tag-plugins/tag-plugin";
@@ -78,7 +79,7 @@ public class TagPluginParser {
         return plugins;
     }
 
-    private static class TagPluginRuleSet implements RuleSet {
+    private static class TagPluginRuleSet extends RuleSetBase {
         @Override
         public void addRuleInstances(Digester digester) {
             digester.addCallMethod(PREFIX, "addPlugin", 2);

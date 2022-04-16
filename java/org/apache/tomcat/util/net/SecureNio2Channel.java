@@ -41,6 +41,7 @@ import javax.net.ssl.SSLSession;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.ByteBufferUtils;
+import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.net.TLSClientHelloExtractor.ExtractorResult;
 import org.apache.tomcat.util.net.openssl.ciphers.Cipher;
 import org.apache.tomcat.util.res.StringManager;
@@ -249,8 +250,9 @@ public class SecureNio2Channel extends Nio2Channel  {
                         if (sslEngine instanceof SSLUtil.ProtocolInfo) {
                             socketWrapper.setNegotiatedProtocol(
                                     ((SSLUtil.ProtocolInfo) sslEngine).getNegotiatedProtocol());
-                        } else {
-                            socketWrapper.setNegotiatedProtocol(sslEngine.getApplicationProtocol());
+                        } else if (JreCompat.isAlpnSupported()) {
+                            socketWrapper.setNegotiatedProtocol(
+                                    JreCompat.getInstance().getApplicationProtocol(sslEngine));
                         }
                     }
                     //we are complete if we have delivered the last package
@@ -933,7 +935,7 @@ public class SecureNio2Channel extends Nio2Channel  {
         if (!handshakeComplete) {
             throw new IllegalStateException(sm.getString("channel.nio.ssl.incompleteHandshake"));
         }
-        CompletionHandler<Integer, A> readCompletionHandler = new CompletionHandler<>() {
+        CompletionHandler<Integer, A> readCompletionHandler = new CompletionHandler<Integer, A>() {
             @Override
             public void completed(Integer nBytes, A attach) {
                 if (nBytes.intValue() < 0) {
@@ -1037,7 +1039,7 @@ public class SecureNio2Channel extends Nio2Channel  {
         if (!handshakeComplete) {
             throw new IllegalStateException(sm.getString("channel.nio.ssl.incompleteHandshake"));
         }
-        CompletionHandler<Integer, A> readCompletionHandler = new CompletionHandler<>() {
+        CompletionHandler<Integer, A> readCompletionHandler = new CompletionHandler<Integer, A>() {
             @Override
             public void completed(Integer nBytes, A attach) {
                 if (nBytes.intValue() < 0) {
@@ -1050,11 +1052,13 @@ public class SecureNio2Channel extends Nio2Channel  {
                         SSLEngineResult unwrap;
                         ByteBuffer[] dsts2 = dsts;
                         int length2 = length;
-                        OverflowState overflowState = OverflowState.NONE;
+                        boolean processOverflow = false;
                         do {
-                            if (overflowState == OverflowState.PROCESSING) {
-                                overflowState = OverflowState.DONE;
+                            boolean useOverflow = false;
+                            if (processOverflow) {
+                                useOverflow = true;
                             }
+                            processOverflow = false;
                             //prepare the buffer
                             netInBuffer.flip();
                             //unwrap the data
@@ -1064,9 +1068,9 @@ public class SecureNio2Channel extends Nio2Channel  {
                             if (unwrap.getStatus() == Status.OK || unwrap.getStatus() == Status.BUFFER_UNDERFLOW) {
                                 //we did receive some data, add it to our total
                                 read += unwrap.bytesProduced();
-                                if (overflowState == OverflowState.DONE) {
+                                if (useOverflow) {
                                     // Remove the data read into the overflow buffer
-                                    read -= getBufHandler().getReadBuffer().position();
+                                    read -= dsts2[dsts.length].position();
                                 }
                                 //perform any tasks if needed
                                 if (unwrap.getHandshakeStatus() == HandshakeStatus.NEED_TASK) {
@@ -1091,53 +1095,30 @@ public class SecureNio2Channel extends Nio2Channel  {
                                 //in the constructor
                                 ByteBuffer readBuffer = getBufHandler().getReadBuffer();
                                 boolean found = false;
-                                boolean resized = true;
-                                for (int i = 0; i < length2; i++) {
-                                    // The SSL session has increased the required buffer size
-                                    // since the buffer was created.
-                                    if (dsts[offset + i] == getBufHandler().getReadBuffer()) {
-                                        getBufHandler().expand(sslEngine.getSession().getApplicationBufferSize());
-                                        if (dsts[offset + i] == getBufHandler().getReadBuffer()) {
-                                            resized = false;
-                                        }
-                                        dsts[offset + i] = getBufHandler().getReadBuffer();
-                                        found = true;
-                                    } else if (getAppReadBufHandler() != null && dsts[offset + i] == getAppReadBufHandler().getByteBuffer()) {
-                                        getAppReadBufHandler().expand(sslEngine.getSession().getApplicationBufferSize());
-                                        if (dsts[offset + i] == getAppReadBufHandler().getByteBuffer()) {
-                                            resized = false;
-                                        }
-                                        dsts[offset + i] = getAppReadBufHandler().getByteBuffer();
+                                for (ByteBuffer buffer : dsts2) {
+                                    if (buffer == readBuffer) {
                                         found = true;
                                     }
                                 }
                                 if (found) {
-                                    if (!resized) {
-                                        throw new IOException(sm.getString("channel.nio.ssl.unwrapFail", unwrap.getStatus()));
-                                    }
+                                    throw new IOException(sm.getString("channel.nio.ssl.unwrapFail", unwrap.getStatus()));
                                 } else {
                                     // Add the main read buffer in the destinations and try again
                                     dsts2 = new ByteBuffer[dsts.length + 1];
-                                    int dstOffset = 0;
-                                    for (int i = 0; i < dsts.length + 1; i++) {
-                                        if (i == offset + length) {
-                                            dsts2[i] = readBuffer;
-                                            dstOffset = -1;
-                                        } else {
-                                            dsts2[i] = dsts[i + dstOffset];
-                                        }
+                                    for (int i = 0; i < dsts.length; i++) {
+                                        dsts2[i] = dsts[i];
                                     }
+                                    dsts2[dsts.length] = readBuffer;
                                     length2 = length + 1;
                                     getBufHandler().configureReadBufferForWrite();
-                                    overflowState = OverflowState.PROCESSING;
+                                    processOverflow = true;
                                 }
                             } else if (unwrap.getStatus() == Status.CLOSED) {
                                 break;
                             } else {
                                 throw new IOException(sm.getString("channel.nio.ssl.unwrapFail", unwrap.getStatus()));
                             }
-                        } while ((netInBuffer.position() != 0 || overflowState == OverflowState.PROCESSING) &&
-                                overflowState != OverflowState.DONE);
+                        } while ((netInBuffer.position() != 0) || processOverflow); //continue to unwrapping as long as the input buffer has stuff
                         int capacity = 0;
                         final int endOffset = offset + length;
                         for (int i = offset; i < endOffset; i++) {
@@ -1286,12 +1267,5 @@ public class SecureNio2Channel extends Nio2Channel  {
 
     public ByteBuffer getEmptyBuf() {
         return emptyBuf;
-    }
-
-
-    private enum OverflowState {
-        NONE,
-        PROCESSING,
-        DONE;
     }
 }

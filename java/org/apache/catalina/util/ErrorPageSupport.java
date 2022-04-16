@@ -17,9 +17,9 @@
 package org.apache.catalina.util;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.apache.tomcat.util.descriptor.web.ErrorPage;
 
@@ -30,10 +30,10 @@ import org.apache.tomcat.util.descriptor.web.ErrorPage;
 public class ErrorPageSupport {
 
     // Fully qualified class name to error page
-    private Map<String, ErrorPage> exceptionPages = new ConcurrentHashMap<>();
+    private ConcurrentMap<String, ErrorPage> exceptionPages = new ConcurrentHashMap<>();
 
     // HTTP status code to error page
-    private Map<Integer, ErrorPage> statusPages = new ConcurrentHashMap<>();
+    private ConcurrentMap<Integer, ErrorPage> statusPages = new ConcurrentHashMap<>();
 
 
     public void add(ErrorPage errorPage) {

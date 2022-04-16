@@ -18,8 +18,8 @@ package org.apache.catalina.ssi;
 
 import java.io.ByteArrayOutputStream;
 
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.WriteListener;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.WriteListener;
 
 
 /**

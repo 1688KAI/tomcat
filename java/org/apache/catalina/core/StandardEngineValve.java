@@ -18,7 +18,7 @@ package org.apache.catalina.core;
 
 import java.io.IOException;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
 
 import org.apache.catalina.Host;
 import org.apache.catalina.connector.Request;

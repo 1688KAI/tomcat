@@ -19,13 +19,12 @@ package org.apache.catalina.core;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletMapping;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.AsyncContext;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -340,13 +339,13 @@ public class TestApplicationMapping extends TomcatBaseTest {
                 throws ServletException, IOException {
             resp.setContentType("text/plain;charset=UTF-8");
             PrintWriter pw = resp.getWriter();
-            HttpServletMapping mapping = req.getHttpServletMapping();
+            ApplicationMappingImpl mapping = ApplicationMapping.getHttpServletMapping(req);
             pw.println("MatchValue=[" + mapping.getMatchValue() + "]");
             pw.println("Pattern=[" + mapping.getPattern() + "]");
             pw.println("MatchType=[" + mapping.getMappingMatch() + "]");
             pw.println("ServletName=[" + mapping.getServletName() + "]");
-            HttpServletMapping includeMapping =
-                    (HttpServletMapping) req.getAttribute(RequestDispatcher.INCLUDE_MAPPING);
+            ApplicationMappingImpl includeMapping = (ApplicationMappingImpl) req.getAttribute(
+                    ApplicationDispatcher.INCLUDE_MAPPING);
             if (includeMapping != null) {
                 pw.println("IncludeMatchValue=[" + includeMapping.getMatchValue() + "]");
                 pw.println("IncludePattern=[" + includeMapping.getPattern() + "]");
@@ -354,16 +353,16 @@ public class TestApplicationMapping extends TomcatBaseTest {
                 pw.println("IncludeServletName=[" + includeMapping.getServletName() + "]");
 
             }
-            HttpServletMapping forwardMapping =
-                    (HttpServletMapping) req.getAttribute(RequestDispatcher.FORWARD_MAPPING);
+            ApplicationMappingImpl forwardMapping = (ApplicationMappingImpl) req.getAttribute(
+                    ApplicationDispatcher.FORWARD_MAPPING);
             if (forwardMapping != null) {
                 pw.println("ForwardMatchValue=[" + forwardMapping.getMatchValue() + "]");
                 pw.println("ForwardPattern=[" + forwardMapping.getPattern() + "]");
                 pw.println("ForwardMatchType=[" + forwardMapping.getMappingMatch() + "]");
                 pw.println("ForwardServletName=[" + forwardMapping.getServletName() + "]");
             }
-            HttpServletMapping asyncMapping =
-                    (HttpServletMapping) req.getAttribute(AsyncContext.ASYNC_MAPPING);
+            ApplicationMappingImpl asyncMapping = (ApplicationMappingImpl) req.getAttribute(
+                    ApplicationDispatcher.ASYNC_MAPPING);
             if (asyncMapping != null) {
                 pw.println("AsyncMatchValue=[" + asyncMapping.getMatchValue() + "]");
                 pw.println("AsyncPattern=[" + asyncMapping.getPattern() + "]");

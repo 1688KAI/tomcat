@@ -31,18 +31,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeMap;
 
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.SessionTrackingMode;
-import jakarta.servlet.descriptor.JspConfigDescriptor;
-import jakarta.servlet.descriptor.JspPropertyGroupDescriptor;
-import jakarta.servlet.descriptor.TaglibDescriptor;
+import javax.servlet.DispatcherType;
+import javax.servlet.ServletContext;
+import javax.servlet.SessionTrackingMode;
+import javax.servlet.descriptor.JspConfigDescriptor;
+import javax.servlet.descriptor.JspPropertyGroupDescriptor;
+import javax.servlet.descriptor.TaglibDescriptor;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
-import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.UDecoder;
 import org.apache.tomcat.util.descriptor.XmlIdentifiers;
 import org.apache.tomcat.util.digester.DocumentProperties;
@@ -57,7 +55,9 @@ import org.apache.tomcat.util.security.Escape;
  * This class checks for invalid duplicates (eg filter/servlet names)
  * StandardContext will check validity of values (eg URL formats etc)
  */
-public class WebXml extends XmlEncodingBase implements DocumentProperties.Charset {
+@SuppressWarnings("deprecation")
+public class WebXml extends XmlEncodingBase implements DocumentProperties.Encoding,
+        DocumentProperties.Charset {
 
     protected static final String ORDER_OTHERS =
         "org.apache.catalina.order.others";
@@ -179,18 +179,6 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
                 majorVersion = 3;
                 minorVersion = 1;
                 break;
-            case "4.0":
-                majorVersion = 4;
-                minorVersion = 0;
-                break;
-            case "5.0":
-                majorVersion = 5;
-                minorVersion = 0;
-                break;
-            case "6.0":
-                majorVersion = 6;
-                minorVersion = 0;
-                break;
             default:
                 log.warn(sm.getString("webXml.version.unknown", version));
         }
@@ -242,8 +230,9 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
     }
 
     // Derived major and minor version attributes
-    private int majorVersion = 6;
-    private int minorVersion = 0;
+    // Default to 3,1
+    private int majorVersion = 3;
+    private int minorVersion = 1;
     public int getMajorVersion() { return majorVersion; }
     public int getMinorVersion() { return minorVersion; }
 
@@ -635,36 +624,6 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
         return new JspConfigDescriptorImpl(descriptors, tlds);
     }
 
-    private String requestCharacterEncoding;
-    public String getRequestCharacterEncoding() {
-        return requestCharacterEncoding;
-    }
-    public void setRequestCharacterEncoding(String requestCharacterEncoding) {
-        if (requestCharacterEncoding != null) {
-            try {
-                B2CConverter.getCharset(requestCharacterEncoding);
-            } catch (UnsupportedEncodingException e) {
-                throw new IllegalArgumentException(e);
-            }
-        }
-        this.requestCharacterEncoding = requestCharacterEncoding;
-    }
-
-    private String responseCharacterEncoding;
-    public String getResponseCharacterEncoding() {
-        return responseCharacterEncoding;
-    }
-    public void setResponseCharacterEncoding(String responseCharacterEncoding) {
-        if (responseCharacterEncoding != null) {
-            try {
-                B2CConverter.getCharset(responseCharacterEncoding);
-            } catch (UnsupportedEncodingException e) {
-                throw new IllegalArgumentException(e);
-            }
-        }
-        this.responseCharacterEncoding = responseCharacterEncoding;
-    }
-
     // Attributes not defined in web.xml or web-fragment.xml
 
     // URL of JAR / exploded JAR for this web-fragment
@@ -754,15 +713,6 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
             } else if ("3.1".equals(version)) {
                 javaeeNamespace = XmlIdentifiers.JAVAEE_7_NS;
                 webXmlSchemaLocation = XmlIdentifiers.WEB_31_XSD;
-            } else if ("4.0".equals(version)) {
-                javaeeNamespace = XmlIdentifiers.JAVAEE_8_NS;
-                webXmlSchemaLocation = XmlIdentifiers.WEB_40_XSD;
-            } else if ("5.0".equals(version)) {
-                javaeeNamespace = XmlIdentifiers.JAKARTAEE_9_NS;
-                webXmlSchemaLocation = XmlIdentifiers.WEB_50_XSD;
-            } else if ("6.0".equals(version)) {
-                javaeeNamespace = XmlIdentifiers.JAKARTAEE_10_NS;
-                webXmlSchemaLocation = XmlIdentifiers.WEB_60_XSD;
             }
             sb.append("<web-app xmlns=\"");
             sb.append(javaeeNamespace);
@@ -1370,7 +1320,6 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
                     sb.append("    </locale-encoding-mapping>\n");
                 }
                 sb.append("  </locale-encoding-mapping-list>\n");
-                sb.append("\n");
             }
         }
 
@@ -1378,16 +1327,11 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
         if (getMajorVersion() > 3 ||
                 (getMajorVersion() == 3 && getMinorVersion() > 0)) {
             if (denyUncoveredHttpMethods) {
-                sb.append("  <deny-uncovered-http-methods/>");
                 sb.append("\n");
+                sb.append("  <deny-uncovered-http-methods/>");
             }
         }
 
-        // request-encoding and response-encoding was introduced in Servlet 4.0
-        if (getMajorVersion() >= 4) {
-            appendElement(sb, INDENT2, "request-character-encoding", requestCharacterEncoding);
-            appendElement(sb, INDENT2, "response-character-encoding", responseCharacterEncoding);
-        }
         sb.append("</web-app>");
         return sb.toString();
     }
@@ -1476,26 +1420,12 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
         }
 
         // Note: Not permitted in fragments but we also use fragments for
-        //       per-Host and global defaults so they may appear there
+        //       per-Host and global defaults so it may appear there
         if (!denyUncoveredHttpMethods) {
             for (WebXml fragment : fragments) {
                 if (fragment.getDenyUncoveredHttpMethods()) {
                     denyUncoveredHttpMethods = true;
                     break;
-                }
-            }
-        }
-        if (requestCharacterEncoding == null) {
-            for (WebXml fragment : fragments) {
-                if (fragment.getRequestCharacterEncoding() != null) {
-                    requestCharacterEncoding = fragment.getRequestCharacterEncoding();
-                }
-            }
-        }
-        if (responseCharacterEncoding == null) {
-            for (WebXml fragment : fragments) {
-                if (fragment.getResponseCharacterEncoding() != null) {
-                    responseCharacterEncoding = fragment.getResponseCharacterEncoding();
                 }
             }
         }
@@ -1780,32 +1710,138 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
             sessionConfig.setCookieName(
                     temp.getSessionConfig().getCookieName());
         }
-
-        Map<String,String> mainAttributes = getSessionConfig().getCookieAttributes();
-        Map<String,String> mergedFragmentAttributes = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        for (WebXml fragment : fragments) {
-            for (Map.Entry<String,String> attribute : fragment.getSessionConfig().getCookieAttributes().entrySet()) {
-                // Skip any attribute in a fragment that is defined in the main web.xml
-                if (!mainAttributes.containsKey(attribute.getKey())) {
-                    if (mergedFragmentAttributes.containsKey(attribute.getKey())) {
-                        // Attribute has already been seen.
-                        // If values are the same, NO-OP. If they are different
-                        // trigger a merge error
-                        if (!mergedFragmentAttributes.get(attribute.getKey()).equals(attribute.getValue())) {
-                            log.error(sm.getString(
-                                    "webXml.mergeConflictSessionCookieAttributes",
-                                    fragment.getName(),
-                                    fragment.getURL()));
-                            return false;
-                        }
+        if (sessionConfig.getCookieDomain() == null) {
+            for (WebXml fragment : fragments) {
+                String value = fragment.getSessionConfig().getCookieDomain();
+                if (value != null) {
+                    if (temp.getSessionConfig().getCookieDomain() == null) {
+                        temp.getSessionConfig().setCookieDomain(value);
+                    } else if (value.equals(
+                            temp.getSessionConfig().getCookieDomain())) {
+                        // Fragments use same value - no conflict
                     } else {
-                        // First time this attribute has been seen. Add it.
-                        mergedFragmentAttributes.put(attribute.getKey(), attribute.getValue());
+                        log.error(sm.getString(
+                                "webXml.mergeConflictSessionCookieDomain",
+                                fragment.getName(),
+                                fragment.getURL()));
+                        return false;
                     }
                 }
             }
+            sessionConfig.setCookieDomain(
+                    temp.getSessionConfig().getCookieDomain());
         }
-        mainAttributes.putAll(mergedFragmentAttributes);
+        if (sessionConfig.getCookiePath() == null) {
+            for (WebXml fragment : fragments) {
+                String value = fragment.getSessionConfig().getCookiePath();
+                if (value != null) {
+                    if (temp.getSessionConfig().getCookiePath() == null) {
+                        temp.getSessionConfig().setCookiePath(value);
+                    } else if (value.equals(
+                            temp.getSessionConfig().getCookiePath())) {
+                        // Fragments use same value - no conflict
+                    } else {
+                        log.error(sm.getString(
+                                "webXml.mergeConflictSessionCookiePath",
+                                fragment.getName(),
+                                fragment.getURL()));
+                        return false;
+                    }
+                }
+            }
+            sessionConfig.setCookiePath(
+                    temp.getSessionConfig().getCookiePath());
+        }
+        if (sessionConfig.getCookieComment() == null) {
+            for (WebXml fragment : fragments) {
+                String value = fragment.getSessionConfig().getCookieComment();
+                if (value != null) {
+                    if (temp.getSessionConfig().getCookieComment() == null) {
+                        temp.getSessionConfig().setCookieComment(value);
+                    } else if (value.equals(
+                            temp.getSessionConfig().getCookieComment())) {
+                        // Fragments use same value - no conflict
+                    } else {
+                        log.error(sm.getString(
+                                "webXml.mergeConflictSessionCookieComment",
+                                fragment.getName(),
+                                fragment.getURL()));
+                        return false;
+                    }
+                }
+            }
+            sessionConfig.setCookieComment(
+                    temp.getSessionConfig().getCookieComment());
+        }
+        if (sessionConfig.getCookieHttpOnly() == null) {
+            for (WebXml fragment : fragments) {
+                Boolean value = fragment.getSessionConfig().getCookieHttpOnly();
+                if (value != null) {
+                    if (temp.getSessionConfig().getCookieHttpOnly() == null) {
+                        temp.getSessionConfig().setCookieHttpOnly(value.toString());
+                    } else if (value.equals(
+                            temp.getSessionConfig().getCookieHttpOnly())) {
+                        // Fragments use same value - no conflict
+                    } else {
+                        log.error(sm.getString(
+                                "webXml.mergeConflictSessionCookieHttpOnly",
+                                fragment.getName(),
+                                fragment.getURL()));
+                        return false;
+                    }
+                }
+            }
+            if (temp.getSessionConfig().getCookieHttpOnly() != null) {
+                sessionConfig.setCookieHttpOnly(
+                        temp.getSessionConfig().getCookieHttpOnly().toString());
+            }
+        }
+        if (sessionConfig.getCookieSecure() == null) {
+            for (WebXml fragment : fragments) {
+                Boolean value = fragment.getSessionConfig().getCookieSecure();
+                if (value != null) {
+                    if (temp.getSessionConfig().getCookieSecure() == null) {
+                        temp.getSessionConfig().setCookieSecure(value.toString());
+                    } else if (value.equals(
+                            temp.getSessionConfig().getCookieSecure())) {
+                        // Fragments use same value - no conflict
+                    } else {
+                        log.error(sm.getString(
+                                "webXml.mergeConflictSessionCookieSecure",
+                                fragment.getName(),
+                                fragment.getURL()));
+                        return false;
+                    }
+                }
+            }
+            if (temp.getSessionConfig().getCookieSecure() != null) {
+                sessionConfig.setCookieSecure(
+                        temp.getSessionConfig().getCookieSecure().toString());
+            }
+        }
+        if (sessionConfig.getCookieMaxAge() == null) {
+            for (WebXml fragment : fragments) {
+                Integer value = fragment.getSessionConfig().getCookieMaxAge();
+                if (value != null) {
+                    if (temp.getSessionConfig().getCookieMaxAge() == null) {
+                        temp.getSessionConfig().setCookieMaxAge(value.toString());
+                    } else if (value.equals(
+                            temp.getSessionConfig().getCookieMaxAge())) {
+                        // Fragments use same value - no conflict
+                    } else {
+                        log.error(sm.getString(
+                                "webXml.mergeConflictSessionCookieMaxAge",
+                                fragment.getName(),
+                                fragment.getURL()));
+                        return false;
+                    }
+                }
+            }
+            if (temp.getSessionConfig().getCookieMaxAge() != null) {
+                sessionConfig.setCookieMaxAge(
+                        temp.getSessionConfig().getCookieMaxAge().toString());
+            }
+        }
 
         if (sessionConfig.getSessionTrackingModes().size() == 0) {
             for (WebXml fragment : fragments) {
@@ -2298,7 +2334,13 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
             names.add(fragment.getName());
         }
         for (WebXml fragment : group) {
-            fragment.getAfterOrdering().removeIf(entry -> !names.contains(entry));
+            Iterator<String> after = fragment.getAfterOrdering().iterator();
+            while (after.hasNext()) {
+                String entry = after.next();
+                if (!names.contains(entry)) {
+                    after.remove();
+                }
+            }
         }
     }
     private static void orderFragments(Set<WebXml> orderedFragments,

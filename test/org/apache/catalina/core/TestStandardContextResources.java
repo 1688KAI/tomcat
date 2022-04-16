@@ -24,16 +24,17 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
+import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.startup.Constants;
 import org.apache.catalina.startup.ContextConfig;
 import org.apache.catalina.startup.Tomcat;
@@ -132,7 +133,7 @@ public class TestStandardContextResources extends TomcatBaseTest {
 
         // app dir is relative to server home
         StandardContext ctx = (StandardContext) tomcat.addWebapp(null, "/test",
-                appDir.getAbsolutePath(), absoluteOrderConfig);
+                appDir.getAbsolutePath(), (LifecycleListener) absoluteOrderConfig);
 
         Tomcat.addServlet(ctx, "getresource", new GetResourceServlet());
         ctx.addServletMappingDecoded("/getresource", "getresource");
@@ -154,7 +155,7 @@ public class TestStandardContextResources extends TomcatBaseTest {
         absoluteOrderConfig.swap();
 
         ctx = (StandardContext) tomcat.addWebapp(null, "/test",
-                appDir.getAbsolutePath(), absoluteOrderConfig);
+                appDir.getAbsolutePath(), (LifecycleListener) absoluteOrderConfig);
         Tomcat.addServlet(ctx, "getresource", new GetResourceServlet());
         ctx.addServletMappingDecoded("/getresource", "getresource");
 

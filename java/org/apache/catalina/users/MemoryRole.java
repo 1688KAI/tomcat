@@ -27,7 +27,10 @@ import org.apache.catalina.UserDatabase;
  * @author Craig R. McClanahan
  * @since 4.1
  */
-public class MemoryRole extends GenericRole<MemoryUserDatabase> {
+public class MemoryRole extends AbstractRole {
+
+
+    // ----------------------------------------------------------- Constructors
 
 
     /**
@@ -40,8 +43,37 @@ public class MemoryRole extends GenericRole<MemoryUserDatabase> {
      */
     MemoryRole(MemoryUserDatabase database,
                String rolename, String description) {
-        super(database, rolename, description);
+
+        super();
+        this.database = database;
+        setRolename(rolename);
+        setDescription(description);
+
     }
+
+
+    // ----------------------------------------------------- Instance Variables
+
+
+    /**
+     * The {@link MemoryUserDatabase} that owns this role.
+     */
+    protected final MemoryUserDatabase database;
+
+
+    // ------------------------------------------------------------- Properties
+
+
+    /**
+     * Return the {@link UserDatabase} within which this role is defined.
+     */
+    @Override
+    public UserDatabase getUserDatabase() {
+        return this.database;
+    }
+
+
+    // --------------------------------------------------------- Public Methods
 
 
     /**

@@ -883,13 +883,16 @@ public class NonBlockingCoordinator extends ChannelInterceptorBase {
 
         @Override
         public String toString() {
+            StringBuilder buf = new StringBuilder("CoordinationEvent[type=");
+            buf.append(type).append("\n\tLocal:");
             Member local = interceptor.getLocalMember(false);
-            return sm.getString("nonBlockingCoordinator.report", Integer.valueOf(type),
-                    (local != null ? local.getName() : ""),
-                    (coord != null ? coord.getName() : ""),
-                    Arrays.toNameString(view != null ? view.getMembers() : null),
-                    Arrays.toNameString(suggestedView != null ? suggestedView.getMembers() : null),
-                    Arrays.toNameString(mbrs), info);
+            buf.append(local!=null?local.getName():"").append("\n\tCoord:");
+            buf.append(coord!=null?coord.getName():"").append("\n\tView:");
+            buf.append(Arrays.toNameString(view!=null?view.getMembers():null)).append("\n\tSuggested View:");
+            buf.append(Arrays.toNameString(suggestedView!=null?suggestedView.getMembers():null)).append("\n\tMembers:");
+            buf.append(Arrays.toNameString(mbrs)).append("\n\tInfo:");
+            buf.append(info).append("]");
+            return buf.toString();
         }
     }
 

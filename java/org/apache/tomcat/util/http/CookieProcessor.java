@@ -18,8 +18,8 @@ package org.apache.tomcat.util.http;
 
 import java.nio.charset.Charset;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
 
 public interface CookieProcessor {
 
@@ -31,6 +31,21 @@ public interface CookieProcessor {
      *                      results of the parsing
      */
     void parseCookieHeader(MimeHeaders headers, ServerCookies serverCookies);
+
+    /**
+     * Generate the {@code Set-Cookie} HTTP header value for the given Cookie.
+     *
+     * @param cookie The cookie for which the header will be generated
+     *
+     * @return The header value in a form that can be added directly to the
+     *         response
+     *
+     * @deprecated This method has been replaced with
+     *             {@link #generateHeader(Cookie, HttpServletRequest)} and will
+     *             be removed from Tomcat 10 onwards.
+     */
+    @Deprecated
+    String generateHeader(Cookie cookie);
 
     /**
      * Generate the {@code Set-Cookie} HTTP header value for the given Cookie.

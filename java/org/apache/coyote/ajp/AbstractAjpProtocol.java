@@ -98,7 +98,7 @@ public abstract class AbstractAjpProtocol<S> extends AbstractProtocol<S> {
     // ------------------------------------------------- AJP specific properties
     // ------------------------------------------ managed in the ProtocolHandler
 
-    private boolean ajpFlush = true;
+    protected boolean ajpFlush = true;
     public boolean getAjpFlush() { return ajpFlush; }
     /**
      * Configure whether to aend an AJP flush packet when flushing. A flush
@@ -207,17 +207,11 @@ public abstract class AbstractAjpProtocol<S> extends AbstractProtocol<S> {
     private int packetSize = Constants.MAX_PACKET_SIZE;
     public int getPacketSize() { return packetSize; }
     public void setPacketSize(int packetSize) {
-        if (packetSize < Constants.MAX_PACKET_SIZE) {
+        if(packetSize < Constants.MAX_PACKET_SIZE) {
             this.packetSize = Constants.MAX_PACKET_SIZE;
         } else {
             this.packetSize = packetSize;
         }
-    }
-
-
-    @Override
-    public int getDesiredBufferSize() {
-        return getPacketSize() - Constants.SEND_HEAD_LEN;
     }
 
 
@@ -247,9 +241,19 @@ public abstract class AbstractAjpProtocol<S> extends AbstractProtocol<S> {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Override
     protected Processor createProcessor() {
-        AjpProcessor processor = new AjpProcessor(this, getAdapter());
+        AjpProcessor processor = new AjpProcessor(getPacketSize(), getEndpoint());
+        processor.setAdapter(getAdapter());
+        processor.setAjpFlush(getAjpFlush());
+        processor.setTomcatAuthentication(getTomcatAuthentication());
+        processor.setTomcatAuthorization(getTomcatAuthorization());
+        processor.setSecret(secret);
+        processor.setKeepAliveTimeout(getKeepAliveTimeout());
+        processor.setClientCertProvider(getClientCertProvider());
+        processor.setSendReasonPhrase(getSendReasonPhrase());
+        processor.setAllowedRequestAttributesPattern(getAllowedRequestAttributesPatternInternal());
         return processor;
     }
 

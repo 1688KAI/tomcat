@@ -22,17 +22,15 @@ import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 
-import jakarta.servlet.WriteListener;
+import javax.servlet.WriteListener;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.B2CConverter;
+import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.MimeHeaders;
 import org.apache.tomcat.util.http.parser.MediaType;
@@ -82,8 +80,6 @@ public final class Response {
     final MimeHeaders headers = new MimeHeaders();
 
 
-    private Supplier<Map<String,String>> trailerFieldsSupplier = null;
-
     /**
      * Associated output buffer.
      */
@@ -123,7 +119,7 @@ public final class Response {
 
     // General informations
     private long contentWritten = 0;
-    private long commitTimeNanos = -1;
+    private long commitTime = -1;
 
     /**
      * Holds response writing error exception.
@@ -259,7 +255,7 @@ public final class Response {
 
     public void setCommitted(boolean v) {
         if (v && !this.committed) {
-            this.commitTimeNanos = System.nanoTime();
+            this.commitTime = System.currentTimeMillis();
         }
         this.committed = v;
     }
@@ -270,16 +266,7 @@ public final class Response {
      * @return the time the response was committed
      */
     public long getCommitTime() {
-        return System.currentTimeMillis() - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - commitTimeNanos);
-    }
-
-    /**
-     * Return the time the response was committed (based on System.nanoTime).
-     *
-     * @return the time the response was committed
-     */
-    public long getCommitTimeNanos() {
-        return commitTimeNanos;
+        return commitTime;
     }
 
     // -----------------Error State --------------------
@@ -399,22 +386,6 @@ public final class Response {
     }
 
 
-    public void setTrailerFields(Supplier<Map<String, String>> supplier) {
-        AtomicBoolean trailerFieldsSupported = new AtomicBoolean(false);
-        action(ActionCode.IS_TRAILER_FIELDS_SUPPORTED, trailerFieldsSupported);
-        if (!trailerFieldsSupported.get()) {
-            throw new IllegalStateException(sm.getString("response.noTrailers.notSupported"));
-        }
-
-        this.trailerFieldsSupplier = supplier;
-    }
-
-
-    public Supplier<Map<String, String>> getTrailerFields() {
-        return trailerFieldsSupplier;
-    }
-
-
     /**
      * Set internal fields for special header names.
      * Called from set/addHeader.
@@ -496,11 +467,8 @@ public final class Response {
      * method must be called prior to writing output using getWriter().
      *
      * @param characterEncoding The name of character encoding.
-     *
-     * @throws UnsupportedEncodingException If the specified name is not
-     *         recognised
      */
-    public void setCharacterEncoding(String characterEncoding) throws UnsupportedEncodingException {
+    public void setCharacterEncoding(String characterEncoding) {
         if (isCommitted()) {
             return;
         }
@@ -511,7 +479,11 @@ public final class Response {
         }
 
         this.characterEncoding = characterEncoding;
-        this.charset = B2CConverter.getCharset(characterEncoding);
+        try {
+            this.charset = B2CConverter.getCharset(characterEncoding);
+        } catch (UnsupportedEncodingException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
 
@@ -616,6 +588,23 @@ public final class Response {
     /**
      * Write a chunk of bytes.
      *
+     * @param chunk The bytes to write
+     *
+     * @throws IOException If an I/O error occurs during the write
+     *
+     * @deprecated Unused. Will be removed in Tomcat 9. Use
+     *             {@link #doWrite(ByteBuffer)}
+     */
+    @Deprecated
+    public void doWrite(ByteChunk chunk) throws IOException {
+        outputBuffer.doWrite(chunk);
+        contentWritten+=chunk.getLength();
+    }
+
+
+    /**
+     * Write a chunk of bytes.
+     *
      * @param chunk The ByteBuffer to write
      *
      * @throws IOException If an I/O error occurs during the write
@@ -639,11 +628,10 @@ public final class Response {
         status = 200;
         message = null;
         committed = false;
-        commitTimeNanos = -1;
+        commitTime = -1;
         errorException = null;
         errorState.set(0);
         headers.clear();
-        trailerFieldsSupplier = null;
         // Servlet 3.1 non-blocking write listener
         listener = null;
         synchronized (nonBlockingStateLock) {

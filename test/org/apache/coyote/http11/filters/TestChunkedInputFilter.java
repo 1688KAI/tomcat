@@ -20,10 +20,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -478,7 +478,7 @@ public class TestChunkedInputFilter extends TomcatBaseTest {
 
         private void dumpHeader(String headerName, HttpServletRequest req,
                 PrintWriter pw) {
-            String value = req.getTrailerFields().get(headerName);
+            String value = req.getHeader(headerName);
             if (value == null) {
                 value = "null";
             }

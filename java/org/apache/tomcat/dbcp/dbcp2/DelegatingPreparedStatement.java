@@ -30,7 +30,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.RowId;
 import java.sql.SQLException;
-import java.sql.SQLType;
 import java.sql.SQLXML;
 import java.sql.Statement;
 import java.sql.Time;
@@ -94,20 +93,6 @@ public class DelegatingPreparedStatement extends DelegatingStatement implements 
         } catch (final SQLException e) {
             handleException(e);
             return false;
-        }
-    }
-
-    /**
-     * @since 2.5.0
-     */
-    @Override
-    public long executeLargeUpdate() throws SQLException {
-        checkOpen();
-        try {
-            return getDelegatePreparedStatement().executeLargeUpdate();
-        } catch (final SQLException e) {
-            handleException(e);
-            return 0;
         }
     }
 
@@ -537,32 +522,6 @@ public class DelegatingPreparedStatement extends DelegatingStatement implements 
         checkOpen();
         try {
             getDelegatePreparedStatement().setObject(parameterIndex, x, targetSqlType, scale);
-        } catch (final SQLException e) {
-            handleException(e);
-        }
-    }
-
-    /**
-     * @since 2.5.0
-     */
-    @Override
-    public void setObject(final int parameterIndex, final Object x, final SQLType targetSqlType) throws SQLException {
-        checkOpen();
-        try {
-            getDelegatePreparedStatement().setObject(parameterIndex, x, targetSqlType);
-        } catch (final SQLException e) {
-            handleException(e);
-        }
-    }
-
-    /**
-     * @since 2.5.0
-     */
-    @Override
-    public void setObject(final int parameterIndex, final Object x, final SQLType targetSqlType, final int scaleOrLength) throws SQLException {
-        checkOpen();
-        try {
-            getDelegatePreparedStatement().setObject(parameterIndex, x, targetSqlType, scaleOrLength);
         } catch (final SQLException e) {
             handleException(e);
         }

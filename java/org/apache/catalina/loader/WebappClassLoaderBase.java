@@ -16,8 +16,6 @@
  */
 package org.apache.catalina.loader;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FilePermission;
 import java.io.IOException;
@@ -26,7 +24,6 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.ref.Reference;
 import java.lang.reflect.Field;
-import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -140,9 +137,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     private static final String CLASS_FILE_SUFFIX = ".class";
 
     static {
-        if (!JreCompat.isGraalAvailable()) {
-            ClassLoader.registerAsParallelCapable();
-        }
+        ClassLoader.registerAsParallelCapable();
         JVM_THREAD_GROUP_NAMES.add(JVM_THREAD_GROUP_SYSTEM);
         JVM_THREAD_GROUP_NAMES.add("RMI Runtime");
     }
@@ -298,7 +293,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     protected boolean delegate = false;
 
 
-    private final Map<String,Long> jarModificationTimes = new HashMap<>();
+    private final HashMap<String,Long> jarModificationTimes = new HashMap<>();
 
 
     /**
@@ -337,9 +332,17 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
 
     /**
+     * All permission.
+     * @deprecated Unused. This will be removed in Tomcat 9.
+     */
+    @Deprecated
+    protected final Permission allPermission = new java.security.AllPermission();
+
+
+    /**
      * Enables the RMI Target memory leak detection to be controlled. This is
-     * necessary since the detection can only work if some of the modularity
-     * checks are disabled.
+     * necessary since the detection can only work on Java 9 if some of the
+     * modularity checks are disabled.
      */
     private boolean clearReferencesRmiTargets = true;
 
@@ -426,6 +429,19 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
 
     // ------------------------------------------------------------- Properties
+
+    /**
+     * Unused. Always returns {@code null}.
+     *
+     * @return associated resources.
+     *
+     * @deprecated This will be removed in Tomcat 10.1.x onwards
+     */
+    @Deprecated
+    public WebResourceRoot getResources() {
+        return null;
+    }
+
 
     /**
      * Set associated resources.
@@ -969,7 +985,9 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         ResourceEntry entry = new ResourceEntry();
         entry.lastModified = resource.getLastModified();
         synchronized(resourceEntries) {
-            resourceEntries.putIfAbsent(path, entry);
+            if (!resourceEntries.containsKey(path)) {
+                resourceEntries.put(path, entry);
+            }
         }
     }
 
@@ -1155,41 +1173,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         WebResource resource = resources.getClassLoaderResource(path);
         if (resource.exists()) {
             stream = resource.getInputStream();
-            // Filter out .class resources through the ClassFileTranformer
-            if (name.endsWith(CLASS_FILE_SUFFIX) && transformers.size() > 0) {
-                // If the resource is a class, decorate it with any attached transformers
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                byte[] buf = new byte[8192];
-                int numRead;
-                try {
-                    while ((numRead = stream.read(buf)) >= 0) {
-                        baos.write(buf, 0, numRead);
-                    }
-                } catch (IOException e) {
-                    log.error(sm.getString("webappClassLoader.transformError", name), e);
-                    return null;
-                } finally {
-                    try {
-                        stream.close();
-                    } catch (IOException e) {
-                    }
-                }
-                byte[] binaryContent = baos.toByteArray();
-                String internalName = path.substring(1, path.length() - CLASS_FILE_SUFFIX.length());
-                for (ClassFileTransformer transformer : this.transformers) {
-                    try {
-                        byte[] transformed = transformer.transform(
-                                this, internalName, null, null, binaryContent);
-                        if (transformed != null) {
-                            binaryContent = transformed;
-                        }
-                    } catch (IllegalClassFormatException e) {
-                        log.error(sm.getString("webappClassLoader.transformError", name), e);
-                        return null;
-                    }
-                }
-                stream = new ByteArrayInputStream(binaryContent);
-            }
             trackLastModified(path, resource);
         }
         try {
@@ -1274,7 +1257,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
     @Override
     public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
 
-        synchronized (JreCompat.isGraalAvailable() ? this : getClassLoadingLock(name)) {
+        synchronized (getClassLoadingLock(name)) {
             if (log.isDebugEnabled()) {
                 log.debug("loadClass(" + name + ", " + resolve + ")");
             }
@@ -1296,7 +1279,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
 
             // (0.1) Check our previously loaded class cache
-            clazz = JreCompat.isGraalAvailable() ? null : findLoadedClass(name);
+            clazz = findLoadedClass(name);
             if (clazz != null) {
                 if (log.isDebugEnabled()) {
                     log.debug("  Returning class from cache");
@@ -1686,21 +1669,19 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
         }
 
-        if (!JreCompat.isGraalAvailable()) {
-            // De-register any remaining JDBC drivers
-            clearReferencesJdbc();
-        }
+        // De-register any remaining JDBC drivers
+        clearReferencesJdbc();
 
         // Stop any threads the web application started
         clearReferencesThreads();
 
         // Clear any references retained in the serialization caches
-        if (clearReferencesObjectStreamClassCaches && !JreCompat.isGraalAvailable()) {
+        if (clearReferencesObjectStreamClassCaches) {
             clearReferencesObjectStreamClassCaches();
         }
 
         // Check for leaks triggered by ThreadLocals loaded by this class loader
-        if (clearReferencesThreadLocals && !JreCompat.isGraalAvailable()) {
+        if (clearReferencesThreadLocals) {
             checkThreadLocalsForLeaks();
         }
 
@@ -1881,8 +1862,9 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                                 usingExecutor = true;
                             }
                         }
-                    } catch (SecurityException | NoSuchFieldException | IllegalArgumentException |
-                            IllegalAccessException | InaccessibleObjectException e) {
+                    } catch (NoSuchFieldException | IllegalAccessException | RuntimeException e) {
+                        // InaccessibleObjectException is only available in Java 9+,
+                        // swapped for RuntimeException
                         log.warn(sm.getString("webappClassLoader.stopThreadFail",
                                 thread.getName(), getContextName()), e);
                     }
@@ -2051,14 +2033,19 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                     }
                 }
             }
-        } catch (InaccessibleObjectException e) {
-            // Must be running on without the necessary command line options.
-            log.warn(sm.getString("webappClassLoader.addExportsThreadLocal", this.getClass().getModule().getName()));
         } catch (Throwable t) {
-            ExceptionUtils.handleThrowable(t);
-            log.warn(sm.getString(
-                    "webappClassLoader.checkThreadLocalsForLeaksFail",
-                    getContextName()), t);
+            JreCompat jreCompat = JreCompat.getInstance();
+            if (jreCompat.isInstanceOfInaccessibleObjectException(t)) {
+                // Must be running on Java 9 without the necessary command line
+                // options.
+                String currentModule = JreCompat.getInstance().getModuleName(this.getClass());
+                log.warn(sm.getString("webappClassLoader.addExportsThreadLocal", currentModule));
+            } else {
+                ExceptionUtils.handleThrowable(t);
+                log.warn(sm.getString(
+                        "webappClassLoader.checkThreadLocalsForLeaksFail",
+                        getContextName()), t);
+            }
         }
     }
 
@@ -2309,9 +2296,17 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 IllegalAccessException e) {
             log.warn(sm.getString("webappClassLoader.clearRmiFail",
                     getContextName()), e);
-        } catch (InaccessibleObjectException e) {
-            // Must be running on without the necessary command line options.
-            log.warn(sm.getString("webappClassLoader.addExportsRmi", this.getClass().getModule().getName()));
+        } catch (Exception e) {
+            JreCompat jreCompat = JreCompat.getInstance();
+            if (jreCompat.isInstanceOfInaccessibleObjectException(e)) {
+                // Must be running on Java 9 without the necessary command line
+                // options.
+                String currentModule = JreCompat.getInstance().getModuleName(this.getClass());
+                log.warn(sm.getString("webappClassLoader.addExportsRmi", currentModule));
+            } else {
+                // Re-throw all other exceptions
+                throw e;
+            }
         }
     }
 
@@ -2324,9 +2319,18 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         } catch (ReflectiveOperationException | SecurityException | ClassCastException e) {
             log.warn(sm.getString(
                     "webappClassLoader.clearObjectStreamClassCachesFail", getContextName()), e);
-        } catch (InaccessibleObjectException e) {
-            // Must be running on without the necessary command line options.
-            log.warn(sm.getString("webappClassLoader.addExportsJavaIo", this.getClass().getModule().getName()));
+        } catch (Exception e) {
+            JreCompat jreCompat = JreCompat.getInstance();
+            if (jreCompat.isInstanceOfInaccessibleObjectException(e)) {
+                // Must be running on Java 9 without the necessary command line
+                // options.
+                String currentModule = JreCompat.getInstance().getModuleName(this.getClass());
+                log.warn(sm.getString("webappClassLoader.addExportsJavaIo", currentModule));
+                return;
+            } else {
+                // Re-throw all other exceptions
+                throw e;
+            }
         }
     }
 
@@ -2356,12 +2360,6 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
      *
      * @return the loaded class, or null if the class isn't found
      */
-    /*
-     * The use of getPackage() is appropriate given that the code is checking
-     * if the package is sealed. Therefore, parent class loaders need to be
-     * checked.
-     */
-    @SuppressWarnings("deprecation")
     protected Class<?> findClassInternal(String name) {
 
         checkStateForResourceLoading(name);
@@ -2403,7 +2401,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             return clazz;
         }
 
-        synchronized (JreCompat.isGraalAvailable() ? this : getClassLoadingLock(name)) {
+        synchronized (getClassLoadingLock(name)) {
             clazz = entry.loadedClass;
             if (clazz != null) {
                 return clazz;
@@ -2613,38 +2611,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         }
 
         char ch;
-        if (name.startsWith("jakarta")) {
-            /* 7 == length("jakarta") */
-            if (name.length() == 7) {
-                return false;
-            }
-            ch = name.charAt(7);
-            if (isClassName && ch == '.') {
-                /* 8 == length("jakarta.") */
-                if (name.startsWith("servlet.jsp.jstl.", 8)) {
-                    return false;
-                }
-                if (name.startsWith("annotation.", 8) ||
-                    name.startsWith("el.", 8) ||
-                    name.startsWith("servlet.", 8) ||
-                    name.startsWith("websocket.", 8) ||
-                    name.startsWith("security.auth.message.", 8)) {
-                    return true;
-                }
-            } else if (!isClassName && ch == '/') {
-                /* 8 == length("jakarta/") */
-                if (name.startsWith("servlet/jsp/jstl/", 8)) {
-                    return false;
-                }
-                if (name.startsWith("annotation/", 8) ||
-                    name.startsWith("el/", 8) ||
-                    name.startsWith("servlet/", 8) ||
-                    name.startsWith("websocket/", 8) ||
-                    name.startsWith("security/auth/message/", 8)) {
-                    return true;
-                }
-            }
-        } else if (name.startsWith("javax")) {
+        if (name.startsWith("javax")) {
             /* 5 == length("javax") */
             if (name.length() == 5) {
                 return false;
@@ -2652,12 +2619,26 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             ch = name.charAt(5);
             if (isClassName && ch == '.') {
                 /* 6 == length("javax.") */
-                if (name.startsWith("websocket.", 6)) {
+                if (name.startsWith("servlet.jsp.jstl.", 6)) {
+                    return false;
+                }
+                if (name.startsWith("annotation.", 6) ||
+                    name.startsWith("el.", 6) ||
+                    name.startsWith("servlet.", 6) ||
+                    name.startsWith("websocket.", 6) ||
+                    name.startsWith("security.auth.message.", 6)) {
                     return true;
                 }
             } else if (!isClassName && ch == '/') {
                 /* 6 == length("javax/") */
-                if (name.startsWith("websocket/", 6)) {
+                if (name.startsWith("servlet/jsp/jstl/", 6)) {
+                    return false;
+                }
+                if (name.startsWith("annotation/", 6) ||
+                    name.startsWith("el/", 6) ||
+                    name.startsWith("servlet/", 6) ||
+                    name.startsWith("websocket/", 6) ||
+                    name.startsWith("security/auth/message/", 6)) {
                     return true;
                 }
             }
@@ -2704,6 +2685,20 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
         }
         return false;
+    }
+
+
+    /**
+     * Filter classes.
+     *
+     * @param name class name
+     * @return <code>true</code> if the class should be filtered
+     * @deprecated Use {@link #filter(String, boolean)} This will be removed in
+     *             Tomcat 9
+     */
+    @Deprecated
+    protected boolean filter(String name) {
+        return filter(name, true) || filter(name, false);
     }
 
 

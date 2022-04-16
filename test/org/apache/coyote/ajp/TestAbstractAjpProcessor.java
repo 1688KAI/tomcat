@@ -26,11 +26,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -68,6 +68,8 @@ public class TestAbstractAjpProcessor extends TomcatBaseTest {
             protocol = "org.apache.coyote.ajp.AjpNioProtocol";
         } else if (protocol.contains("Nio2")) {
             protocol = "org.apache.coyote.ajp.AjpNio2Protocol";
+        } else if (protocol.contains("Apr")) {
+            protocol = "org.apache.coyote.ajp.AjpAprProtocol";
         } else {
             protocol = "org.apache.coyote.ajp.AjpNioProtocol";
         }
@@ -950,8 +952,8 @@ public class TestAbstractAjpProcessor extends TomcatBaseTest {
 
         public ReadBodyServlet(boolean callAvailable) {
             this.callAvailable = callAvailable;
-            this.availableList = callAvailable ? new ArrayList<>() : null;
-            this.readList = callAvailable ? new ArrayList<>() : null;
+            this.availableList = callAvailable ? new ArrayList<Integer>() : null;
+            this.readList = callAvailable ? new ArrayList<Integer>() : null;
         }
 
         @Override

@@ -17,7 +17,7 @@
 package org.apache.catalina.filters;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,13 +27,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.GenericFilter;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -43,8 +44,8 @@ import org.apache.tomcat.util.res.StringManager;
 
 /**
  * <p>
- * A {@link jakarta.servlet.Filter} that enable client-side cross-origin requests
- * by implementing W3C's CORS (<b>C</b>ross-<b>O</b>rigin <b>R</b>esource
+ * A {@link Filter} that enable client-side cross-origin requests by
+ * implementing W3C's CORS (<b>C</b>ross-<b>O</b>rigin <b>R</b>esource
  * <b>S</b>haring) specification for resources. Each {@link HttpServletRequest}
  * request is inspected as per specification, and appropriate response headers
  * are added to {@link HttpServletResponse}.
@@ -82,12 +83,10 @@ import org.apache.tomcat.util.res.StringManager;
  *
  * @see <a href="http://www.w3.org/TR/cors/">CORS specification</a>
  */
-public class CorsFilter extends GenericFilter {
+public class CorsFilter implements Filter {
 
-    private static final long serialVersionUID = 1L;
+    private final Log log = LogFactory.getLog(CorsFilter.class); // must not be static
     private static final StringManager sm = StringManager.getManager(CorsFilter.class);
-
-    private transient Log log = LogFactory.getLog(CorsFilter.class); // must not be static
 
 
     /**
@@ -183,15 +182,22 @@ public class CorsFilter extends GenericFilter {
 
 
     @Override
-    public void init() throws ServletException {
+    public void init(final FilterConfig filterConfig) throws ServletException {
         parseAndStore(
-                getInitParameter(PARAM_CORS_ALLOWED_ORIGINS,     DEFAULT_ALLOWED_ORIGINS),
-                getInitParameter(PARAM_CORS_ALLOWED_METHODS,     DEFAULT_ALLOWED_HTTP_METHODS),
-                getInitParameter(PARAM_CORS_ALLOWED_HEADERS,     DEFAULT_ALLOWED_HTTP_HEADERS),
-                getInitParameter(PARAM_CORS_EXPOSED_HEADERS,     DEFAULT_EXPOSED_HEADERS),
-                getInitParameter(PARAM_CORS_SUPPORT_CREDENTIALS, DEFAULT_SUPPORTS_CREDENTIALS),
-                getInitParameter(PARAM_CORS_PREFLIGHT_MAXAGE,    DEFAULT_PREFLIGHT_MAXAGE),
-                getInitParameter(PARAM_CORS_REQUEST_DECORATE,    DEFAULT_DECORATE_REQUEST)
+                getInitParameter(filterConfig,
+                        PARAM_CORS_ALLOWED_ORIGINS,     DEFAULT_ALLOWED_ORIGINS),
+                getInitParameter(filterConfig,
+                        PARAM_CORS_ALLOWED_METHODS,     DEFAULT_ALLOWED_HTTP_METHODS),
+                getInitParameter(filterConfig,
+                        PARAM_CORS_ALLOWED_HEADERS,     DEFAULT_ALLOWED_HTTP_HEADERS),
+                getInitParameter(filterConfig,
+                        PARAM_CORS_EXPOSED_HEADERS,     DEFAULT_EXPOSED_HEADERS),
+                getInitParameter(filterConfig,
+                        PARAM_CORS_SUPPORT_CREDENTIALS, DEFAULT_SUPPORTS_CREDENTIALS),
+                getInitParameter(filterConfig,
+                        PARAM_CORS_PREFLIGHT_MAXAGE,    DEFAULT_PREFLIGHT_MAXAGE),
+                getInitParameter(filterConfig,
+                        PARAM_CORS_REQUEST_DECORATE,    DEFAULT_DECORATE_REQUEST)
         );
     }
 
@@ -199,6 +205,8 @@ public class CorsFilter extends GenericFilter {
     /**
      * This method returns the parameter's value if it exists, or defaultValue
      * if not.
+     *
+     * @param filterConfig  The configuration for the filter
      *
      * @param name          The parameter's name
      *
@@ -208,9 +216,13 @@ public class CorsFilter extends GenericFilter {
      * @return The parameter's value or the default value if the parameter does
      *         not exist
      */
-    private String getInitParameter(String name, String defaultValue) {
+    private String getInitParameter(FilterConfig filterConfig, String name, String defaultValue) {
 
-        String value = getInitParameter(name);
+        if (filterConfig == null) {
+            return defaultValue;
+        }
+
+        String value = filterConfig.getInitParameter(name);
         if (value != null) {
             return value;
         }
@@ -483,6 +495,12 @@ public class CorsFilter extends GenericFilter {
                         join(allowedHttpHeaders, ","));
             }
         }
+    }
+
+
+    @Override
+    public void destroy() {
+        // NOOP
     }
 
 
@@ -790,6 +808,27 @@ public class CorsFilter extends GenericFilter {
 
 
     /**
+     * Checks if a given origin is valid or not. Criteria:
+     * <ul>
+     * <li>If an encoded character is present in origin, it's not valid.</li>
+     * <li>If origin is "null", it's valid.</li>
+     * <li>Origin should be a valid {@link URI}</li>
+     * </ul>
+     *
+     * @param origin The origin URI
+     * @return <code>true</code> if the origin was valid
+     * @see <a href="http://tools.ietf.org/html/rfc952">RFC952</a>
+     *
+     * @deprecated This will be removed in Tomcat 10
+     *             Use {@link RequestUtil#isValidOrigin(String)}
+     */
+    @Deprecated
+    protected static boolean isValidOrigin(String origin) {
+        return RequestUtil.isValidOrigin(origin);
+    }
+
+
+    /**
      * Determines if any origin is allowed to make CORS request.
      *
      * @return <code>true</code> if it's enabled; false otherwise.
@@ -872,17 +911,6 @@ public class CorsFilter extends GenericFilter {
     }
 
 
-    /*
-     * Log objects are not Serializable but this Filter is because it extends
-     * GenericFilter. Tomcat won't serialize a Filter but in case something else
-     * does...
-     */
-    private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {
-        ois.defaultReadObject();
-        log = LogFactory.getLog(CorsFilter.class);
-    }
-
-
     // -------------------------------------------------- CORS Response Headers
 
     /**
@@ -933,6 +961,15 @@ public class CorsFilter extends GenericFilter {
             "Access-Control-Allow-Headers";
 
     // -------------------------------------------------- CORS Request Headers
+
+    /**
+     * The Vary header indicates allows disabling proxy caching by indicating
+     * the the response depends on the origin.
+     *
+     * @deprecated Unused. Will be removed in Tomcat 10
+     */
+    @Deprecated
+    public static final String REQUEST_HEADER_VARY = "Vary";
 
     /**
      * The Origin header indicates where the cross-origin request or preflight
@@ -1070,39 +1107,39 @@ public class CorsFilter extends GenericFilter {
 
     // ----------------------------------------Filter Config Init param-name(s)
     /**
-     * Key to retrieve allowed origins from {@link jakarta.servlet.FilterConfig}.
+     * Key to retrieve allowed origins from {@link javax.servlet.FilterConfig}.
      */
     public static final String PARAM_CORS_ALLOWED_ORIGINS =
             "cors.allowed.origins";
 
     /**
      * Key to retrieve support credentials from
-     * {@link jakarta.servlet.FilterConfig}.
+     * {@link javax.servlet.FilterConfig}.
      */
     public static final String PARAM_CORS_SUPPORT_CREDENTIALS =
             "cors.support.credentials";
 
     /**
-     * Key to retrieve exposed headers from {@link jakarta.servlet.FilterConfig}.
+     * Key to retrieve exposed headers from {@link javax.servlet.FilterConfig}.
      */
     public static final String PARAM_CORS_EXPOSED_HEADERS =
             "cors.exposed.headers";
 
     /**
-     * Key to retrieve allowed headers from {@link jakarta.servlet.FilterConfig}.
+     * Key to retrieve allowed headers from {@link javax.servlet.FilterConfig}.
      */
     public static final String PARAM_CORS_ALLOWED_HEADERS =
             "cors.allowed.headers";
 
     /**
-     * Key to retrieve allowed methods from {@link jakarta.servlet.FilterConfig}.
+     * Key to retrieve allowed methods from {@link javax.servlet.FilterConfig}.
      */
     public static final String PARAM_CORS_ALLOWED_METHODS =
             "cors.allowed.methods";
 
     /**
      * Key to retrieve preflight max age from
-     * {@link jakarta.servlet.FilterConfig}.
+     * {@link javax.servlet.FilterConfig}.
      */
     public static final String PARAM_CORS_PREFLIGHT_MAXAGE =
             "cors.preflight.maxage";

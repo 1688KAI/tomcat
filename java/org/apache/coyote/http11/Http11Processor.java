@@ -25,12 +25,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-import jakarta.servlet.ServletConnection;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.coyote.AbstractProcessor;
 import org.apache.coyote.ActionCode;
-import org.apache.coyote.Adapter;
 import org.apache.coyote.ContinueResponseTiming;
 import org.apache.coyote.ErrorState;
 import org.apache.coyote.Request;
@@ -53,11 +51,13 @@ import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
+import org.apache.tomcat.util.buf.StringUtils;
 import org.apache.tomcat.util.http.FastHttpDateFormat;
 import org.apache.tomcat.util.http.MimeHeaders;
 import org.apache.tomcat.util.http.parser.HttpParser;
 import org.apache.tomcat.util.http.parser.TokenList;
 import org.apache.tomcat.util.log.UserDataHelper;
+import org.apache.tomcat.util.net.AbstractEndpoint;
 import org.apache.tomcat.util.net.AbstractEndpoint.Handler.SocketState;
 import org.apache.tomcat.util.net.ApplicationBufferHandler;
 import org.apache.tomcat.util.net.SSLSupport;
@@ -83,13 +83,13 @@ public class Http11Processor extends AbstractProcessor {
     /**
      * Input.
      */
-    private final Http11InputBuffer inputBuffer;
+    protected final Http11InputBuffer inputBuffer;
 
 
     /**
      * Output.
      */
-    private final Http11OutputBuffer outputBuffer;
+    protected final Http11OutputBuffer outputBuffer;
 
 
     private final HttpParser httpParser;
@@ -105,55 +105,86 @@ public class Http11Processor extends AbstractProcessor {
     /**
      * Keep-alive.
      */
-    private volatile boolean keepAlive = true;
+    protected volatile boolean keepAlive = true;
 
 
     /**
      * Flag used to indicate that the socket should be kept open (e.g. for keep
      * alive or send file.
      */
-    private volatile boolean openSocket = false;
+    protected volatile boolean openSocket = false;
 
 
     /**
      * Flag that indicates if the request headers have been completely read.
      */
-    private volatile boolean readComplete = true;
+    protected volatile boolean readComplete = true;
 
     /**
      * HTTP/1.1 flag.
      */
-    private boolean http11 = true;
+    protected boolean http11 = true;
 
 
     /**
      * HTTP/0.9 flag.
      */
-    private boolean http09 = false;
+    protected boolean http09 = false;
 
 
     /**
      * Content delimiter for the request (if false, the connection will
      * be closed at the end of the request).
      */
-    private boolean contentDelimitation = true;
+    protected boolean contentDelimitation = true;
+
+
+    /**
+     * Regular expression that defines the restricted user agents.
+     */
+    protected Pattern restrictedUserAgents = null;
+
+
+    /**
+     * Maximum number of Keep-Alive requests to honor.
+     */
+    protected int maxKeepAliveRequests = -1;
+
+
+    /**
+     * Maximum timeout on uploads. 5 minutes as in Apache HTTPD server.
+     */
+    protected int connectionUploadTimeout = 300000;
+
+
+    /**
+     * Flag to disable setting a different time-out on uploads.
+     */
+    protected boolean disableUploadTimeout = false;
+
+
+    /**
+     * Max saved post size.
+     */
+    protected int maxSavePostSize = 4 * 1024;
 
 
     /**
      * Instance of the new protocol to use after the HTTP connection has been
      * upgraded.
      */
-    private UpgradeToken upgradeToken = null;
+    protected UpgradeToken upgradeToken = null;
 
 
     /**
      * Sendfile data.
      */
-    private SendfileDataBase sendfileData = null;
+    protected SendfileDataBase sendfileData = null;
 
 
-    public Http11Processor(AbstractHttp11Protocol<?> protocol, Adapter adapter) {
-        super(adapter);
+    @SuppressWarnings("deprecation")
+    public Http11Processor(AbstractHttp11Protocol<?> protocol, AbstractEndpoint<?,?> endpoint) {
+        super(endpoint);
         this.protocol = protocol;
 
         httpParser = new HttpParser(protocol.getRelaxedPathChars(),
@@ -163,7 +194,8 @@ public class Http11Processor extends AbstractProcessor {
                 protocol.getRejectIllegalHeader(), httpParser);
         request.setInputBuffer(inputBuffer);
 
-        outputBuffer = new Http11OutputBuffer(response, protocol.getMaxHttpResponseHeaderSize());
+        outputBuffer = new Http11OutputBuffer(response, protocol.getMaxHttpResponseHeaderSize(),
+                protocol.getSendReasonPhrase());
         response.setOutputBuffer(outputBuffer);
 
         // Create and add the identity filters.
@@ -188,6 +220,215 @@ public class Http11Processor extends AbstractProcessor {
         outputBuffer.addFilter(new GzipOutputFilter());
 
         pluggableFilterIndex = inputBuffer.getFilters().length;
+    }
+
+
+    /**
+     * Set compression level.
+     *
+     * @param compression One of <code>on</code>, <code>force</code>,
+     *                    <code>off</code> or the minimum compression size in
+     *                    bytes which implies <code>on</code>
+     *
+     * @deprecated Use {@link Http11Protocol#setCompression(String)}
+     */
+    @Deprecated
+    public void setCompression(String compression) {
+        protocol.setCompression(compression);
+    }
+
+    /**
+     * Set Minimum size to trigger compression.
+     *
+     * @param compressionMinSize The minimum content length required for
+     *                           compression in bytes
+     *
+     * @deprecated Use {@link Http11Protocol#setCompressionMinSize(int)}
+     */
+    @Deprecated
+    public void setCompressionMinSize(int compressionMinSize) {
+        protocol.setCompressionMinSize(compressionMinSize);
+    }
+
+
+    /**
+     * Set no compression user agent pattern. Regular expression as supported
+     * by {@link Pattern}. e.g.: <code>gorilla|desesplorer|tigrus</code>.
+     *
+     * @param noCompressionUserAgents The regular expression for user agent
+     *                                strings for which compression should not
+     *                                be applied
+     *
+     * @deprecated Use {@link Http11Protocol#setNoCompressionUserAgents(String)}
+     */
+    @Deprecated
+    public void setNoCompressionUserAgents(String noCompressionUserAgents) {
+        protocol.setNoCompressionUserAgents(noCompressionUserAgents);
+    }
+
+
+    /**
+     * @param compressibleMimeTypes See
+     *        {@link Http11Processor#setCompressibleMimeTypes(String[])}
+     *
+     * @deprecated Use {@link Http11Protocol#setCompressibleMimeType(String)}
+     */
+    @Deprecated
+    public void setCompressableMimeTypes(String[] compressibleMimeTypes) {
+        setCompressibleMimeTypes(compressibleMimeTypes);
+    }
+
+
+    /**
+     * Set compressible mime-type list.
+     *
+     * @param compressibleMimeTypes MIME types for which compression should be
+     *                              enabled
+     *
+     * @deprecated Use {@link Http11Protocol#setCompressibleMimeType(String)}
+     */
+    @Deprecated
+    public void setCompressibleMimeTypes(String[] compressibleMimeTypes) {
+        // Conversion from array to comma separated string and back to array in
+        // CompressionConfig isn't ideal but it is better than adding a direct
+        // setter only to immediately deprecate it as it doesn't exist in 9.0.x
+        // given that Tomcat doesn't call this method in normal usage.
+        protocol.setCompressibleMimeType(StringUtils.join(compressibleMimeTypes));
+    }
+
+
+    /**
+     * Return compression level.
+     *
+     * @return The current compression level in string form (off/on/force)
+     *
+     * @deprecated Use {@link Http11Protocol#getCompression()}
+     */
+    @Deprecated
+    public String getCompression() {
+        return protocol.getCompression();
+    }
+
+
+    /**
+     * Set restricted user agent list (which will downgrade the connector
+     * to HTTP/1.0 mode). Regular expression as supported by {@link Pattern}.
+     *
+     * @param restrictedUserAgents The regular expression as supported by
+     *                             {@link Pattern} for the user agents e.g.
+     *                             "gorilla|desesplorer|tigrus"
+     */
+    public void setRestrictedUserAgents(String restrictedUserAgents) {
+        if (restrictedUserAgents == null ||
+                restrictedUserAgents.length() == 0) {
+            this.restrictedUserAgents = null;
+        } else {
+            this.restrictedUserAgents = Pattern.compile(restrictedUserAgents);
+        }
+    }
+
+
+    /**
+     * Set the maximum number of Keep-Alive requests to allow.
+     * This is to safeguard from DoS attacks. Setting to a negative
+     * value disables the limit.
+     *
+     * @param mkar The new maximum number of Keep-Alive requests allowed
+     */
+    public void setMaxKeepAliveRequests(int mkar) {
+        maxKeepAliveRequests = mkar;
+    }
+
+
+    /**
+     * Get the maximum number of Keep-Alive requests allowed. A negative value
+     * means there is no limit.
+     *
+     * @return the number of Keep-Alive requests that we will allow.
+     */
+    public int getMaxKeepAliveRequests() {
+        return maxKeepAliveRequests;
+    }
+
+
+    /**
+     * Set the maximum size of a POST which will be buffered in SSL mode.
+     * When a POST is received where the security constraints require a client
+     * certificate, the POST body needs to be buffered while an SSL handshake
+     * takes place to obtain the certificate.
+     *
+     * @param msps The maximum size POST body to buffer in bytes
+     */
+    public void setMaxSavePostSize(int msps) {
+        maxSavePostSize = msps;
+    }
+
+
+    /**
+     * Return the maximum size of a POST which will be buffered in SSL mode.
+     *
+     * @return The size in bytes
+     */
+    public int getMaxSavePostSize() {
+        return maxSavePostSize;
+    }
+
+
+    /**
+     * Set the flag to control whether a separate connection timeout is used
+     * during upload of a request body.
+     *
+     * @param isDisabled {@code true} if the separate upload timeout should be
+     *                   disabled
+     */
+    public void setDisableUploadTimeout(boolean isDisabled) {
+        disableUploadTimeout = isDisabled;
+    }
+
+    /**
+     * Get the flag that controls upload time-outs.
+     *
+     * @return {@code true} if the separate upload timeout is disabled
+     */
+    public boolean getDisableUploadTimeout() {
+        return disableUploadTimeout;
+    }
+
+    /**
+     * Set the upload timeout.
+     *
+     * @param timeout Upload timeout in milliseconds
+     */
+    public void setConnectionUploadTimeout(int timeout) {
+        connectionUploadTimeout = timeout ;
+    }
+
+    /**
+     * Get the upload timeout.
+     *
+     * @return Upload timeout in milliseconds
+     */
+    public int getConnectionUploadTimeout() {
+        return connectionUploadTimeout;
+    }
+
+
+    /**
+     * Set the server header name.
+     *
+     * @param server The new value to use for the server header
+     *
+     * @deprecated Use {@link Http11Protocol#setServer(String)}
+     */
+    @Deprecated
+    public void setServer(String server) {
+        protocol.setServer(server);
+    }
+
+
+    @Deprecated
+    public void setServerRemoveAppProvidedValues(boolean serverRemoveAppProvidedValues) {
+        protocol.setServerRemoveAppProvidedValues(serverRemoveAppProvidedValues);
     }
 
 
@@ -265,12 +506,11 @@ public class Http11Processor extends AbstractProcessor {
         SendfileState sendfileState = SendfileState.DONE;
 
         while (!getErrorState().isError() && keepAlive && !isAsync() && upgradeToken == null &&
-                sendfileState == SendfileState.DONE && !protocol.isPaused()) {
+                sendfileState == SendfileState.DONE && !endpoint.isPaused()) {
 
             // Parsing the request header
             try {
-                if (!inputBuffer.parseRequestLine(keptAlive, protocol.getConnectionTimeout(),
-                        protocol.getKeepAliveTimeout())) {
+                if (!inputBuffer.parseRequestLine(keptAlive)) {
                     if (inputBuffer.getParsingRequestLinePhase() == -1) {
                         return SocketState.UPGRADING;
                     } else if (handleIncompleteRequestLineRead()) {
@@ -283,14 +523,14 @@ public class Http11Processor extends AbstractProcessor {
                 // parse headers.
                 prepareRequestProtocol();
 
-                if (protocol.isPaused()) {
+                if (endpoint.isPaused()) {
                     // 503 - Service unavailable
                     response.setStatus(503);
                     setErrorState(ErrorState.CLOSE_CLEAN, null);
                 } else {
                     keptAlive = true;
                     // Set this every time in case limit has been changed via JMX
-                    request.getMimeHeaders().setLimit(protocol.getMaxHeaderCount());
+                    request.getMimeHeaders().setLimit(endpoint.getMaxHeaderCount());
                     // Don't parse headers for HTTP/0.9
                     if (!http09 && !inputBuffer.parseHeaders()) {
                         // We've read part of the request, don't recycle it
@@ -299,8 +539,8 @@ public class Http11Processor extends AbstractProcessor {
                         readComplete = false;
                         break;
                     }
-                    if (!protocol.getDisableUploadTimeout()) {
-                        socketWrapper.setReadTimeout(protocol.getConnectionUploadTimeout());
+                    if (!disableUploadTimeout) {
+                        socketWrapper.setReadTimeout(connectionUploadTimeout);
                     }
                 }
             } catch (IOException e) {
@@ -360,7 +600,7 @@ public class Http11Processor extends AbstractProcessor {
 
                             // Continue processing using new protocol
                             InternalHttpUpgradeHandler upgradeHandler =
-                                    upgradeProtocol.getInternalUpgradeHandler(socketWrapper, getAdapter(), upgradeRequest);
+                                    upgradeProtocol.getInternalUpgradeHandler(getAdapter(), upgradeRequest);
                             UpgradeToken upgradeToken = new UpgradeToken(upgradeHandler, null, null, requestedProtocol);
                             action(ActionCode.UPGRADE, upgradeToken);
                             return SocketState.UPGRADING;
@@ -385,7 +625,6 @@ public class Http11Processor extends AbstractProcessor {
                 }
             }
 
-            int maxKeepAliveRequests = protocol.getMaxKeepAliveRequests();
             if (maxKeepAliveRequests == 1) {
                 keepAlive = false;
             } else if (maxKeepAliveRequests > 0 &&
@@ -455,10 +694,10 @@ public class Http11Processor extends AbstractProcessor {
                 }
             }
 
-            if (!protocol.getDisableUploadTimeout()) {
-                int connectionTimeout = protocol.getConnectionTimeout();
-                if(connectionTimeout > 0) {
-                    socketWrapper.setReadTimeout(connectionTimeout);
+            if (!disableUploadTimeout) {
+                int soTimeout = endpoint.getConnectionTimeout();
+                if(soTimeout > 0) {
+                    socketWrapper.setReadTimeout(soTimeout);
                 } else {
                     socketWrapper.setReadTimeout(0);
                 }
@@ -471,7 +710,7 @@ public class Http11Processor extends AbstractProcessor {
 
         rp.setStage(org.apache.coyote.Constants.STAGE_ENDED);
 
-        if (getErrorState().isError() || (protocol.isPaused() && !isAsync())) {
+        if (getErrorState().isError() || (endpoint.isPaused() && !isAsync())) {
             return SocketState.CLOSED;
         } else if (isAsync()) {
             return SocketState.LONG;
@@ -518,12 +757,12 @@ public class Http11Processor extends AbstractProcessor {
         MimeHeaders headers = source.getMimeHeaders();
         prepareExpectation(headers);
         prepareInputFilters(headers);
-        ack(ContinueResponseTiming.ALWAYS);
+        ack();
 
         // Need to read and buffer the request body, if any. RFC 7230 requires
         // that the request is fully read before the upgrade takes place.
         ByteChunk body = new ByteChunk();
-        int maxSavePostSize = protocol.getMaxSavePostSize();
+        int maxSavePostSize = this.maxSavePostSize;
         if (maxSavePostSize != 0) {
             body.setLimit(maxSavePostSize);
             ApplicationBufferHandler buffer = new UpgradeApplicationBufferHandler();
@@ -548,7 +787,7 @@ public class Http11Processor extends AbstractProcessor {
         // Check to see if we have read any of the request line yet
         if (inputBuffer.getParsingRequestLinePhase() > 1) {
             // Started to read request line.
-            if (protocol.isPaused()) {
+            if (endpoint.isPaused()) {
                 // Partially processed the request so need to respond
                 response.setStatus(503);
                 setErrorState(ErrorState.CLOSE_CLEAN, null);
@@ -634,7 +873,7 @@ public class Http11Processor extends AbstractProcessor {
      */
     private void prepareRequest() throws IOException {
 
-        if (protocol.isSSLEnabled()) {
+        if (endpoint.isSSLEnabled()) {
             request.scheme().setString("https");
         }
 
@@ -657,14 +896,14 @@ public class Http11Processor extends AbstractProcessor {
         }
 
         // Check user-agent header
-        Pattern restrictedUserAgents = protocol.getRestrictedUserAgentsPattern();
         if (restrictedUserAgents != null && (http11 || keepAlive)) {
             MessageBytes userAgentValueMB = headers.getValue("user-agent");
             // Check in the restricted list, and adjust the http11
             // and keepAlive flags accordingly
             if(userAgentValueMB != null && !userAgentValueMB.isNull()) {
                 String userAgentValue = userAgentValueMB.toString();
-                if (restrictedUserAgents.matcher(userAgentValue).matches()) {
+                if (restrictedUserAgents != null &&
+                        restrictedUserAgents.matcher(userAgentValue).matches()) {
                     http11 = false;
                     keepAlive = false;
                 }
@@ -925,7 +1164,7 @@ public class Http11Processor extends AbstractProcessor {
         }
 
         // Sendfile support
-        if (protocol.getUseSendfile()) {
+        if (endpoint.getUseSendfile()) {
             prepareSendfile(outputFilters);
         }
 
@@ -951,12 +1190,7 @@ public class Http11Processor extends AbstractProcessor {
 
         long contentLength = response.getContentLengthLong();
         boolean connectionClosePresent = isConnectionToken(headers, Constants.CLOSE);
-        if (http11 && response.getTrailerFields() != null) {
-            // If trailer fields are set, always use chunking
-            outputBuffer.addActiveFilter(outputFilters[Constants.CHUNKED_FILTER]);
-            contentDelimitation = true;
-            headers.addValue(Constants.TRANSFERENCODING).setString(Constants.CHUNKED);
-        } else if (contentLength != -1) {
+        if (contentLength != -1) {
             headers.setValue("Content-Length").setLong(contentLength);
             outputBuffer.addActiveFilter(outputFilters[Constants.IDENTITY_FILTER]);
             contentDelimitation = true;
@@ -1148,7 +1382,7 @@ public class Http11Processor extends AbstractProcessor {
 
     @Override
     protected SocketState dispatchEndRequest() {
-        if (!keepAlive || protocol.isPaused()) {
+        if (!keepAlive || endpoint.isPaused()) {
             return SocketState.CLOSED;
         } else {
             endRequest();
@@ -1166,12 +1400,6 @@ public class Http11Processor extends AbstractProcessor {
     @Override
     protected Log getLog() {
         return log;
-    }
-
-
-    @Override
-    protected ServletConnection getServletConnection() {
-        return socketWrapper.getServletConnection("http/1.1", "");
     }
 
 
@@ -1227,6 +1455,12 @@ public class Http11Processor extends AbstractProcessor {
     @Override
     protected final void finishResponse() throws IOException {
         outputBuffer.end();
+    }
+
+
+    @Override
+    protected final void ack() {
+        ack(ContinueResponseTiming.ALWAYS);
     }
 
 
@@ -1290,7 +1524,7 @@ public class Http11Processor extends AbstractProcessor {
             // interfere with the client's handshake messages
             InputFilter[] inputFilters = inputBuffer.getFilters();
             ((BufferedInputFilter) inputFilters[Constants.BUFFERED_FILTER]).setLimit(
-                    protocol.getMaxSavePostSize());
+                    maxSavePostSize);
             inputBuffer.addActiveFilter(inputFilters[Constants.BUFFERED_FILTER]);
 
             /*
@@ -1359,34 +1593,6 @@ public class Http11Processor extends AbstractProcessor {
     }
 
 
-    @Override
-    protected boolean isTrailerFieldsReady() {
-        if (inputBuffer.isChunking()) {
-            return inputBuffer.isFinished();
-        } else {
-            return true;
-        }
-    }
-
-
-    @Override
-    protected boolean isTrailerFieldsSupported() {
-        // Request must be HTTP/1.1 to support trailer fields
-        if (!http11) {
-            return false;
-        }
-
-        // If the response is not yet committed, chunked encoding can be used
-        // and the trailer fields sent
-        if (!response.isCommitted()) {
-            return true;
-        }
-
-        // Response has been committed - need to see if chunked is being used
-        return outputBuffer.isChunking();
-    }
-
-
     /**
      * Trigger sendfile processing if required.
      *
@@ -1433,7 +1639,6 @@ public class Http11Processor extends AbstractProcessor {
         upgradeToken = null;
         socketWrapper = null;
         sendfileData = null;
-        sslSupport = null;
     }
 
 

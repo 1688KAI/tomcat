@@ -22,17 +22,18 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.PushBuilder;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;
+import org.apache.catalina.connector.RequestFacade;
+import org.apache.catalina.core.ApplicationPushBuilder;
 import org.apache.catalina.startup.Tomcat;
 
 /**
@@ -105,7 +106,7 @@ public class TestHttp2Section_6_6  extends Http2TestBase {
 
         @Override
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-            PushBuilder pb = req.newPushBuilder();
+            ApplicationPushBuilder pb = ((RequestFacade) req).newPushBuilder();
             pb.path("/simple").push();
 
             // Generate content with a simple known format.

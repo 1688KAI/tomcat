@@ -25,13 +25,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import jakarta.servlet.http.MappingMatch;
-
 import org.apache.catalina.Context;
 import org.apache.catalina.Host;
 import org.apache.catalina.WebResource;
 import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.Wrapper;
+import org.apache.catalina.core.ApplicationMappingMatch;
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.buf.Ascii;
@@ -270,12 +269,12 @@ public final class Mapper {
             addHost(hostName, new String[0], host);
             mappedHost = exactFind(hosts, hostName);
             if (mappedHost == null) {
-                log.error(sm.getString("mapper.addContext.noHost", hostName));
+                log.error("No host found: " + hostName);
                 return;
             }
         }
         if (mappedHost.isAlias()) {
-            log.error(sm.getString("mapper.addContext.hostIsAlias", hostName));
+            log.error("No host found: " + hostName);
             return;
         }
         int slashCount = slashCount(path);
@@ -388,7 +387,7 @@ public final class Mapper {
         MappedHost host = exactFind(hosts, hostName);
         if (host == null || host.isAlias()) {
             if (!silent) {
-                log.error(sm.getString("mapper.findContext.noHostOrAlias", hostName));
+                log.error("No host found: " + hostName);
             }
             return null;
         }
@@ -396,14 +395,15 @@ public final class Mapper {
                 contextPath);
         if (context == null) {
             if (!silent) {
-                log.error(sm.getString("mapper.findContext.noContext", contextPath));
+                log.error("No context found: " + contextPath);
             }
             return null;
         }
         ContextVersion contextVersion = exactFind(context.versions, version);
         if (contextVersion == null) {
             if (!silent) {
-                log.error(sm.getString("mapper.findContext.noContextVersion", contextPath, version));
+                log.error("No context version found: " + contextPath + " "
+                        + version);
             }
             return null;
         }
@@ -733,6 +733,7 @@ public final class Mapper {
      * @throws IOException If an error occurs while manipulating the URI during
      *         the mapping
      */
+    @SuppressWarnings("deprecation") // contextPath
     private final void internalMap(CharChunk host, CharChunk uri,
             String version, MappingData mappingData) throws IOException {
 
@@ -822,6 +823,8 @@ public final class Mapper {
         if (context == null) {
             return;
         }
+
+        mappingData.contextPath.setString(context.name);
 
         ContextVersion contextVersion = null;
         ContextVersion[] contextVersions = context.versions;
@@ -1020,7 +1023,7 @@ public final class Mapper {
                     (path.getBuffer(), path.getStart(), path.getLength());
                 mappingData.wrapperPath.setChars
                     (path.getBuffer(), path.getStart(), path.getLength());
-                mappingData.matchType = MappingMatch.DEFAULT;
+                mappingData.matchType = ApplicationMappingMatch.DEFAULT;
             }
             // Redirection to a folder
             char[] buf = path.getBuffer();
@@ -1063,6 +1066,7 @@ public final class Mapper {
     /**
      * Exact mapping.
      */
+    @SuppressWarnings("deprecation") // contextPath
     private final void internalMapExactWrapper
         (MappedWrapper[] wrappers, CharChunk path, MappingData mappingData) {
         MappedWrapper wrapper = exactFind(wrappers, path);
@@ -1073,10 +1077,12 @@ public final class Mapper {
                 // Special handling for Context Root mapped servlet
                 mappingData.pathInfo.setString("/");
                 mappingData.wrapperPath.setString("");
-                mappingData.matchType = MappingMatch.CONTEXT_ROOT;
+                // This seems wrong but it is what the spec says...
+                mappingData.contextPath.setString("");
+                mappingData.matchType = ApplicationMappingMatch.CONTEXT_ROOT;
             } else {
                 mappingData.wrapperPath.setString(wrapper.name);
-                mappingData.matchType = MappingMatch.EXACT;
+                mappingData.matchType = ApplicationMappingMatch.EXACT;
             }
         }
     }
@@ -1128,7 +1134,7 @@ public final class Mapper {
                     (path.getBuffer(), path.getOffset(), path.getLength());
                 mappingData.wrapper = wrappers[pos].object;
                 mappingData.jspWildCard = wrappers[pos].jspWildCard;
-                mappingData.matchType = MappingMatch.PATH;
+                mappingData.matchType = ApplicationMappingMatch.PATH;
             }
         }
     }
@@ -1173,7 +1179,7 @@ public final class Mapper {
                     mappingData.requestPath.setChars(buf, servletPath, pathEnd
                             - servletPath);
                     mappingData.wrapper = wrapper.object;
-                    mappingData.matchType = MappingMatch.EXTENSION;
+                    mappingData.matchType = ApplicationMappingMatch.EXTENSION;
                 }
                 path.setOffset(servletPath);
                 path.setEnd(pathEnd);

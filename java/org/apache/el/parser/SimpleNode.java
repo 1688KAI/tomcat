@@ -19,12 +19,12 @@ package org.apache.el.parser;
 
 import java.util.Arrays;
 
-import jakarta.el.ELException;
-import jakarta.el.MethodInfo;
-import jakarta.el.MethodReference;
-import jakarta.el.PropertyNotWritableException;
-import jakarta.el.ValueReference;
+import javax.el.ELException;
+import javax.el.MethodInfo;
+import javax.el.PropertyNotWritableException;
+import javax.el.ValueReference;
 
+import org.apache.el.lang.ELSupport;
 import org.apache.el.lang.EvaluationContext;
 import org.apache.el.util.MessageFactory;
 
@@ -32,7 +32,7 @@ import org.apache.el.util.MessageFactory;
 /**
  * @author Jacob Hookom [jacob@hookom.net]
  */
-public abstract class SimpleNode implements Node {
+public abstract class SimpleNode extends ELSupport implements Node {
     protected Node parent;
 
     protected Node[] children;
@@ -158,10 +158,6 @@ public abstract class SimpleNode implements Node {
         throw new UnsupportedOperationException();
     }
 
-    @Override
-    public MethodReference getMethodReference(EvaluationContext ctx) {
-        throw new UnsupportedOperationException();
-    }
 
     @Override
     public int hashCode() {

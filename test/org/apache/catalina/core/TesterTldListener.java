@@ -16,9 +16,9 @@
  */
 package org.apache.catalina.core;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletContextEvent;
-import jakarta.servlet.ServletContextListener;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletContextListener;
 
 public class TesterTldListener implements ServletContextListener {
 

@@ -18,7 +18,7 @@ package org.apache.tomcat.util.descriptor.tld;
 
 import org.apache.tomcat.util.digester.Digester;
 import org.apache.tomcat.util.digester.Rule;
-import org.apache.tomcat.util.digester.RuleSet;
+import org.apache.tomcat.util.digester.RuleSetBase;
 import org.apache.tomcat.util.res.StringManager;
 import org.xml.sax.Attributes;
 
@@ -27,7 +27,8 @@ import org.xml.sax.Attributes;
  *
  * Only version information used and short names are allowed.
  */
-public class ImplicitTldRuleSet implements RuleSet {
+@SuppressWarnings("deprecation")
+public class ImplicitTldRuleSet extends RuleSetBase {
 
     private static final StringManager sm = StringManager.getManager(ImplicitTldRuleSet.class);
 
@@ -51,13 +52,6 @@ public class ImplicitTldRuleSet implements RuleSet {
             public void begin(String namespace, String name, Attributes attributes) {
                 TaglibXml taglibXml = (TaglibXml) digester.peek();
                 taglibXml.setJspVersion(attributes.getValue("version"));
-
-                StringBuilder code = digester.getGeneratedCode();
-                if (code != null) {
-                    code.append(digester.toVariableName(taglibXml)).append(".setJspVersion(\"");
-                    code.append(attributes.getValue("version")).append("\");");
-                    code.append(System.lineSeparator());
-                }
             }
         });
         digester.addCallMethod(PREFIX + "/shortname", "setShortName", 0);
@@ -80,7 +74,7 @@ public class ImplicitTldRuleSet implements RuleSet {
         @Override
         public void begin(String namespace, String name, Attributes attributes) throws Exception {
             throw new IllegalArgumentException(
-                    ImplicitTldRuleSet.sm.getString("implicitTldRule.elementNotAllowed", name));
+                    sm.getString("implicitTldRule.elementNotAllowed", name));
         }
     }
 }

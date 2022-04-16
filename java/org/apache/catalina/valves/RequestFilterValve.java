@@ -20,8 +20,8 @@ package org.apache.catalina.valves;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.LifecycleException;

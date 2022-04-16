@@ -29,20 +29,24 @@ import org.junit.runners.Parameterized.Parameter;
 @RunWith(Parameterized.class)
 public class TestCompressionConfig {
 
-    @Parameterized.Parameters(name = "{index}: accept-encoding[{0}], ETag [{1}], compress[{2}]")
+    @Parameterized.Parameters(name = "{index}: accept-encoding[{0}], ETag [{1}], NoCompressionStrongETag[{2}], compress[{3}]")
     public static Collection<Object[]> parameters() {
         List<Object[]> parameterSets = new ArrayList<>();
 
-        parameterSets.add(new Object[] { new String[] {  },              null, Boolean.FALSE });
-        parameterSets.add(new Object[] { new String[] { "gzip" },        null, Boolean.TRUE });
-        parameterSets.add(new Object[] { new String[] { "xgzip" },       null, Boolean.FALSE });
-        parameterSets.add(new Object[] { new String[] { "<>gzip" },      null, Boolean.FALSE });
-        parameterSets.add(new Object[] { new String[] { "foo", "gzip" }, null, Boolean.TRUE });
-        parameterSets.add(new Object[] { new String[] { "<>", "gzip" },  null, Boolean.TRUE });
+        parameterSets.add(new Object[] { new String[] {  },              null, Boolean.TRUE,  Boolean.FALSE });
+        parameterSets.add(new Object[] { new String[] { "gzip" },        null, Boolean.TRUE,  Boolean.TRUE });
+        parameterSets.add(new Object[] { new String[] { "xgzip" },       null, Boolean.TRUE,  Boolean.FALSE });
+        parameterSets.add(new Object[] { new String[] { "<>gzip" },      null, Boolean.TRUE,  Boolean.FALSE });
+        parameterSets.add(new Object[] { new String[] { "foo", "gzip" }, null, Boolean.TRUE,  Boolean.TRUE });
+        parameterSets.add(new Object[] { new String[] { "<>", "gzip" },  null, Boolean.TRUE,  Boolean.TRUE });
 
-        parameterSets.add(new Object[] { new String[] { "gzip" },        null, Boolean.TRUE });
-        parameterSets.add(new Object[] { new String[] { "gzip" },        "W/", Boolean.TRUE });
-        parameterSets.add(new Object[] { new String[] { "gzip" },        "XX", Boolean.FALSE });
+        parameterSets.add(new Object[] { new String[] { "gzip" },        null, Boolean.TRUE,  Boolean.TRUE });
+        parameterSets.add(new Object[] { new String[] { "gzip" },        "W/", Boolean.TRUE,  Boolean.TRUE });
+        parameterSets.add(new Object[] { new String[] { "gzip" },        "XX", Boolean.TRUE,  Boolean.FALSE });
+
+        parameterSets.add(new Object[] { new String[] { "gzip" },        null, Boolean.FALSE, Boolean.TRUE });
+        parameterSets.add(new Object[] { new String[] { "gzip" },        "W/", Boolean.FALSE, Boolean.TRUE });
+        parameterSets.add(new Object[] { new String[] { "gzip" },        "XX", Boolean.FALSE, Boolean.TRUE });
 
         return parameterSets;
     }
@@ -52,14 +56,18 @@ public class TestCompressionConfig {
     @Parameter(1)
     public String eTag;
     @Parameter(2)
+    public Boolean noCompressionStrongETag;
+    @Parameter(3)
     public Boolean compress;
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testUseCompression() throws Exception {
 
         CompressionConfig compressionConfig = new CompressionConfig();
         // Skip length and MIME type checks
         compressionConfig.setCompression("force");
+        compressionConfig.setNoCompressionStrongETag(noCompressionStrongETag.booleanValue());
 
         Request request = new Request();
         Response response = new Response();

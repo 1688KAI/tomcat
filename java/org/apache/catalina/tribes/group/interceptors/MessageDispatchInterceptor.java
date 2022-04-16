@@ -97,7 +97,13 @@ public class MessageDispatchInterceptor extends ChannelInterceptorBase
 
     public boolean addToQueue(final ChannelMessage msg, final Member[] destination,
             final InterceptorPayload payload) {
-        executor.execute(() -> sendAsyncData(msg, destination, payload));
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                sendAsyncData(msg, destination, payload);
+            }
+        };
+        executor.execute(r);
         return true;
     }
 
@@ -202,7 +208,6 @@ public class MessageDispatchInterceptor extends ChannelInterceptorBase
     public boolean isAlwaysSend() {
         return alwaysSend;
     }
-
 
     @Override
     public void setAlwaysSend(boolean alwaysSend) {
@@ -329,5 +334,4 @@ public class MessageDispatchInterceptor extends ChannelInterceptorBase
             return -1;
         }
     }
-
 }

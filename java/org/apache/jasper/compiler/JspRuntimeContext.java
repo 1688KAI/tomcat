@@ -33,8 +33,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
 
 import org.apache.jasper.Constants;
 import org.apache.jasper.JspCompilationContext;
@@ -170,13 +170,6 @@ public final class JspRuntimeContext {
      * Keeps JSP pages ordered by last access.
      */
     private FastRemovalDequeue<JspServletWrapper> jspQueue = null;
-
-    /**
-     * Map of class name to associated source map. This is maintained here as
-     * multiple JSPs can depend on the same file (included JSP, tag file, etc.)
-     * so a web application scoped Map is required.
-     */
-    private final Map<String,SmapStratum> smaps = new ConcurrentHashMap<>();
 
     /**
      * Flag that indicates if a background compilation check is in progress.
@@ -435,15 +428,6 @@ public final class JspRuntimeContext {
     }
 
 
-    public Map<String,SmapStratum> getSmaps() {
-        return smaps;
-    }
-
-
-    public Options getOptions() {
-        return options;
-    }
-
     // -------------------------------------------------------- Private Methods
 
     /**
@@ -477,7 +461,7 @@ public final class JspRuntimeContext {
 
         cpath.append(options.getScratchDir() + File.pathSeparator);
 
-        String cp = (String) context.getAttribute(options.getServletClasspathAttribute());
+        String cp = (String) context.getAttribute(Constants.SERVLET_CLASSPATH);
         if (cp == null || cp.equals("")) {
             cp = options.getClassPath();
         }

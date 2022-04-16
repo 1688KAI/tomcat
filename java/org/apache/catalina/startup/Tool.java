@@ -20,7 +20,6 @@ package org.apache.catalina.startup;
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.List;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -156,8 +155,8 @@ public final class Tool {
         // Construct the class loader we will be using
         ClassLoader classLoader = null;
         try {
-            List<File> packed = new ArrayList<>();
-            List<File> unpacked = new ArrayList<>();
+            ArrayList<File> packed = new ArrayList<>();
+            ArrayList<File> unpacked = new ArrayList<>();
             unpacked.add(new File(catalinaHome, "classes"));
             packed.add(new File(catalinaHome, "lib"));
             if (common) {

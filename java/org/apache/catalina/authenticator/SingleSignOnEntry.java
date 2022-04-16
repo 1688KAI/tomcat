@@ -21,11 +21,11 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.security.Principal;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
-import jakarta.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequest;
 
 import org.apache.catalina.Session;
 
@@ -53,7 +53,7 @@ public class SingleSignOnEntry implements Serializable {
     // Marked as transient so special handling can be applied to serialization
     private transient Principal principal = null;
 
-    private final Map<SingleSignOnSessionKey,SingleSignOnSessionKey> sessionKeys =
+    private final ConcurrentMap<SingleSignOnSessionKey,SingleSignOnSessionKey> sessionKeys =
             new ConcurrentHashMap<>();
 
     private String username = null;

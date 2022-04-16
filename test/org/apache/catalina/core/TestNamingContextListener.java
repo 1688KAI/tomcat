@@ -18,9 +18,8 @@ package org.apache.catalina.core;
 
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
-
-import jakarta.servlet.ServletContextEvent;
-import jakarta.servlet.ServletContextListener;
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletContextListener;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -68,6 +67,11 @@ public class TestNamingContextListener extends TomcatBaseTest {
     }
 
     public static final class Bug49132Listener implements ServletContextListener {
+
+        @Override
+        public void contextDestroyed(ServletContextEvent sce) {
+            // NOOP
+        }
 
         @Override
         public void contextInitialized(ServletContextEvent sce) {
@@ -143,6 +147,11 @@ public class TestNamingContextListener extends TomcatBaseTest {
 
     public static final class Bug54096Listener implements
             ServletContextListener {
+
+        @Override
+        public void contextDestroyed(ServletContextEvent sce) {
+            // NOOP
+        }
 
         @Override
         public void contextInitialized(ServletContextEvent sce) {

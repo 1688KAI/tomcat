@@ -18,16 +18,17 @@ package org.apache.catalina.filters;
 
 import java.io.IOException;
 
-import jakarta.servlet.Filter;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 /**
- * A {@link jakarta.servlet.Filter} that initializes the {@link HttpSession} for
+ * A {@link javax.servlet.Filter} that initializes the {@link HttpSession} for
  * the {@link HttpServletRequest} by calling its getSession() method.
  * <p>
  * This is required for some operations with WebSocket requests, where it is
@@ -58,4 +59,14 @@ public class SessionInitializerFilter implements Filter {
         chain.doFilter(request, response);
     }
 
+
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+        // NO-OP
+    }
+
+    @Override
+    public void destroy() {
+        // NO-OP
+    }
 }

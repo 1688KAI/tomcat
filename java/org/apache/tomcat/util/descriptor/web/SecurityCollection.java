@@ -175,7 +175,10 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
         if (method == null) {
             return;
         }
-        String[] results = Arrays.copyOf(methods, methods.length + 1);
+        String results[] = new String[methods.length + 1];
+        for (int i = 0; i < methods.length; i++) {
+            results[i] = methods[i];
+        }
         results[methods.length] = method;
         methods = results;
 
@@ -191,7 +194,10 @@ public class SecurityCollection extends XmlEncodingBase implements Serializable 
         if (method == null) {
             return;
         }
-        String[] results = Arrays.copyOf(omittedMethods, omittedMethods.length + 1);
+        String results[] = new String[omittedMethods.length + 1];
+        for (int i = 0; i < omittedMethods.length; i++) {
+            results[i] = omittedMethods[i];
+        }
         results[omittedMethods.length] = method;
         omittedMethods = results;
     }

@@ -20,18 +20,18 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
-import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletConnection;
+import javax.servlet.RequestDispatcher;
 
 import org.apache.tomcat.util.ExceptionUtils;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.http.parser.Host;
 import org.apache.tomcat.util.log.UserDataHelper;
+import org.apache.tomcat.util.net.AbstractEndpoint;
 import org.apache.tomcat.util.net.AbstractEndpoint.Handler.SocketState;
 import org.apache.tomcat.util.net.DispatchType;
 import org.apache.tomcat.util.net.SSLSupport;
@@ -48,9 +48,9 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     private static final StringManager sm = StringManager.getManager(AbstractProcessor.class);
 
     // Used to avoid useless B2C conversion on the host name.
-    private char[] hostNameC = new char[0];
+    protected char[] hostNameC = new char[0];
 
-    protected final Adapter adapter;
+    protected Adapter adapter;
     protected final AsyncStateMachine asyncStateMachine;
     private volatile long asyncTimeout = -1;
     /*
@@ -63,6 +63,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
      * current async generation. This prevents the response mix-up.
      */
     private volatile long asyncTimeoutGeneration = 0;
+    protected final AbstractEndpoint<?,?> endpoint;
     protected final Request request;
     protected final Response response;
     protected volatile SocketWrapperBase<?> socketWrapper = null;
@@ -76,13 +77,14 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
     protected final UserDataHelper userDataHelper;
 
-    public AbstractProcessor(Adapter adapter) {
-        this(adapter, new Request(), new Response());
+    public AbstractProcessor(AbstractEndpoint<?,?> endpoint) {
+        this(endpoint, new Request(), new Response());
     }
 
 
-    protected AbstractProcessor(Adapter adapter, Request coyoteRequest, Response coyoteResponse) {
-        this.adapter = adapter;
+    protected AbstractProcessor(AbstractEndpoint<?,?> endpoint, Request coyoteRequest,
+            Response coyoteResponse) {
+        this.endpoint = endpoint;
         asyncStateMachine = new AsyncStateMachine(this);
         request = coyoteRequest;
         response = coyoteResponse;
@@ -137,6 +139,16 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
 
     /**
+     * Set the associated adapter.
+     *
+     * @param adapter the new adapter
+     */
+    public void setAdapter(Adapter adapter) {
+        this.adapter = adapter;
+    }
+
+
+    /**
      * Get the associated adapter.
      *
      * @return the associated adapter
@@ -170,18 +182,10 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
 
     /**
-     * Provides a mechanism to trigger processing on a container thread.
-     *
-     * @param runnable  The task representing the processing that needs to take
-     *                  place on a container thread
+     * @return the Executor used by the underlying endpoint.
      */
-    protected void execute(Runnable runnable) {
-        SocketWrapperBase<?> socketWrapper = this.socketWrapper;
-        if (socketWrapper == null) {
-            throw new RejectedExecutionException(sm.getString("abstractProcessor.noExecute"));
-        } else {
-            socketWrapper.execute(runnable);
-        }
+    protected Executor getExecutor() {
+        return endpoint.getExecutor();
     }
 
 
@@ -217,7 +221,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             dispatchNonBlockingRead();
         } else if (status == SocketEvent.ERROR) {
             // An I/O error occurred on a non-container thread. This includes:
-            // - read/write timeouts fired by the Poller in NIO
+            // - read/write timeouts fired by the Poller (NIO & APR)
             // - completion handler failures in NIO2
 
             if (request.getAttribute(RequestDispatcher.ERROR_EXCEPTION) == null) {
@@ -619,29 +623,17 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
             break;
         }
 
-        // Servlet 4.0 Trailers
-        case IS_TRAILER_FIELDS_READY: {
-            AtomicBoolean result = (AtomicBoolean) param;
-            result.set(isTrailerFieldsReady());
-            break;
-        }
-        case IS_TRAILER_FIELDS_SUPPORTED: {
-            AtomicBoolean result = (AtomicBoolean) param;
-            result.set(isTrailerFieldsSupported());
-            break;
-        }
-
-        // Identifiers
-        case PROTOCOL_REQUEST_ID: {
+        // Identifiers associated with multiplexing protocols like HTTP/2
+        case CONNECTION_ID: {
             @SuppressWarnings("unchecked")
             AtomicReference<Object> result = (AtomicReference<Object>) param;
-            result.set(getProtocolRequestId());
+            result.set(getConnectionID());
             break;
         }
-        case SERVLET_CONNECTION: {
+        case STREAM_ID: {
             @SuppressWarnings("unchecked")
             AtomicReference<Object> result = (AtomicReference<Object>) param;
-            result.set(getServletConnection());
+            result.set(getStreamID());
             break;
         }
         }
@@ -730,6 +722,16 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
 
 
     protected abstract void finishResponse() throws IOException;
+
+
+    /**
+     * @deprecated Unused. This will be removed in Tomcat 10 onwards. Use
+     *             {@link #ack(ContinueResponseTiming)}.
+     */
+    @Deprecated
+    protected void ack() {
+        ack(ContinueResponseTiming.ALWAYS);
+    }
 
 
     protected abstract void ack(ContinueResponseTiming continueResponseTiming);
@@ -873,7 +875,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
                  * onWritePossible() and/or onDataAvailable() as appropriate are made by
                  * the container.
                  *
-                 * Processing the dispatches requires (TODO confirm applies without APR)
+                 * Processing the dispatches requires (for APR/native at least)
                  * that the socket has been added to the waitingRequests queue. This may
                  * not have occurred by the time that the non-container thread completes
                  * triggering the call to this method. Therefore, the coded syncs on the
@@ -972,41 +974,28 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
     }
 
 
-    protected abstract boolean isTrailerFieldsReady();
-
-
     /**
-     * Protocols that support trailer fields should override this method and
-     * return {@code true}.
+     * Protocols that support multiplexing (e.g. HTTP/2) should override this
+     * method and return the appropriate ID.
      *
-     * @return {@code true} if trailer fields are supported by this processor,
-     *         otherwise {@code false}.
-     */
-    protected boolean isTrailerFieldsSupported() {
-        return false;
-    }
-
-
-    /**
-     * Protocols that provide per HTTP request IDs (e.g. Stream ID for HTTP/2)
-     * should override this method and return the appropriate ID.
-     *
-     * @return The ID associated with this request or the empty string if no
-     *         such ID is defined
-     */
-    protected Object getProtocolRequestId() {
+     * @return The stream ID associated with this request or {@code null} if a
+     *         multiplexing protocol is not being used
+      */
+    protected Object getConnectionID() {
         return null;
     }
 
 
     /**
-     * Protocols must override this method and return an appropriate
-     * ServletConnection instance
+     * Protocols that support multiplexing (e.g. HTTP/2) should override this
+     * method and return the appropriate ID.
      *
-     * @return the ServletConnection instance associated with the current
-     *         request.
-      */
-    protected abstract ServletConnection getServletConnection();
+     * @return The stream ID associated with this request or {@code null} if a
+     *         multiplexing protocol is not being used
+     */
+    protected Object getStreamID() {
+        return null;
+    }
 
 
     /**
@@ -1041,7 +1030,7 @@ public abstract class AbstractProcessor extends AbstractProcessorLight implement
         // information (e.g. client IP)
         setSocketWrapper(socketWrapper);
         // Setup the minimal request information
-        request.setStartTimeNanos(System.nanoTime());
+        request.setStartTime(System.currentTimeMillis());
         // Setup the minimal response information
         response.setStatus(400);
         response.setError();

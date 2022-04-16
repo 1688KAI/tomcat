@@ -28,8 +28,8 @@ import java.security.PrivilegedExceptionAction;
 import java.util.HashMap;
 import java.util.Map;
 
-import jakarta.servlet.WriteListener;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.WriteListener;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Globals;
 import org.apache.coyote.ActionCode;
@@ -109,6 +109,12 @@ public class OutputBuffer extends Writer {
 
 
     /**
+     * Encoding to use.
+     */
+    private String enc;
+
+
+    /**
      * Current char to byte converter.
      */
     protected C2BConverter conv;
@@ -127,6 +133,16 @@ public class OutputBuffer extends Writer {
 
 
     // ----------------------------------------------------------- Constructors
+
+    /**
+     * Default constructor. Allocate the buffer with the default buffer size.
+     */
+    public OutputBuffer() {
+
+        this(DEFAULT_BUFFER_SIZE);
+
+    }
+
 
     /**
      * Create the buffer with the specified initial size.
@@ -209,6 +225,8 @@ public class OutputBuffer extends Writer {
             conv.recycle();
             conv = null;
         }
+
+        enc = null;
     }
 
 
@@ -234,9 +252,13 @@ public class OutputBuffer extends Writer {
             flushCharBuffer();
         }
 
-        if ((!coyoteResponse.isCommitted()) && (coyoteResponse.getContentLengthLong() == -1)) {
+        if ((!coyoteResponse.isCommitted()) && (coyoteResponse.getContentLengthLong() == -1)
+                && !coyoteResponse.getRequest().method().equals("HEAD")) {
             // If this didn't cause a commit of the response, the final content
-            // length can be calculated.
+            // length can be calculated. Only do this if this is not a HEAD
+            // request since in that case no body should have been written and
+            // setting a value of zero here will result in an explicit content
+            // length of zero being set on the response.
             if (!coyoteResponse.isCommitted()) {
                 coyoteResponse.setContentLength(bb.remaining());
             }
@@ -546,6 +568,17 @@ public class OutputBuffer extends Writer {
     }
 
 
+    /**
+     * @param s     New encoding value
+     *
+     * @deprecated This method will be removed in Tomcat 9.0.x
+     */
+    @Deprecated
+    public void setEncoding(String s) {
+        enc = s;
+    }
+
+
     public void checkConverter() throws IOException {
         if (conv != null) {
             return;
@@ -563,7 +596,11 @@ public class OutputBuffer extends Writer {
                 // Trigger an UnsupportedEncodingException
                 charset = B2CConverter.getCharset(coyoteResponse.getCharacterEncoding());
             }
-            charset = org.apache.coyote.Constants.DEFAULT_BODY_CHARSET;
+            if (enc == null) {
+                charset = org.apache.coyote.Constants.DEFAULT_BODY_CHARSET;
+            } else {
+                charset = getCharset(enc);
+            }
         }
 
         conv = encoders.get(charset);
@@ -575,10 +612,38 @@ public class OutputBuffer extends Writer {
     }
 
 
+    private static Charset getCharset(final String encoding) throws IOException {
+        if (Globals.IS_SECURITY_ENABLED) {
+            try {
+                return AccessController.doPrivileged(new PrivilegedExceptionAction<Charset>() {
+                    @Override
+                    public Charset run() throws IOException {
+                        return B2CConverter.getCharset(encoding);
+                    }
+                });
+            } catch (PrivilegedActionException ex) {
+                Exception e = ex.getException();
+                if (e instanceof IOException) {
+                    throw (IOException) e;
+                } else {
+                    throw new IOException(ex);
+                }
+            }
+        } else {
+            return B2CConverter.getCharset(encoding);
+        }
+    }
+
+
     private static C2BConverter createConverter(final Charset charset) throws IOException {
         if (Globals.IS_SECURITY_ENABLED) {
             try {
-                return AccessController.doPrivileged(new PrivilegedCreateConverter(charset));
+                return AccessController.doPrivileged(new PrivilegedExceptionAction<C2BConverter>() {
+                    @Override
+                    public C2BConverter run() throws IOException {
+                        return new C2BConverter(charset);
+                    }
+                });
             } catch (PrivilegedActionException ex) {
                 Exception e = ex.getException();
                 if (e instanceof IOException) {
@@ -632,6 +697,7 @@ public class OutputBuffer extends Writer {
                 conv.recycle();
             }
             conv = null;
+            enc = null;
         }
         initial = true;
     }
@@ -856,21 +922,5 @@ public class OutputBuffer extends Writer {
         buffer.mark()
               .position(buffer.limit())
               .limit(buffer.capacity());
-    }
-
-
-    private static class PrivilegedCreateConverter
-            implements PrivilegedExceptionAction<C2BConverter> {
-
-        private final Charset charset;
-
-        public PrivilegedCreateConverter(Charset charset) {
-            this.charset = charset;
-        }
-
-        @Override
-        public C2BConverter run() throws IOException {
-            return new C2BConverter(charset);
-        }
     }
 }

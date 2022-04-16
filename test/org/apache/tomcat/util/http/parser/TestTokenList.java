@@ -55,13 +55,15 @@ public class TestTokenList {
 
     @Test
     public void testEmptyString() throws IOException {
-        doTestVary("", Collections.emptySet(), false);
+        Set<String> s = Collections.emptySet();
+        doTestVary("", s, false);
     }
 
 
     @Test
     public void testSingleInvalid() throws IOException {
-        doTestVary("{{{", Collections.emptySet(), false);
+        Set<String> s = Collections.emptySet();
+        doTestVary("{{{", s, false);
     }
 
 
@@ -125,9 +127,16 @@ public class TestTokenList {
     }
 
 
+    @SuppressWarnings("deprecation")
     private void doTestVary(String input, Set<String> expectedTokens, boolean expectedResult) throws IOException {
         StringReader reader = new StringReader(input);
         Set<String> tokens = new HashSet<>();
+        Vary.parseVary(reader, tokens);
+        Assert.assertEquals(expectedTokens, tokens);
+
+        // Can't use reset(). Parser uses marks.
+        reader = new StringReader(input);
+        tokens.clear();
         boolean result = TokenList.parseTokenList(reader, tokens);
         Assert.assertEquals(expectedTokens, tokens);
         Assert.assertEquals(Boolean.valueOf(expectedResult), Boolean.valueOf(result));

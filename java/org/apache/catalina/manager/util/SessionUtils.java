@@ -24,8 +24,7 @@ import java.util.List;
 import java.util.Locale;
 
 import javax.security.auth.Subject;
-
-import jakarta.servlet.http.HttpSession;
+import javax.servlet.http.HttpSession;
 
 import org.apache.catalina.Session;
 import org.apache.tomcat.util.ExceptionUtils;
@@ -49,8 +48,8 @@ public class SessionUtils {
      */
     // org.apache.struts.Globals.LOCALE_KEY
     private static final String STRUTS_LOCALE_KEY = "org.apache.struts.action.LOCALE";//$NON-NLS-1$
-    // jakarta.servlet.jsp.jstl.core.Config.FMT_LOCALE
-    private static final String JSTL_LOCALE_KEY   = "jakarta.servlet.jsp.jstl.fmt.locale";//$NON-NLS-1$
+    // javax.servlet.jsp.jstl.core.Config.FMT_LOCALE
+    private static final String JSTL_LOCALE_KEY   = "javax.servlet.jsp.jstl.fmt.locale";//$NON-NLS-1$
     // org.springframework.web.servlet.i18n.SessionLocaleResolver.LOCALE_SESSION_ATTRIBUTE_NAME
     private static final String SPRING_LOCALE_KEY = "org.springframework.web.servlet.i18n.SessionLocaleResolver.LOCALE";//$NON-NLS-1$
     /**
@@ -112,7 +111,7 @@ public class SessionUtils {
             final List<Object> tapestryArray = new ArrayList<>();
             for (Enumeration<String> enumeration = in_session.getAttributeNames(); enumeration.hasMoreElements();) {
                 String name = enumeration.nextElement();
-                if (name.contains("tapestry") && name.contains("engine") && null != in_session.getAttribute(name)) {//$NON-NLS-1$ //$NON-NLS-2$
+                if (name.indexOf("tapestry") > -1 && name.indexOf("engine") > -1 && null != in_session.getAttribute(name)) {//$NON-NLS-1$ //$NON-NLS-2$
                     tapestryArray.add(in_session.getAttribute(name));
                 }
             }

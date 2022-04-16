@@ -34,8 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.management.MalformedObjectNameException;
@@ -100,6 +98,17 @@ public abstract class AbstractEndpoint<S,U> {
          */
         public Object getGlobal();
 
+
+        /**
+         * Obtain the currently open sockets.
+         *
+         * @return The sockets for which the handler is tracking a currently
+         *         open connection
+         * @deprecated Unused, will be removed in Tomcat 10, replaced
+         *         by AbstractEndpoint.getConnections
+         */
+        @Deprecated
+        public Set<S> getOpenSockets();
 
         /**
          * Release any resources associated with the given SocketWrapper.
@@ -373,7 +382,7 @@ public abstract class AbstractEndpoint<S,U> {
      *                      released
      */
     protected void releaseSSLContext(SSLHostConfig sslHostConfig) {
-        for (SSLHostConfigCertificate certificate : sslHostConfig.getCertificates()) {
+        for (SSLHostConfigCertificate certificate : sslHostConfig.getCertificates(true)) {
             if (certificate.getSslContext() != null) {
                 SSLContext sslContext = certificate.getSslContext();
                 if (sslContext != null) {
@@ -453,6 +462,42 @@ public abstract class AbstractEndpoint<S,U> {
 
 
     /**
+     * Unused.
+     *
+     * @deprecated  This attribute is hard-coded to {@code 1} and is no longer
+     *              configurable. It will be removed in Tomcat 10.1.
+     */
+    @Deprecated
+    protected int acceptorThreadCount = 1;
+
+    /**
+     * Unused.
+     *
+     * @param acceptorThreadCount   Ignored
+     *
+     * @deprecated  This attribute is hard-coded to {@code 1} and is no longer
+     *              configurable. This setter will be removed in Tomcat 10.
+     */
+    @Deprecated
+    public void setAcceptorThreadCount(int acceptorThreadCount) {
+        // NO-OP;
+    }
+
+    /**
+     * Unused.
+     *
+     * @return  Always returns {@code 1}
+     *
+     * @deprecated  This attribute is hard-coded to {@code 1} and is no longer
+     *              configurable. This getter will be removed in Tomcat 10.
+     */
+    @Deprecated
+    public int getAcceptorThreadCount() {
+        return 1;
+    }
+
+
+    /**
      * Priority of the acceptor threads.
      */
     protected int acceptorThreadPriority = Thread.NORM_PRIORITY;
@@ -513,25 +558,9 @@ public abstract class AbstractEndpoint<S,U> {
 
 
     /**
-     * External Executor based thread pool for utility tasks.
-     */
-    private ScheduledExecutorService utilityExecutor = null;
-    public void setUtilityExecutor(ScheduledExecutorService utilityExecutor) {
-        this.utilityExecutor = utilityExecutor;
-    }
-    public ScheduledExecutorService getUtilityExecutor() {
-        if (utilityExecutor == null) {
-            getLog().warn(sm.getString("endpoint.warn.noUtilityExecutor"));
-            utilityExecutor = new ScheduledThreadPoolExecutor(1);
-        }
-        return utilityExecutor;
-    }
-
-
-    /**
      * Server socket port.
      */
-    private int port = -1;
+    private int port;
     public int getPort() { return port; }
     public void setPort(int port ) { this.port=port; }
 
@@ -603,6 +632,10 @@ public abstract class AbstractEndpoint<S,U> {
         this.acceptCount = acceptCount;
     } }
     public int getAcceptCount() { return acceptCount; }
+    @Deprecated
+    public void setBacklog(int backlog) { setAcceptCount(backlog); }
+    @Deprecated
+    public int getBacklog() { return getAcceptCount(); }
 
     /**
      * Controls when the Endpoint binds the port. <code>true</code>, the default
@@ -655,6 +688,10 @@ public abstract class AbstractEndpoint<S,U> {
         socketProperties.setSoLingerTime(connectionLinger);
         socketProperties.setSoLingerOn(connectionLinger>=0);
     }
+    @Deprecated
+    public int getSoLinger() { return getConnectionLinger(); }
+    @Deprecated
+    public void setSoLinger(int soLinger) { setConnectionLinger(soLinger);}
 
 
     /**
@@ -664,6 +701,10 @@ public abstract class AbstractEndpoint<S,U> {
      */
     public int getConnectionTimeout() { return socketProperties.getSoTimeout(); }
     public void setConnectionTimeout(int soTimeout) { socketProperties.setSoTimeout(soTimeout); }
+    @Deprecated
+    public int getSoTimeout() { return getConnectionTimeout(); }
+    @Deprecated
+    public void setSoTimeout(int soTimeout) { setConnectionTimeout(soTimeout); }
 
     /**
      * SSL engine.
@@ -671,6 +712,16 @@ public abstract class AbstractEndpoint<S,U> {
     private boolean SSLEnabled = false;
     public boolean isSSLEnabled() { return SSLEnabled; }
     public void setSSLEnabled(boolean SSLEnabled) { this.SSLEnabled = SSLEnabled; }
+
+    /**
+     * Identifies if the endpoint supports ALPN. Note that a return value of
+     * <code>true</code> implies that {@link #isSSLEnabled()} will also return
+     * <code>true</code>.
+     *
+     * @return <code>true</code> if the endpoint supports ALPN in its current
+     *         configuration, otherwise <code>false</code>.
+     */
+    public abstract boolean isAlpnSupported();
 
     private int minSpareThreads = 10;
     public void setMinSpareThreads(int minSpareThreads) {
@@ -753,6 +804,17 @@ public abstract class AbstractEndpoint<S,U> {
         this.maxKeepAliveRequests = maxKeepAliveRequests;
     }
 
+    /**
+     * The maximum number of headers in a request that are allowed.
+     * 100 by default. A value of less than 0 means no limit.
+     */
+    private int maxHeaderCount = 100; // as in Apache HTTPD server
+    public int getMaxHeaderCount() {
+        return maxHeaderCount;
+    }
+    public void setMaxHeaderCount(int maxHeaderCount) {
+        this.maxHeaderCount = maxHeaderCount;
+    }
 
     /**
      * Name of the thread pool, which will be used for naming child threads.
@@ -788,20 +850,7 @@ public abstract class AbstractEndpoint<S,U> {
     public boolean getUseAsyncIO() { return useAsyncIO; }
 
 
-    protected boolean getDeferAccept() {
-        return false;
-    }
-
-
-    /**
-     * The default behavior is to identify connectors uniquely with address
-     * and port. However, certain connectors are not using that and need
-     * some other identifier, which then can be used as a replacement.
-     * @return the id
-     */
-    public String getId() {
-        return null;
-    }
+    protected abstract boolean getDeferAccept();
 
 
     protected final List<String> negotiableProtocols = new ArrayList<>();
@@ -1180,7 +1229,7 @@ public abstract class AbstractEndpoint<S,U> {
     }
 
 
-    public final void init() throws Exception {
+    public void init() throws Exception {
         if (bindOnInit) {
             bindWithCleanup();
             bindState = BindState.BOUND_ON_INIT;
@@ -1330,7 +1379,7 @@ public abstract class AbstractEndpoint<S,U> {
         return connectionLimitLatch;
     }
 
-    private void releaseConnectionLatch() {
+    protected void releaseConnectionLatch() {
         LimitLatch latch = connectionLimitLatch;
         if (latch!=null) {
             latch.releaseAll();

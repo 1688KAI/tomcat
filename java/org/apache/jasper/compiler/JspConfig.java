@@ -20,9 +20,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Vector;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.descriptor.JspConfigDescriptor;
-import jakarta.servlet.descriptor.JspPropertyGroupDescriptor;
+import javax.servlet.ServletContext;
+import javax.servlet.descriptor.JspConfigDescriptor;
+import javax.servlet.descriptor.JspPropertyGroupDescriptor;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -46,7 +46,6 @@ public class JspConfig {
 
     private static final String defaultIsXml = null;    // unspecified
     private String defaultIsELIgnored = null;           // unspecified
-    private String defaultErrorOnELNotFound = "false";
     private static final String defaultIsScriptingInvalid = null;
     private String defaultDeferedSyntaxAllowedAsLiteral = null;
     private static final String defaultTrimDirectiveWhitespaces = null;
@@ -97,7 +96,6 @@ public class JspConfig {
 
             JspProperty property = new JspProperty(jspPropertyGroup.getIsXml(),
                     jspPropertyGroup.getElIgnored(),
-                    jspPropertyGroup.getErrorOnELNotFound(),
                     jspPropertyGroup.getScriptingInvalid(),
                     jspPropertyGroup.getPageEncoding(),
                     jspPropertyGroup.getIncludePreludes(),
@@ -166,7 +164,6 @@ public class JspConfig {
                     processWebDotXml();
                     defaultJspProperty = new JspProperty(defaultIsXml,
                             defaultIsELIgnored,
-                            defaultErrorOnELNotFound,
                             defaultIsScriptingInvalid,
                             null, null, null,
                             defaultDeferedSyntaxAllowedAsLiteral,
@@ -248,7 +245,6 @@ public class JspConfig {
 
         JspPropertyGroup isXmlMatch = null;
         JspPropertyGroup elIgnoredMatch = null;
-        JspPropertyGroup errorOnELNotFoundMatch = null;
         JspPropertyGroup scriptingInvalidMatch = null;
         JspPropertyGroup pageEncodingMatch = null;
         JspPropertyGroup deferedSyntaxAllowedAsLiteralMatch = null;
@@ -300,9 +296,6 @@ public class JspConfig {
             if (jp.isELIgnored() != null) {
                 elIgnoredMatch = selectProperty(elIgnoredMatch, jpg);
             }
-            if (jp.getErrorOnELNotFound() != null) {
-                errorOnELNotFoundMatch = selectProperty(errorOnELNotFoundMatch, jpg);
-            }
             if (jp.isScriptingInvalid() != null) {
                 scriptingInvalidMatch =
                     selectProperty(scriptingInvalidMatch, jpg);
@@ -334,7 +327,6 @@ public class JspConfig {
 
         String isXml = defaultIsXml;
         String isELIgnored = defaultIsELIgnored;
-        String errorOnELNotFound = defaultErrorOnELNotFound;
         String isScriptingInvalid = defaultIsScriptingInvalid;
         String pageEncoding = null;
         String isDeferedSyntaxAllowedAsLiteral = defaultDeferedSyntaxAllowedAsLiteral;
@@ -345,9 +337,6 @@ public class JspConfig {
 
         if (isXmlMatch != null) {
             isXml = isXmlMatch.getJspProperty().isXml();
-        }
-        if (errorOnELNotFoundMatch != null) {
-            errorOnELNotFound = errorOnELNotFoundMatch.getJspProperty().getErrorOnELNotFound();
         }
         if (elIgnoredMatch != null) {
             isELIgnored = elIgnoredMatch.getJspProperty().isELIgnored();
@@ -379,7 +368,7 @@ public class JspConfig {
                 errorOnUndeclaredNamespaceMatch.getJspProperty().isErrorOnUndeclaredNamespace();
         }
 
-        return new JspProperty(isXml, isELIgnored, errorOnELNotFound, isScriptingInvalid,
+        return new JspProperty(isXml, isELIgnored, isScriptingInvalid,
                 pageEncoding, includePreludes, includeCodas,
                 isDeferedSyntaxAllowedAsLiteral, isTrimDirectiveWhitespaces,
                 defaultContentType, buffer, errorOnUndeclaredNamespace);
@@ -459,7 +448,6 @@ public class JspConfig {
 
         private final String isXml;
         private final String elIgnored;
-        private final String errorOnELNotFound;
         private final String scriptingInvalid;
         private final String pageEncoding;
         private final Collection<String> includePrelude;
@@ -470,7 +458,7 @@ public class JspConfig {
         private final String buffer;
         private final String errorOnUndeclaredNamespace;
 
-        public JspProperty(String isXml, String elIgnored, String errorOnELNotFound,
+        public JspProperty(String isXml, String elIgnored,
                 String scriptingInvalid, String pageEncoding,
                 Collection<String> includePrelude, Collection<String> includeCoda,
                 String deferedSyntaxAllowedAsLiteral,
@@ -481,7 +469,6 @@ public class JspConfig {
 
             this.isXml = isXml;
             this.elIgnored = elIgnored;
-            this.errorOnELNotFound = errorOnELNotFound;
             this.scriptingInvalid = scriptingInvalid;
             this.pageEncoding = pageEncoding;
             this.includePrelude = includePrelude;
@@ -499,10 +486,6 @@ public class JspConfig {
 
         public String isELIgnored() {
             return elIgnored;
-        }
-
-        public String getErrorOnELNotFound() {
-            return errorOnELNotFound;
         }
 
         public String isScriptingInvalid() {

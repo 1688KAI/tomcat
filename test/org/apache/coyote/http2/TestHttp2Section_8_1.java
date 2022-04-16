@@ -26,7 +26,6 @@ import org.junit.Test;
 import org.apache.catalina.connector.Connector;
 import org.apache.catalina.startup.Tomcat;
 import org.apache.coyote.ContinueResponseTiming;
-import org.apache.coyote.http11.AbstractHttp11Protocol;
 
 /**
  * Unit tests for Section 8.1 of
@@ -52,7 +51,7 @@ public class TestHttp2Section_8_1 extends Http2TestBase {
     private void doTestPostWithTrailerHeaders(boolean allowTrailerHeader) throws Exception{
         http2Connect();
         if (allowTrailerHeader) {
-            ((AbstractHttp11Protocol<?>) http2Protocol.getHttp11Protocol()).setAllowedTrailerHeaders(TRAILER_HEADER_NAME);
+            http2Protocol.setAllowedTrailerHeaders(TRAILER_HEADER_NAME);
         }
 
         // Disable overhead protection for window update as it breaks some tests

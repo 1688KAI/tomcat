@@ -37,17 +37,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.ReadListener;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletInputStream;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.AsyncContext;
+import javax.servlet.DispatcherType;
+import javax.servlet.ReadListener;
+import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import org.apache.catalina.Context;
@@ -59,6 +60,7 @@ import org.apache.catalina.startup.Tomcat;
 import org.apache.catalina.startup.TomcatBaseTest;
 import org.apache.tomcat.util.buf.B2CConverter;
 import org.apache.tomcat.util.buf.ByteChunk;
+import org.apache.tomcat.util.compat.JreCompat;
 import org.apache.tomcat.util.descriptor.web.SecurityCollection;
 import org.apache.tomcat.util.descriptor.web.SecurityConstraint;
 import org.apache.tomcat.util.http.parser.TokenList;
@@ -564,6 +566,8 @@ public class TestHttp11Processor extends TomcatBaseTest {
     // https://bz.apache.org/bugzilla/show_bug.cgi?id=57324
     @Test
     public void testNon2xxResponseWithExpectation() throws Exception {
+        Assume.assumeTrue("Java 8 is required for this test",
+                JreCompat.isJre8Available());
         doTestNon2xxResponseAndExpectation(true);
     }
 
@@ -876,27 +880,15 @@ public class TestHttp11Processor extends TomcatBaseTest {
 
         tomcat.start();
 
-        ByteChunk getBody = new ByteChunk();
-        Map<String,List<String>> getHeaders = new HashMap<>();
-        int getStatus = getUrl("http://localhost:" + getPort() + "/test", getBody,
-                getHeaders);
+        ByteChunk responseBody = new ByteChunk();
+        Map<String,List<String>> responseHeaders = new HashMap<>();
 
-        ByteChunk headBody = new ByteChunk();
-        Map<String,List<String>> headHeaders = new HashMap<>();
-        int headStatus = getUrl("http://localhost:" + getPort() + "/test", headBody,
-                headHeaders);
+        int rc = headUrl("http://localhost:" + getPort() + "/test", responseBody,
+                responseHeaders);
 
-        Assert.assertEquals(HttpServletResponse.SC_OK, getStatus);
-        Assert.assertEquals(HttpServletResponse.SC_OK, headStatus);
-
-        Assert.assertEquals(0, getBody.getLength());
-        Assert.assertEquals(0, headBody.getLength());
-
-        if (getHeaders.containsKey("Content-Length")) {
-            Assert.assertEquals(getHeaders.get("Content-Length"), headHeaders.get("Content-Length"));
-        } else {
-            Assert.assertFalse(headHeaders.containsKey("Content-Length"));
-        }
+        Assert.assertEquals(HttpServletResponse.SC_OK, rc);
+        Assert.assertEquals(0, responseBody.getLength());
+        Assert.assertFalse(responseHeaders.containsKey("Content-Length"));
     }
 
 
@@ -907,6 +899,7 @@ public class TestHttp11Processor extends TomcatBaseTest {
         @Override
         protected void doGet(HttpServletRequest req, HttpServletResponse resp)
                 throws ServletException, IOException {
+            super.doGet(req, resp);
         }
 
         @Override
@@ -1155,6 +1148,8 @@ public class TestHttp11Processor extends TomcatBaseTest {
         // request
         Assert.assertTrue(tomcat.getConnector().setProperty("maxKeepAliveRequests", "1"));
 
+        Assert.assertTrue(tomcat.getConnector().setProperty("allowHostHeaderMismatch", "false"));
+
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
 
@@ -1187,6 +1182,8 @@ public class TestHttp11Processor extends TomcatBaseTest {
         // request
         Assert.assertTrue(tomcat.getConnector().setProperty("maxKeepAliveRequests", "1"));
 
+        Assert.assertTrue(tomcat.getConnector().setProperty("allowHostHeaderMismatch", "false"));
+
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
 
@@ -1218,6 +1215,8 @@ public class TestHttp11Processor extends TomcatBaseTest {
         // This setting means the connection will be closed at the end of the
         // request
         Assert.assertTrue(tomcat.getConnector().setProperty("maxKeepAliveRequests", "1"));
+
+        Assert.assertTrue(tomcat.getConnector().setProperty("allowHostHeaderMismatch", "false"));
 
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
@@ -1256,6 +1255,8 @@ public class TestHttp11Processor extends TomcatBaseTest {
         // request
         Assert.assertTrue(tomcat.getConnector().setProperty("maxKeepAliveRequests", "1"));
 
+        Assert.assertTrue(tomcat.getConnector().setProperty("allowHostHeaderMismatch", "false"));
+
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
 
@@ -1293,6 +1294,8 @@ public class TestHttp11Processor extends TomcatBaseTest {
         // request
         Assert.assertTrue(tomcat.getConnector().setProperty("maxKeepAliveRequests", "1"));
 
+        Assert.assertTrue(tomcat.getConnector().setProperty("allowHostHeaderMismatch", "false"));
+
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);
 
@@ -1329,6 +1332,8 @@ public class TestHttp11Processor extends TomcatBaseTest {
         // This setting means the connection will be closed at the end of the
         // request
         Assert.assertTrue(tomcat.getConnector().setProperty("maxKeepAliveRequests", "1"));
+
+        Assert.assertTrue(tomcat.getConnector().setProperty("allowHostHeaderMismatch", "false"));
 
         // No file system docBase required
         Context ctx = tomcat.addContext("", null);

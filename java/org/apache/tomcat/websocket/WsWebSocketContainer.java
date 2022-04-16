@@ -54,17 +54,16 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManagerFactory;
-
-import jakarta.websocket.ClientEndpoint;
-import jakarta.websocket.ClientEndpointConfig;
-import jakarta.websocket.CloseReason;
-import jakarta.websocket.CloseReason.CloseCodes;
-import jakarta.websocket.DeploymentException;
-import jakarta.websocket.Endpoint;
-import jakarta.websocket.Extension;
-import jakarta.websocket.HandshakeResponse;
-import jakarta.websocket.Session;
-import jakarta.websocket.WebSocketContainer;
+import javax.websocket.ClientEndpoint;
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.CloseReason;
+import javax.websocket.CloseReason.CloseCodes;
+import javax.websocket.DeploymentException;
+import javax.websocket.Endpoint;
+import javax.websocket.Extension;
+import javax.websocket.HandshakeResponse;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -121,7 +120,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     public Session connectToServer(Object pojo, URI path) throws DeploymentException {
         ClientEndpointConfig config = createClientEndpointConfig(pojo.getClass());
         ClientEndpointHolder holder = new PojoHolder(pojo, config);
-        return connectToServerRecursive(holder, config, path, new HashSet<>());
+        return connectToServerRecursive(holder, config, path, new HashSet<URI>());
     }
 
 
@@ -129,7 +128,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     public Session connectToServer(Class<?> annotatedEndpointClass, URI path) throws DeploymentException {
         ClientEndpointConfig config = createClientEndpointConfig(annotatedEndpointClass);
         ClientEndpointHolder holder = new PojoClassHolder(annotatedEndpointClass, config);
-        return connectToServerRecursive(holder, config, path, new HashSet<>());
+        return connectToServerRecursive(holder, config, path, new HashSet<URI>());
     }
 
 
@@ -175,7 +174,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     public Session connectToServer(Class<? extends Endpoint> clazz, ClientEndpointConfig clientEndpointConfiguration,
             URI path) throws DeploymentException {
         ClientEndpointHolder holder = new EndpointClassHolder(clazz);
-        return connectToServerRecursive(holder, clientEndpointConfiguration, path, new HashSet<>());
+        return connectToServerRecursive(holder, clientEndpointConfiguration, path, new HashSet<URI>());
     }
 
 
@@ -183,7 +182,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     public Session connectToServer(Endpoint endpoint, ClientEndpointConfig clientEndpointConfiguration, URI path)
             throws DeploymentException {
         ClientEndpointHolder holder = new EndpointHolder(endpoint);
-        return connectToServerRecursive(holder, clientEndpointConfiguration, path, new HashSet<>());
+        return connectToServerRecursive(holder, clientEndpointConfiguration, path, new HashSet<URI>());
     }
 
 
@@ -316,7 +315,7 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
                 // Regardless of whether a non-secure wrapper was created for a
                 // proxy CONNECT, need to use TLS from this point on so wrap the
                 // original AsynchronousSocketChannel
-                SSLEngine sslEngine = createSSLEngine(clientEndpointConfiguration, host, port);
+                SSLEngine sslEngine = createSSLEngine(userProperties, host, port);
                 channel = new AsyncChannelWrapperSecure(socketChannel, sslEngine);
             } else if (channel == null) {
                 // Only need to wrap as this point if it wasn't wrapped to process a
@@ -900,20 +899,13 @@ public class WsWebSocketContainer implements WebSocketContainer, BackgroundProce
     }
 
 
-    @SuppressWarnings("removal")
-    private SSLEngine createSSLEngine(ClientEndpointConfig clientEndpointConfig, String host, int port)
+    private SSLEngine createSSLEngine(Map<String,Object> userProperties, String host, int port)
             throws DeploymentException {
 
-        Map<String,Object> userProperties = clientEndpointConfig.getUserProperties();
         try {
             // See if a custom SSLContext has been provided
-            SSLContext sslContext = clientEndpointConfig.getSSLContext();
-
-            // If no SSLContext is found, try the pre WebSocket 2.1 Tomcat
-            // specific method
-            if (sslContext == null) {
-                sslContext = (SSLContext) userProperties.get(Constants.SSL_CONTEXT_PROPERTY);
-            }
+            SSLContext sslContext =
+                    (SSLContext) userProperties.get(Constants.SSL_CONTEXT_PROPERTY);
 
             if (sslContext == null) {
                 // Create the SSL Context

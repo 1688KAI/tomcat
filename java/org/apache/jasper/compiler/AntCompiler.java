@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Map;
 import java.util.StringTokenizer;
 
 import org.apache.jasper.Constants;
@@ -120,7 +119,7 @@ public class AntCompiler extends Compiler {
      * Compile the servlet from .java file to .class file
      */
     @Override
-    protected void generateClass(Map<String,SmapStratum> smaps)
+    protected void generateClass(String[] smap)
         throws FileNotFoundException, JasperException, Exception {
 
         long t1 = 0;
@@ -177,12 +176,29 @@ public class AntCompiler extends Compiler {
             info.append("    extension dir=" + exts + "\n");
         }
 
+        // Add endorsed directories if any are specified and we're forking
+        // See Bugzilla 31257
+        if(ctxt.getOptions().getFork()) {
+            String endorsed = System.getProperty("java.endorsed.dirs");
+            if(endorsed != null) {
+                Javac.ImplementationSpecificArgument endorsedArg =
+                    javac.createCompilerArg();
+                endorsedArg.setLine("-J-Djava.endorsed.dirs=" +
+                        quotePathList(endorsed));
+                info.append("    endorsed dir=" + quotePathList(endorsed) +
+                        "\n");
+            } else {
+                info.append("    no endorsed dirs specified\n");
+            }
+        }
+
         // Configure the compiler object
         javac.setEncoding(javaEncoding);
         javac.setClasspath(path);
         javac.setDebug(ctxt.getOptions().getClassDebugInfo());
         javac.setSrcdir(srcPath);
         javac.setTempdir(options.getScratchDir());
+        javac.setOptimize(! ctxt.getOptions().getClassDebugInfo() );
         javac.setFork(ctxt.getOptions().getFork());
         info.append("    srcDir=" + srcPath + "\n" );
 
@@ -267,9 +283,28 @@ public class AntCompiler extends Compiler {
         }
 
         // JSR45 Support
-        if (!options.isSmapSuppressed()) {
-            SmapUtil.installSmap(smaps);
+        if (! options.isSmapSuppressed()) {
+            SmapUtil.installSmap(smap);
         }
+    }
+
+    private String quotePathList(String list) {
+        StringBuilder result = new StringBuilder(list.length() + 10);
+        StringTokenizer st = new StringTokenizer(list, File.pathSeparator);
+        while (st.hasMoreTokens()) {
+            String token = st.nextToken();
+            if (token.indexOf(' ') == -1) {
+                result.append(token);
+            } else {
+                result.append('\"');
+                result.append(token);
+                result.append('\"');
+            }
+            if (st.hasMoreTokens()) {
+                result.append(File.pathSeparatorChar);
+            }
+        }
+        return result.toString();
     }
 
 

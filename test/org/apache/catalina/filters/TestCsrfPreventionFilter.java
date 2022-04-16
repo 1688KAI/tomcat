@@ -21,7 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -107,7 +107,17 @@ public class TestCsrfPreventionFilter extends TomcatBaseTest {
         }
 
         @Override
+        public String encodeRedirectUrl(String url) {
+            return url;
+        }
+
+        @Override
         public String encodeURL(String url) {
+            return url;
+        }
+
+        @Override
+        public String encodeUrl(String url) {
             return url;
         }
     }

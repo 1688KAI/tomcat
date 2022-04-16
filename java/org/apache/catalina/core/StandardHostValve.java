@@ -19,11 +19,11 @@ package org.apache.catalina.core;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import jakarta.servlet.DispatcherType;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.DispatcherType;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.catalina.Context;
 import org.apache.catalina.Globals;
@@ -58,6 +58,22 @@ final class StandardHostValve extends ValveBase {
     // calls took just long enough to appear as a hot spot (although a very
     // minor one) in a profiler.
     private static final ClassLoader MY_CLASSLOADER = StandardHostValve.class.getClassLoader();
+
+    static final boolean STRICT_SERVLET_COMPLIANCE;
+
+    static final boolean ACCESS_SESSION;
+
+    static {
+        STRICT_SERVLET_COMPLIANCE = Globals.STRICT_SERVLET_COMPLIANCE;
+
+        String accessSession = System.getProperty(
+                "org.apache.catalina.core.StandardHostValve.ACCESS_SESSION");
+        if (accessSession == null) {
+            ACCESS_SESSION = STRICT_SERVLET_COMPLIANCE;
+        } else {
+            ACCESS_SESSION = Boolean.parseBoolean(accessSession);
+        }
+    }
 
     //------------------------------------------------------ Constructor
 
@@ -163,7 +179,7 @@ final class StandardHostValve extends ValveBase {
         } finally {
             // Access a session (if present) to update last accessed time, based
             // on a strict interpretation of the specification
-            if (context.getAlwaysAccessSession()) {
+            if (ACCESS_SESSION) {
                 request.getSession(false);
             }
 

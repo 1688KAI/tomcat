@@ -17,7 +17,6 @@
 package org.apache.tomcat.dbcp.dbcp2;
 
 import java.lang.ref.WeakReference;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -39,7 +38,7 @@ public class AbandonedTrace implements TrackedUse {
     private final List<WeakReference<AbandonedTrace>> traceList = new ArrayList<>();
 
     /** Last time this connection was used. */
-    private volatile Instant lastUsedInstant = Instant.EPOCH;
+    private volatile long lastUsedMillis;
 
     /**
      * Creates a new AbandonedTrace without config and without doing abandoned tracing.
@@ -86,14 +85,8 @@ public class AbandonedTrace implements TrackedUse {
      * @return long time in milliseconds.
      */
     @Override
-    @Deprecated
     public long getLastUsed() {
-        return lastUsedInstant.toEpochMilli();
-    }
-
-    @Override
-    public Instant getLastUsedInstant() {
-        return lastUsedInstant;
+        return lastUsedMillis;
     }
 
     /**
@@ -173,18 +166,7 @@ public class AbandonedTrace implements TrackedUse {
      * Sets the time this object was last used to the current time in milliseconds.
      */
     protected void setLastUsed() {
-        lastUsedInstant = Instant.now();
-    }
-
-    /**
-     * Sets the instant this object was last used.
-     *
-     * @param lastUsedInstant
-     *            instant.
-     * @since 2.10.0
-     */
-    protected void setLastUsed(final Instant lastUsedInstant) {
-        this.lastUsedInstant = lastUsedInstant;
+        lastUsedMillis = System.currentTimeMillis();
     }
 
     /**
@@ -192,10 +174,8 @@ public class AbandonedTrace implements TrackedUse {
      *
      * @param lastUsedMillis
      *            time in milliseconds.
-     * @deprecated Use {@link #setLastUsed(Instant)}
      */
-    @Deprecated
     protected void setLastUsed(final long lastUsedMillis) {
-        this.lastUsedInstant = Instant.ofEpochMilli(lastUsedMillis);
+        this.lastUsedMillis = lastUsedMillis;
     }
 }

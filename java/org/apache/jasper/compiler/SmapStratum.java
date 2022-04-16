@@ -35,7 +35,7 @@ public class SmapStratum {
      * Represents a single LineSection in an SMAP, associated with
      * a particular stratum.
      */
-    static class LineInfo {
+    private static class LineInfo {
         private int inputStartLine = -1;
         private int outputStartLine = -1;
         private int lineFileID = 0;
@@ -45,16 +45,14 @@ public class SmapStratum {
 
         public void setInputStartLine(int inputStartLine) {
             if (inputStartLine < 0) {
-                throw new IllegalArgumentException(Localizer.getMessage(
-                        "jsp.error.negativeParameter", Integer.valueOf(inputStartLine)));
+                throw new IllegalArgumentException("" + inputStartLine);
             }
             this.inputStartLine = inputStartLine;
         }
 
         public void setOutputStartLine(int outputStartLine) {
             if (outputStartLine < 0) {
-                throw new IllegalArgumentException(Localizer.getMessage(
-                        "jsp.error.negativeParameter", Integer.valueOf(outputStartLine)));
+                throw new IllegalArgumentException("" + outputStartLine);
             }
             this.outputStartLine = outputStartLine;
         }
@@ -69,8 +67,7 @@ public class SmapStratum {
          */
         public void setLineFileID(int lineFileID) {
             if (lineFileID < 0) {
-                throw new IllegalArgumentException(Localizer.getMessage(
-                        "jsp.error.negativeParameter", Integer.valueOf(lineFileID)));
+                throw new IllegalArgumentException("" + lineFileID);
             }
             this.lineFileID = lineFileID;
             this.lineFileIDSet = true;
@@ -78,22 +75,16 @@ public class SmapStratum {
 
         public void setInputLineCount(int inputLineCount) {
             if (inputLineCount < 0) {
-                throw new IllegalArgumentException(Localizer.getMessage(
-                        "jsp.error.negativeParameter", Integer.valueOf(inputLineCount)));
+                throw new IllegalArgumentException("" + inputLineCount);
             }
             this.inputLineCount = inputLineCount;
         }
 
         public void setOutputLineIncrement(int outputLineIncrement) {
             if (outputLineIncrement < 0) {
-                throw new IllegalArgumentException(Localizer.getMessage(
-                        "jsp.error.negativeParameter", Integer.valueOf(outputLineIncrement)));
+                throw new IllegalArgumentException("" + outputLineIncrement);
             }
             this.outputLineIncrement = outputLineIncrement;
-        }
-
-        public int getMaxOutputLineNumber() {
-            return outputStartLine + inputLineCount * outputLineIncrement;
         }
 
         /**
@@ -130,14 +121,38 @@ public class SmapStratum {
     //*********************************************************************
     // Private state
 
-    private final List<String> fileNameList = new ArrayList<>();
-    private final List<String> filePathList = new ArrayList<>();
-    private final List<LineInfo> lineData = new ArrayList<>();
+    private final String stratumName;
+    private final List<String> fileNameList;
+    private final List<String> filePathList;
+    private final List<LineInfo> lineData;
     private int lastFileID;
-    // .java file
-    private String outputFileName;
-    // .class file
-    private String classFileName;
+
+    //*********************************************************************
+    // Constructor
+
+    /**
+     * Constructs a new SmapStratum object with the stratum name JSP.
+     */
+    public SmapStratum() {
+        this("JSP");
+    }
+
+    /**
+     * Constructs a new SmapStratum object for the given stratum name
+     * (e.g., JSP).
+     *
+     * @param stratumName the name of the stratum (e.g., JSP)
+     *
+     * @deprecated Use the no-arg constructor
+     */
+    @Deprecated
+    public SmapStratum(String stratumName) {
+        this.stratumName = stratumName;
+        fileNameList = new ArrayList<>();
+        filePathList = new ArrayList<>();
+        lineData = new ArrayList<>();
+        lastFileID = 0;
+    }
 
     //*********************************************************************
     // Methods to add mapping information
@@ -281,56 +296,33 @@ public class SmapStratum {
         lineData.add(li);
     }
 
-
-    public void addLineInfo(LineInfo li) {
-        lineData.add(li);
-    }
-
-
-    public void setOutputFileName(String outputFileName) {
-        this.outputFileName = outputFileName;
-    }
-
-
-    public void setClassFileName(String classFileName) {
-        this.classFileName = classFileName;
-    }
-
-
-    public String getClassFileName() {
-        return classFileName;
-    }
-
-
     //*********************************************************************
     // Methods to retrieve information
 
-    @Override
-    public String toString() {
-        return getSmapStringInternal();
+    /**
+     * @return the name of the stratum.
+     *
+     * @deprecated Unused. This will be removed in Tomcat 9.0.x
+     */
+    @Deprecated
+    public String getStratumName() {
+        return stratumName;
     }
 
-
-    public String getSmapString() {
-
-        if (outputFileName == null) {
-            throw new IllegalStateException();
+    /**
+     * @return the given stratum as a String:  a StratumSection,
+     * followed by at least one FileSection and at least one LineSection.
+     */
+    public String getString() {
+        // check state and initialize buffer
+        if (fileNameList.size() == 0 || lineData.size() == 0) {
+            return null;
         }
 
-        return getSmapStringInternal();
-    }
-
-
-    private String getSmapStringInternal() {
         StringBuilder out = new StringBuilder();
 
-        // start the SMAP
-        out.append("SMAP\n");
-        out.append(outputFileName + '\n');
-        out.append("JSP\n");
-
         // print StratumSection
-        out.append("*S JSP\n");
+        out.append("*S " + stratumName + "\n");
 
         // print FileSection
         out.append("*F\n");
@@ -358,40 +350,12 @@ public class SmapStratum {
             out.append(li.getString());
         }
 
-        // end the SMAP
-        out.append("*E\n");
-
         return out.toString();
     }
 
-
-    public SmapInput getInputLineNumber(int outputLineNumber) {
-        // For a given Java line number, provide the associated line number
-        // in the JSP/tag source
-        int inputLineNumber = -1;
-        int fileId = 0;
-
-        for (LineInfo lineInfo : lineData) {
-            if (lineInfo.lineFileIDSet) {
-                fileId = lineInfo.lineFileID;
-            }
-            if (lineInfo.outputStartLine > outputLineNumber) {
-                // Didn't find match
-                break;
-            }
-
-            if (lineInfo.getMaxOutputLineNumber() < outputLineNumber) {
-                // Too early
-                continue;
-            }
-
-            // This is the match
-            int inputOffset =
-                    (outputLineNumber - lineInfo.outputStartLine) / lineInfo.outputLineIncrement;
-
-            inputLineNumber = lineInfo.inputStartLine + inputOffset;
-        }
-
-        return new SmapInput(filePathList.get(fileId), inputLineNumber);
+    @Override
+    public String toString() {
+        return getString();
     }
+
 }

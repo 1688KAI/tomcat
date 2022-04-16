@@ -28,13 +28,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -112,8 +112,9 @@ public class TestRemoteIpFilter extends TomcatBaseTest {
      */
     public static class MockHttpServletRequest extends Request {
         public MockHttpServletRequest() {
-            super(new Connector());
+            super();
             setCoyoteRequest(new org.apache.coyote.Request());
+            setConnector(new Connector());
         }
 
         public void setHeader(String name, String value) {

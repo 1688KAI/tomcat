@@ -20,7 +20,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.io.UnsupportedEncodingException;
 
 /**
@@ -106,9 +105,9 @@ public interface FileItem extends FileItemHeadersSupport {
      *
      * @return The contents of the file item as an array of bytes.
      *
-     * @throws UncheckedIOException if an I/O error occurs
+     * @throws IOException if an I/O error occurs
      */
-    byte[] get() throws UncheckedIOException;
+    byte[] get() throws IOException;
 
     /**
      * Returns the contents of the file item as a String, using the specified

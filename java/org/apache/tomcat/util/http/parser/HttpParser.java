@@ -19,6 +19,8 @@ package org.apache.tomcat.util.http.parser;
 import java.io.IOException;
 import java.io.Reader;
 
+import org.apache.juli.logging.Log;
+import org.apache.juli.logging.LogFactory;
 import org.apache.tomcat.util.res.StringManager;
 
 /**
@@ -38,6 +40,8 @@ public class HttpParser {
 
     private static final StringManager sm = StringManager.getManager(HttpParser.class);
 
+    private static final Log log = LogFactory.getLog(HttpParser.class);
+
     private static final int ARRAY_SIZE = 128;
 
     private static final boolean[] IS_CONTROL = new boolean[ARRAY_SIZE];
@@ -47,6 +51,7 @@ public class HttpParser {
     private static final boolean[] IS_HTTP_PROTOCOL = new boolean[ARRAY_SIZE];
     private static final boolean[] IS_ALPHA = new boolean[ARRAY_SIZE];
     private static final boolean[] IS_NUMERIC = new boolean[ARRAY_SIZE];
+    private static final boolean[] REQUEST_TARGET_ALLOW = new boolean[ARRAY_SIZE];
     private static final boolean[] IS_UNRESERVED = new boolean[ARRAY_SIZE];
     private static final boolean[] IS_SUBDELIM = new boolean[ARRAY_SIZE];
     private static final boolean[] IS_USERINFO = new boolean[ARRAY_SIZE];
@@ -117,6 +122,19 @@ public class HttpParser {
             }
         }
 
+        String prop = System.getProperty("tomcat.util.http.parser.HttpParser.requestTargetAllow");
+        if (prop != null) {
+            for (int i = 0; i < prop.length(); i++) {
+                char c = prop.charAt(i);
+                if (c == '{' || c == '}' || c == '|') {
+                    REQUEST_TARGET_ALLOW[c] = true;
+                } else {
+                    log.warn(sm.getString("http.invalidRequestTargetCharacter",
+                            Character.valueOf(c)));
+                }
+            }
+        }
+
         DEFAULT = new HttpParser(null, null);
     }
 
@@ -134,7 +152,9 @@ public class HttpParser {
             if (IS_CONTROL[i] ||
                     i == ' ' || i == '\"' || i == '#' || i == '<' || i == '>' || i == '\\' ||
                     i == '^' || i == '`'  || i == '{' || i == '|' || i == '}') {
-                IS_NOT_REQUEST_TARGET[i] = true;
+                if (!REQUEST_TARGET_ALLOW[i]) {
+                    IS_NOT_REQUEST_TARGET[i] = true;
+                }
             }
 
             /*
@@ -144,7 +164,7 @@ public class HttpParser {
              *
              * Note pchar allows everything userinfo allows plus "@"
              */
-            if (IS_USERINFO[i] || i == '@' || i == '/') {
+            if (IS_USERINFO[i] || i == '@' || i == '/' || REQUEST_TARGET_ALLOW[i]) {
                 IS_ABSOLUTEPATH_RELAXED[i] = true;
             }
 
@@ -153,7 +173,7 @@ public class HttpParser {
              *
              * Note query allows everything absolute-path allows plus "?"
              */
-            if (IS_ABSOLUTEPATH_RELAXED[i] || i == '?') {
+            if (IS_ABSOLUTEPATH_RELAXED[i] || i == '?' || REQUEST_TARGET_ALLOW[i]) {
                 IS_QUERY_RELAXED[i] = true;
             }
         }

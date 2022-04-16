@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -95,7 +95,7 @@ public class TestRemoteIpValve {
     public static class MockRequest extends Request {
 
         public MockRequest() {
-            super(new Connector());
+            setConnector(new Connector());
         }
 
         @Override

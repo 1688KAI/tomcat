@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -402,7 +402,7 @@ public class TestNonLoginAndBasicAuthenticator extends TomcatBaseTest {
                 boolean methodFound = false;
                 List<String> authHeaders = respHeaders.get(SERVER_AUTH_HEADER);
                 for (String authHeader : authHeaders) {
-                    if (authHeader.contains(NICE_METHOD)) {
+                    if (authHeader.indexOf(NICE_METHOD) > -1) {
                         methodFound = true;
                         break;
                     }

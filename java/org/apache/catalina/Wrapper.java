@@ -17,10 +17,10 @@
 package org.apache.catalina;
 
 
-import jakarta.servlet.MultipartConfigElement;
-import jakarta.servlet.Servlet;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.UnavailableException;
+import javax.servlet.MultipartConfigElement;
+import javax.servlet.Servlet;
+import javax.servlet.ServletException;
+import javax.servlet.UnavailableException;
 
 
 /**
@@ -31,7 +31,8 @@ import jakarta.servlet.UnavailableException;
  * <p>
  * Implementations of Wrapper are responsible for managing the servlet life
  * cycle for their underlying servlet class, including calling init() and
- * destroy() at appropriate times.
+ * destroy() at appropriate times, as well as respecting the existence of
+ * the SingleThreadModel declaration on the servlet class itself.
  * <p>
  * The parent Container attached to a Wrapper will generally be an
  * implementation of Context, representing the servlet context (and
@@ -189,8 +190,12 @@ public interface Wrapper extends Container {
 
     /**
      * Allocate an initialized instance of this Servlet that is ready to have
-     * its <code>service()</code> method called.  The previously initialized
-     * instance may be returned immediately.
+     * its <code>service()</code> method called.  If the Servlet class does
+     * not implement <code>SingleThreadModel</code>, the (only) initialized
+     * instance may be returned immediately.  If the Servlet class implements
+     * <code>SingleThreadModel</code>, the Wrapper implementation must ensure
+     * that this instance is not allocated again until it is deallocated by a
+     * call to <code>deallocate()</code>.
      *
      * @exception ServletException if the Servlet init() method threw
      *  an exception
@@ -201,7 +206,9 @@ public interface Wrapper extends Container {
 
 
     /**
-     * Decrement the allocation count for the servlet instance.
+     * Return this previously allocated servlet to the pool of available
+     * instances.  If this servlet class does not implement SingleThreadModel,
+     * no action is actually required.
      *
      * @param servlet The servlet to be returned
      *
@@ -357,6 +364,26 @@ public interface Wrapper extends Container {
      * @param enabled the new value
      */
     public void setEnabled(boolean enabled);
+
+    /**
+     * This method is no longer used. All implementations should be NO-OPs.
+     *
+     * @param b Unused.
+     *
+     * @deprecated This will be removed in Tomcat 9.
+     */
+    @Deprecated
+    public void setServletSecurityAnnotationScanRequired(boolean b);
+
+    /**
+     * This method is no longer used. All implementations should be NO-OPs.
+     *
+     * @throws ServletException Never thrown
+     *
+     * @deprecated This will be removed in Tomcat 9.
+     */
+    @Deprecated
+    public void servletSecurityAnnotationScan() throws ServletException;
 
     /**
      * Is the Servlet overridable by a ServletContainerInitializer?

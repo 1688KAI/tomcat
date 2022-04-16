@@ -21,7 +21,6 @@ import java.io.InputStream;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.catalina.LifecycleException;
@@ -57,6 +56,14 @@ public class MemoryRealm  extends RealmBase {
 
 
     /**
+     * Descriptive information about this Realm implementation.
+     * @deprecated This will be removed in Tomcat 9 onwards.
+     */
+    @Deprecated
+    protected static final String name = "MemoryRealm";
+
+
+    /**
      * The pathname (absolute or relative to Catalina's current working
      * directory) of the XML file containing our database information.
      */
@@ -67,12 +74,6 @@ public class MemoryRealm  extends RealmBase {
      * The set of valid Principals for this Realm, keyed by user name.
      */
     private final Map<String,GenericPrincipal> principals = new HashMap<>();
-
-
-    /**
-     * The set of credentials for this Realm, keyed by user name.
-     */
-    private final Map<String, String> credentials = new HashMap<>();
 
 
     // ------------------------------------------------------------- Properties
@@ -125,12 +126,8 @@ public class MemoryRealm  extends RealmBase {
         }
 
         GenericPrincipal principal = principals.get(username);
-        String password = null;
-        if (principal != null) {
-            password = this.credentials.get(username);
-        }
 
-        if (principal == null || password == null) {
+        if(principal == null || principal.getPassword() == null) {
             // User was not found in the database or the password was null
             // Waste a bit of time as not to reveal that the user does not exist.
             getCredentialHandler().mutate(credentials);
@@ -141,7 +138,7 @@ public class MemoryRealm  extends RealmBase {
             return null;
         }
 
-        boolean validated = getCredentialHandler().matches(credentials, password);
+        boolean validated = getCredentialHandler().matches(credentials, principal.getPassword());
 
         if (validated) {
             if (log.isDebugEnabled()) {
@@ -170,7 +167,7 @@ public class MemoryRealm  extends RealmBase {
     void addUser(String username, String password, String roles) {
 
         // Accumulate the list of roles for this user
-        List<String> list = new ArrayList<>();
+        ArrayList<String> list = new ArrayList<>();
         roles += ",";
         while (true) {
             int comma = roles.indexOf(',');
@@ -183,9 +180,9 @@ public class MemoryRealm  extends RealmBase {
         }
 
         // Construct and cache the Principal for this user
-        GenericPrincipal principal = new GenericPrincipal(username, list);
+        GenericPrincipal principal =
+            new GenericPrincipal(username, password, list);
         principals.put(username, principal);
-        credentials.put(username, password);
 
     }
 
@@ -214,12 +211,26 @@ public class MemoryRealm  extends RealmBase {
     }
 
 
+    @Override
+    @Deprecated
+    protected String getName() {
+        return name;
+    }
+
+
     /**
      * @return the password associated with the given principal's user name.
      */
     @Override
     protected String getPassword(String username) {
-        return credentials.get(username);
+
+        GenericPrincipal principal = principals.get(username);
+        if (principal != null) {
+            return principal.getPassword();
+        } else {
+            return null;
+        }
+
     }
 
 
@@ -247,7 +258,7 @@ public class MemoryRealm  extends RealmBase {
     @Override
     protected void startInternal() throws LifecycleException {
         String pathName = getPathname();
-        try (InputStream is = ConfigFileLoader.getSource().getResource(pathName).getInputStream()) {
+        try (InputStream is = ConfigFileLoader.getInputStream(pathName)) {
             // Load the contents of the database file
             if (log.isDebugEnabled()) {
                 log.debug(sm.getString("memoryRealm.loadPath", pathName));

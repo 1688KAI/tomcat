@@ -21,12 +21,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 
-import jakarta.servlet.AsyncContext;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.AsyncContext;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -380,7 +380,7 @@ public class TestApplicationContextGetRequestDispatcher extends TomcatBaseTest {
 
         // Add a default servlet to return 404 for not found resources
         Tomcat.addServlet(ctx, "Default", new Default404Servlet());
-        ctx.addServletMappingDecoded("/", "Default");
+        ctx.addServletMappingDecoded("/*", "Default");
 
         // Add a target servlet to dispatch to
         Tomcat.addServlet(ctx, "target", new TargetServlet());
@@ -414,7 +414,7 @@ public class TestApplicationContextGetRequestDispatcher extends TomcatBaseTest {
     }
 
 
-    static class Default404Servlet extends HttpServlet {
+    private static class Default404Servlet extends HttpServlet {
 
         private static final long serialVersionUID = 1L;
         private static final String DEFAULT_404 = "DEFAULT-404";

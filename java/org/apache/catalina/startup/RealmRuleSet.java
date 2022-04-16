@@ -16,22 +16,26 @@
  */
 package org.apache.catalina.startup;
 
+
 import org.apache.tomcat.util.digester.Digester;
-import org.apache.tomcat.util.digester.RuleSet;
+import org.apache.tomcat.util.digester.RuleSetBase;
+
 
 /**
  * <p><strong>RuleSet</strong> for processing the contents of a Realm definition
  * element.  This <code>RuleSet</code> supports Realms such as the
  * <code>CombinedRealm</code> that used nested Realms.</p>
  */
-public class RealmRuleSet implements RuleSet {
+@SuppressWarnings("deprecation")
+public class RealmRuleSet extends RuleSetBase {
+
 
     private static final int MAX_NESTED_REALM_LEVELS = Integer.getInteger(
             "org.apache.catalina.startup.RealmRuleSet.MAX_NESTED_REALM_LEVELS",
             3).intValue();
 
-
     // ----------------------------------------------------- Instance Variables
+
 
     /**
      * The matching pattern prefix to use for recognizing our elements.
@@ -40,6 +44,7 @@ public class RealmRuleSet implements RuleSet {
 
 
     // ------------------------------------------------------------ Constructor
+
 
     /**
      * Construct an instance of this <code>RuleSet</code> with the default
@@ -63,6 +68,7 @@ public class RealmRuleSet implements RuleSet {
 
 
     // --------------------------------------------------------- Public Methods
+
 
     /**
      * <p>Add the set of Rule instances defined in this RuleSet to the

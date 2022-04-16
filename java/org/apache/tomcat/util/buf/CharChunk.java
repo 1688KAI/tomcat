@@ -290,7 +290,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
 
     // -------------------- Removing data from the buffer --------------------
 
-    public int subtract() throws IOException {
+    public int substract() throws IOException {
         if (checkEof()) {
             return -1;
         }
@@ -298,7 +298,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
     }
 
 
-    public int subtract(char dest[], int off, int len) throws IOException {
+    public int substract(char dest[], int off, int len) throws IOException {
         if (checkEof()) {
             return -1;
         }
@@ -335,8 +335,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
     public void flushBuffer() throws IOException {
         // assert out!=null
         if (out == null) {
-            throw new IOException(sm.getString("chunk.overflow",
-                    Integer.valueOf(getLimit()), Integer.valueOf(buff.length)));
+            throw new IOException("Buffer overflow, no sink " + getLimit() + " " + buff.length);
         }
         out.realWriteChars(buff, start, end - start);
         end = start;
@@ -397,7 +396,7 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
 
     @Override
     public String toString() {
-        if (isNull()) {
+        if (null == buff) {
             return null;
         } else if (end - start == 0) {
             return "";
@@ -647,5 +646,17 @@ public final class CharChunk extends AbstractChunk implements CharSequence {
     @Override
     public int length() {
         return end - start;
+    }
+
+    /**
+     * NO-OP.
+     *
+     * @param optimizedWrite Ignored
+     *
+     * @deprecated Unused code. This is now a NO-OP and will be removed without
+     *             replacement in Tomcat 10.
+     */
+    @Deprecated
+    public void setOptimizedWrite(boolean optimizedWrite) {
     }
 }

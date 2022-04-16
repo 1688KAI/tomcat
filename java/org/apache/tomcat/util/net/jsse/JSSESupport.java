@@ -20,7 +20,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +75,17 @@ public class JSSESupport implements SSLSupport, SSLSessionManager {
     private SSLSession session;
     private Map<String,List<String>> additionalAttributes;
 
+    /**
+     * @param session SSLSession from which information is to be extracted
+     *
+     * @deprecated This will be removed in Tomcat 10.1.x onwards
+     *             Use {@link JSSESupport#JSSESupport(SSLSession, Map)}
+     */
+    @Deprecated
+    public JSSESupport(SSLSession session) {
+        this(session, null);
+    }
+
     public JSSESupport(SSLSession session, Map<String,List<String>> additionalAttributes) {
         this.session = session;
         this.additionalAttributes = additionalAttributes;
@@ -88,14 +98,6 @@ public class JSSESupport implements SSLSupport, SSLSessionManager {
             return null;
         }
         return session.getCipherSuite();
-    }
-
-    @Override
-    public X509Certificate[] getLocalCertificateChain() {
-        if (session == null) {
-            return null;
-        }
-        return convertCertificates(session.getLocalCertificates());
     }
 
     @Override
@@ -112,12 +114,6 @@ public class JSSESupport implements SSLSupport, SSLSessionManager {
             log.debug(sm.getString("jsseSupport.clientCertError"), t);
             return null;
         }
-
-        return convertCertificates(certs);
-    }
-
-
-    private static java.security.cert.X509Certificate[] convertCertificates(Certificate[] certs) {
         if( certs==null ) {
             return null;
         }

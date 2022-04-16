@@ -134,11 +134,8 @@ public final class ReplicationStream extends ObjectInputStream {
             classObjs[i] = cl;
         }
         try {
-            // No way to avoid this at the moment
-            @SuppressWarnings("deprecation")
-            Class<?> proxyClass = Proxy.getProxyClass(hasNonPublicInterface ? nonPublicLoader
+            return Proxy.getProxyClass(hasNonPublicInterface ? nonPublicLoader
                     : latestLoader, classObjs);
-            return proxyClass;
         } catch (IllegalArgumentException e) {
             throw new ClassNotFoundException(null, e);
         }

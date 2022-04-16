@@ -43,7 +43,9 @@ import org.apache.juli.logging.Log;
  *     of Contexts.
  * <li><b>Context</b> - Representation of a single ServletContext, which will
  *     typically contain one or more Wrappers for the supported servlets.
- * <li><b>Wrapper</b> - Representation of an individual servlet definition.
+ * <li><b>Wrapper</b> - Representation of an individual servlet definition
+ *     (which may support multiple servlet instances if the servlet itself
+ *     implements SingleThreadModel).
  * </ul>
  * A given deployment of Catalina need not include Containers at all of the
  * levels described above.  For example, an administration application
@@ -293,57 +295,6 @@ public interface Container extends Lifecycle {
      * @param realm The newly associated Realm
      */
     public void setRealm(Realm realm);
-
-
-    /**
-     * Find the configuration path where a configuration resource
-     * is located.
-     * @param container The container
-     * @param resourceName The resource file name
-     * @return the configuration path
-     */
-    public static String getConfigPath(Container container, String resourceName) {
-        StringBuilder result = new StringBuilder();
-        Container host = null;
-        Container engine = null;
-        while (container != null) {
-            if (container instanceof Host) {
-                host = container;
-            } else if (container instanceof Engine) {
-                engine = container;
-            }
-            container = container.getParent();
-        }
-        if (host != null && ((Host) host).getXmlBase() != null) {
-            result.append(((Host) host).getXmlBase()).append('/');
-        } else {
-            result.append("conf/");
-            if (engine != null) {
-                result.append(engine.getName()).append('/');
-            }
-            if (host != null) {
-                result.append(host.getName()).append('/');
-            }
-        }
-        result.append(resourceName);
-        return result.toString();
-    }
-
-
-    /**
-     * Return the Service to which this container belongs.
-     * @param container The container to start from
-     * @return the Service, or null if not found
-     */
-    public static Service getService(Container container) {
-        while (container != null && !(container instanceof Engine)) {
-            container = container.getParent();
-        }
-        if (container == null) {
-            return null;
-        }
-        return ((Engine) container).getService();
-    }
 
 
     // --------------------------------------------------------- Public Methods

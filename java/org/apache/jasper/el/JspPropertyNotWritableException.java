@@ -16,7 +16,7 @@
  */
 package org.apache.jasper.el;
 
-import jakarta.el.PropertyNotWritableException;
+import javax.el.PropertyNotWritableException;
 
 public class JspPropertyNotWritableException extends
         PropertyNotWritableException {

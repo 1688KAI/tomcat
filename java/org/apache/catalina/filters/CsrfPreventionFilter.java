@@ -23,15 +23,15 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.FilterConfig;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpServletResponseWrapper;
-import jakarta.servlet.http.HttpSession;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpServletResponseWrapper;
+import javax.servlet.http.HttpSession;
 
 import org.apache.juli.logging.Log;
 import org.apache.juli.logging.LogFactory;
@@ -225,8 +225,20 @@ public class CsrfPreventionFilter extends CsrfPreventionFilterBase {
         }
 
         @Override
+        @Deprecated
+        public String encodeRedirectUrl(String url) {
+            return encodeRedirectURL(url);
+        }
+
+        @Override
         public String encodeRedirectURL(String url) {
             return addNonce(super.encodeRedirectURL(url));
+        }
+
+        @Override
+        @Deprecated
+        public String encodeUrl(String url) {
+            return encodeURL(url);
         }
 
         @Override
@@ -282,7 +294,7 @@ public class CsrfPreventionFilter extends CsrfPreventionFilterBase {
         private final Map<T,T> cache;
 
         public LruCache(final int cacheSize) {
-            cache = new LinkedHashMap<>() {
+            cache = new LinkedHashMap<T,T>() {
                 private static final long serialVersionUID = 1L;
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<T,T> eldest) {

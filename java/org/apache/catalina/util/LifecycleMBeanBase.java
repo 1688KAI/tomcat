@@ -16,6 +16,8 @@
  */
 package org.apache.catalina.util;
 
+import javax.management.InstanceNotFoundException;
+import javax.management.MBeanRegistrationException;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
@@ -39,6 +41,7 @@ public abstract class LifecycleMBeanBase extends LifecycleBase
     /* Cache components of the MBean registration. */
     private String domain = null;
     private ObjectName oname = null;
+    protected MBeanServer mserver = null;
 
     /**
      * Sub-classes wishing to perform additional initialization should override
@@ -50,6 +53,8 @@ public abstract class LifecycleMBeanBase extends LifecycleBase
         // If oname is not null then registration has already happened via
         // preRegister().
         if (oname == null) {
+            mserver = Registry.getRegistry(null, null).getMBeanServer();
+
             oname = register(this, getObjectNameKeyProperties());
         }
     }
@@ -165,30 +170,29 @@ public abstract class LifecycleMBeanBase extends LifecycleBase
      * Note: This method should only be used once {@link #initInternal()} has
      * been called and before {@link #destroyInternal()} has been called.
      *
-     * @param objectNameKeyProperties   The key properties component of the
-     *                                  object name to use to unregister the
-     *                                  object
-     */
-    protected final void unregister(String objectNameKeyProperties) {
-        // Construct an object name with the right domain
-        StringBuilder name = new StringBuilder(getDomain());
-        name.append(':');
-        name.append(objectNameKeyProperties);
-        Registry.getRegistry(null, null).unregisterComponent(name.toString());
-    }
-
-
-    /**
-     * Utility method to enable sub-classes to easily unregister additional
-     * components that don't implement {@link JmxEnabled} with an MBean server.
-     * <br>
-     * Note: This method should only be used once {@link #initInternal()} has
-     * been called and before {@link #destroyInternal()} has been called.
-     *
      * @param on    The name of the component to unregister
      */
     protected final void unregister(ObjectName on) {
-        Registry.getRegistry(null, null).unregisterComponent(on);
+
+        // If null ObjectName, just return without complaint
+        if (on == null) {
+            return;
+        }
+
+        // If the MBeanServer is null, log a warning & return
+        if (mserver == null) {
+            log.warn(sm.getString("lifecycleMBeanBase.unregisterNoServer", on));
+            return;
+        }
+
+        try {
+            mserver.unregisterMBean(on);
+        } catch (MBeanRegistrationException e) {
+            log.warn(sm.getString("lifecycleMBeanBase.unregisterFail", on), e);
+        } catch (InstanceNotFoundException e) {
+            log.warn(sm.getString("lifecycleMBeanBase.unregisterFail", on), e);
+        }
+
     }
 
 
@@ -227,6 +231,7 @@ public abstract class LifecycleMBeanBase extends LifecycleBase
     public final ObjectName preRegister(MBeanServer server, ObjectName name)
             throws Exception {
 
+        this.mserver = server;
         this.oname = name;
         this.domain = name.getDomain().intern();
 

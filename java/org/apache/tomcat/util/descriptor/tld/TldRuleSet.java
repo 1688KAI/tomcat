@@ -18,19 +18,20 @@ package org.apache.tomcat.util.descriptor.tld;
 
 import java.lang.reflect.Method;
 
-import jakarta.servlet.jsp.tagext.TagAttributeInfo;
-import jakarta.servlet.jsp.tagext.TagVariableInfo;
-import jakarta.servlet.jsp.tagext.VariableInfo;
+import javax.servlet.jsp.tagext.TagAttributeInfo;
+import javax.servlet.jsp.tagext.TagVariableInfo;
+import javax.servlet.jsp.tagext.VariableInfo;
 
 import org.apache.tomcat.util.digester.Digester;
 import org.apache.tomcat.util.digester.Rule;
-import org.apache.tomcat.util.digester.RuleSet;
+import org.apache.tomcat.util.digester.RuleSetBase;
 import org.xml.sax.Attributes;
 
 /**
  * RulesSet for digesting TLD files.
  */
-public class TldRuleSet implements RuleSet {
+@SuppressWarnings("deprecation")
+public class TldRuleSet extends RuleSetBase {
     private static final String PREFIX = "taglib";
     private static final String VALIDATOR_PREFIX = PREFIX + "/validator";
     private static final String TAG_PREFIX = PREFIX + "/tag";
@@ -50,13 +51,6 @@ public class TldRuleSet implements RuleSet {
             public void begin(String namespace, String name, Attributes attributes) {
                 TaglibXml taglibXml = (TaglibXml) digester.peek();
                 taglibXml.setJspVersion(attributes.getValue("version"));
-
-                StringBuilder code = digester.getGeneratedCode();
-                if (code != null) {
-                    code.append(digester.toVariableName(taglibXml)).append(".setJspVersion(\"");
-                    code.append(attributes.getValue("version")).append("\");");
-                    code.append(System.lineSeparator());
-                }
             }
         });
         digester.addCallMethod(PREFIX + "/shortname", "setShortName", 0);
@@ -144,21 +138,10 @@ public class TldRuleSet implements RuleSet {
     }
 
     private static class TagAttributeRule extends Rule {
-        private boolean allowShortNames = false;
         @Override
         public void begin(String namespace, String name, Attributes attributes) throws Exception {
             TaglibXml taglibXml = (TaglibXml) digester.peek(digester.getCount() - 1);
-            allowShortNames = "1.2".equals(taglibXml.getJspVersion());
-            Attribute attribute = new Attribute(allowShortNames);
-            digester.push(attribute);
-
-            StringBuilder code = digester.getGeneratedCode();
-            if (code != null) {
-                code.append(System.lineSeparator());
-                code.append(TldRuleSet.class.getName()).append(".Attribute ").append(digester.toVariableName(attribute)).append(" = new ");
-                code.append(TldRuleSet.class.getName()).append(".Attribute").append('(').append(Boolean.toString(allowShortNames));
-                code.append(");").append(System.lineSeparator());
-            }
+            digester.push(new Attribute("1.2".equals(taglibXml.getJspVersion())));
         }
 
         @Override
@@ -166,13 +149,6 @@ public class TldRuleSet implements RuleSet {
             Attribute attribute = (Attribute) digester.pop();
             TagXml tag = (TagXml) digester.peek();
             tag.getAttributes().add(attribute.toTagAttributeInfo());
-
-            StringBuilder code = digester.getGeneratedCode();
-            if (code != null) {
-                code.append(digester.toVariableName(tag)).append(".getAttributes().add(");
-                code.append(digester.toVariableName(attribute)).append(".toTagAttributeInfo());");
-                code.append(System.lineSeparator());
-            }
         }
     }
 
@@ -274,15 +250,15 @@ public class TldRuleSet implements RuleSet {
         public TagAttributeInfo toTagAttributeInfo() {
             if (fragment) {
                 // JSP8.5.2: for a fragment type is fixed and rexprvalue is true
-                type = "jakarta.servlet.jsp.tagext.JspFragment";
+                type = "javax.servlet.jsp.tagext.JspFragment";
                 requestTime = true;
             } else if (deferredValue) {
-                type = "jakarta.el.ValueExpression";
+                type = "javax.el.ValueExpression";
                 if (expectedTypeName == null) {
                     expectedTypeName = "java.lang.Object";
                 }
             } else if (deferredMethod) {
-                type = "jakarta.el.MethodExpression";
+                type = "javax.el.MethodExpression";
                 if (methodSignature == null) {
                     methodSignature = "java.lang.Object method()";
                 }
@@ -311,15 +287,7 @@ public class TldRuleSet implements RuleSet {
     private static class ScriptVariableRule extends Rule {
         @Override
         public void begin(String namespace, String name, Attributes attributes) throws Exception {
-            Variable variable = new Variable();
-            digester.push(variable);
-
-            StringBuilder code = digester.getGeneratedCode();
-            if (code != null) {
-                code.append(System.lineSeparator());
-                code.append(TldRuleSet.class.getName()).append(".Variable ").append(digester.toVariableName(variable)).append(" = new ");
-                code.append(TldRuleSet.class.getName()).append(".Variable").append("();").append(System.lineSeparator());
-            }
+            digester.push(new Variable());
         }
 
         @Override
@@ -327,13 +295,6 @@ public class TldRuleSet implements RuleSet {
             Variable variable = (Variable) digester.pop();
             TagXml tag = (TagXml) digester.peek();
             tag.getVariables().add(variable.toTagVariableInfo());
-
-            StringBuilder code = digester.getGeneratedCode();
-            if (code != null) {
-                code.append(digester.toVariableName(tag)).append(".getVariables().add(");
-                code.append(digester.toVariableName(variable)).append(".toTagVariableInfo());");
-                code.append(System.lineSeparator());
-            }
         }
     }
 
@@ -397,13 +358,6 @@ public class TldRuleSet implements RuleSet {
             }
             boolean value = "true".equalsIgnoreCase(text) || "yes".equalsIgnoreCase(text);
             setter.invoke(digester.peek(), Boolean.valueOf(value));
-
-            StringBuilder code = digester.getGeneratedCode();
-            if (code != null) {
-                code.append(digester.toVariableName(digester.peek())).append('.').append(setter.getName());
-                code.append('(').append(Boolean.valueOf(value)).append(");");
-                code.append(System.lineSeparator());
-            }
         }
     }
 }

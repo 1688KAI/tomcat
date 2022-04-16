@@ -27,13 +27,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.management.ObjectName;
-
-import jakarta.servlet.ServletContainerInitializer;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletRegistration.Dynamic;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletSecurityElement;
-import jakarta.servlet.descriptor.JspConfigDescriptor;
+import javax.servlet.ServletContainerInitializer;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletRegistration.Dynamic;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletSecurityElement;
+import javax.servlet.descriptor.JspConfigDescriptor;
 
 import org.apache.catalina.AccessLog;
 import org.apache.catalina.Authenticator;
@@ -771,6 +770,22 @@ public class TesterContext implements Context {
     }
 
     @Override
+    public void addServletMapping(String pattern, String name) {
+        // NO-OP
+    }
+
+    @Override
+    public void addServletMapping(String pattern, String name,
+            boolean jspWildcard) {
+        // NO-OP
+    }
+
+    @Override
+    public void addServletMappingDecoded(String pattern, String name) {
+        // NO-OP
+    }
+
+    @Override
     public void addServletMappingDecoded(String pattern, String name,
             boolean jspWildcard) {
         // NO-OP
@@ -797,11 +812,6 @@ public class TesterContext implements Context {
     }
 
     @Override
-    public InstanceManager createInstanceManager() {
-        return null;
-    }
-
-    @Override
     public Wrapper createWrapper() {
         return null;
     }
@@ -818,6 +828,11 @@ public class TesterContext implements Context {
 
     @Override
     public ErrorPage findErrorPage(int errorCode) {
+        return null;
+    }
+
+    @Override
+    public ErrorPage findErrorPage(String exceptionType) {
         return null;
     }
 
@@ -878,6 +893,16 @@ public class TesterContext implements Context {
 
     @Override
     public String[] findServletMappings() {
+        return null;
+    }
+
+    @Override
+    public String findStatusPage(int status) {
+        return null;
+    }
+
+    @Override
+    public int[] findStatusPages() {
         return null;
     }
 
@@ -1285,36 +1310,4 @@ public class TesterContext implements Context {
     public void setCreateUploadTargets(boolean createUploadTargets) { /* NO-OP */}
     @Override
     public boolean getCreateUploadTargets() { return false; }
-
-    @Override
-    public boolean getAlwaysAccessSession() { return false; }
-    @Override
-    public void setAlwaysAccessSession(boolean alwaysAccessSession) {}
-
-    @Override
-    public boolean getContextGetResourceRequiresSlash() { return false; }
-    @Override
-    public void setContextGetResourceRequiresSlash(boolean contextGetResourceRequiresSlash) {}
-
-    @Override
-    public boolean getDispatcherWrapsSameObject() { return false; }
-    @Override
-    public void setDispatcherWrapsSameObject(boolean dispatcherWrapsSameObject) {}
-
-    @Override
-    public boolean getParallelAnnotationScanning() { return false; }
-    @Override
-    public void setParallelAnnotationScanning(boolean parallelAnnotationScanning) {}
-
-    boolean useBloomFilterForArchives = false;
-    @Override
-    public boolean getUseBloomFilterForArchives() {
-        return useBloomFilterForArchives;
-    }
-
-    @Override
-    public void setUseBloomFilterForArchives(boolean useBloomFilterForArchives) {
-        this.useBloomFilterForArchives = useBloomFilterForArchives;
-    }
-
 }

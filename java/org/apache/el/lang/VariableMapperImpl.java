@@ -23,8 +23,8 @@ import java.io.ObjectOutput;
 import java.util.HashMap;
 import java.util.Map;
 
-import jakarta.el.ValueExpression;
-import jakarta.el.VariableMapper;
+import javax.el.ValueExpression;
+import javax.el.VariableMapper;
 
 public class VariableMapperImpl extends VariableMapper implements Externalizable {
 

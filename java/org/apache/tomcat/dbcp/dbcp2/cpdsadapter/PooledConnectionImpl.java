@@ -36,6 +36,7 @@ import org.apache.tomcat.dbcp.dbcp2.PStmtKey;
 import org.apache.tomcat.dbcp.dbcp2.PoolableCallableStatement;
 import org.apache.tomcat.dbcp.dbcp2.PoolablePreparedStatement;
 import org.apache.tomcat.dbcp.dbcp2.PoolingConnection.StatementType;
+import org.apache.tomcat.dbcp.pool2.DestroyMode;
 import org.apache.tomcat.dbcp.pool2.KeyedObjectPool;
 import org.apache.tomcat.dbcp.pool2.KeyedPooledObjectFactory;
 import org.apache.tomcat.dbcp.pool2.PooledObject;
@@ -74,7 +75,7 @@ class PooledConnectionImpl
     /**
      * StatementEventListeners.
      */
-    private final List<StatementEventListener> statementEventListeners = Collections.synchronizedList(new ArrayList<>());
+    private final List<StatementEventListener> statementEventListeners = Collections.synchronizedList(new ArrayList<StatementEventListener>());
 
     /**
      * Flag set to true, once {@link #close()} is called.
@@ -102,7 +103,7 @@ class PooledConnectionImpl
         } else {
             this.delegatingConnection = new DelegatingConnection<>(connection);
         }
-        eventListeners = Collections.synchronizedList(new ArrayList<>());
+        eventListeners = Collections.synchronizedList(new ArrayList<ConnectionEventListener>());
         closed = false;
     }
 
@@ -206,6 +207,20 @@ class PooledConnectionImpl
      *
      * @param sql
      *            The SQL statement.
+     * @param columnIndexes
+     *            An array of column indexes indicating the columns that should be returned from the inserted row or
+     *            rows.
+     * @return a key to uniquely identify a prepared statement.
+     */
+    protected PStmtKey createKey(final String sql, final int[] columnIndexes) {
+        return new PStmtKey(normalizeSQL(sql), getCatalogOrNull(), getSchemaOrNull(), columnIndexes);
+    }
+
+    /**
+     * Creates a {@link PStmtKey} for the given arguments.
+     *
+     * @param sql
+     *            The SQL statement.
      * @param resultSetType
      *            A result set type; one of <code>ResultSet.TYPE_FORWARD_ONLY</code>,
      *            <code>ResultSet.TYPE_SCROLL_INSENSITIVE</code>, or <code>ResultSet.TYPE_SCROLL_SENSITIVE</code>.
@@ -293,20 +308,6 @@ class PooledConnectionImpl
      *
      * @param sql
      *            The SQL statement.
-     * @param columnIndexes
-     *            An array of column indexes indicating the columns that should be returned from the inserted row or
-     *            rows.
-     * @return a key to uniquely identify a prepared statement.
-     */
-    protected PStmtKey createKey(final String sql, final int[] columnIndexes) {
-        return new PStmtKey(normalizeSQL(sql), getCatalogOrNull(), getSchemaOrNull(), columnIndexes);
-    }
-
-    /**
-     * Creates a {@link PStmtKey} for the given arguments.
-     *
-     * @param sql
-     *            The SQL statement.
      * @param statementType
      *            The SQL statement type, prepared or callable.
      * @return a key to uniquely identify a prepared statement.
@@ -342,6 +343,12 @@ class PooledConnectionImpl
         pooledObject.getObject().getInnermostDelegate().close();
     }
 
+    @Override
+    public void destroyObject(PStmtKey key, PooledObject<DelegatingPreparedStatement> p,
+            DestroyMode mode) throws Exception {
+        destroyObject(key, p);
+    }
+
     /**
      * Closes the physical connection and checks that the logical connection was closed as well.
      */
@@ -369,6 +376,14 @@ class PooledConnectionImpl
         }
     }
 
+    private String getSchemaOrNull() {
+        try {
+            return connection == null ? null : Jdbc41Bridge.getSchema(connection);
+        } catch (final SQLException e) {
+            return null;
+        }
+    }
+
     /**
      * Returns a JDBC connection.
      *
@@ -389,14 +404,6 @@ class PooledConnectionImpl
         // the spec requires that this return a new Connection instance.
         logicalConnection = new ConnectionImpl(this, connection, isAccessToUnderlyingConnectionAllowed());
         return logicalConnection;
-    }
-
-    private String getSchemaOrNull() {
-        try {
-            return connection == null ? null : Jdbc41Bridge.getSchema(connection);
-        } catch (final SQLException e) {
-            return null;
-        }
     }
 
     /**
@@ -424,13 +431,13 @@ class PooledConnectionImpl
             @SuppressWarnings({"rawtypes", "unchecked" }) // Unable to find way to avoid this
             final PoolablePreparedStatement pps = new PoolablePreparedStatement(statement, key, pStmtPool,
                     delegatingConnection);
-            return new DefaultPooledObject<>(pps);
+            return new DefaultPooledObject<DelegatingPreparedStatement>(pps);
         }
         final CallableStatement statement = (CallableStatement) key.createStatement(connection);
         @SuppressWarnings("unchecked")
         final PoolableCallableStatement pcs = new PoolableCallableStatement(statement, key, pStmtPool,
                 (DelegatingConnection<Connection>) delegatingConnection);
-        return new DefaultPooledObject<>(pcs);
+        return new DefaultPooledObject<DelegatingPreparedStatement>(pcs);
     }
 
     /**
@@ -613,6 +620,19 @@ class PooledConnectionImpl
         }
     }
 
+    PreparedStatement prepareStatement(final String sql, final int[] columnIndexes) throws SQLException {
+        if (pStmtPool == null) {
+            return connection.prepareStatement(sql, columnIndexes);
+        }
+        try {
+            return pStmtPool.borrowObject(createKey(sql, columnIndexes));
+        } catch (final RuntimeException e) {
+            throw e;
+        } catch (final Exception e) {
+            throw new SQLException("Borrow prepareStatement from pool failed", e);
+        }
+    }
+
     /**
      * Creates or obtains a {@link PreparedStatement} from my pool.
      *
@@ -652,19 +672,6 @@ class PooledConnectionImpl
         }
         try {
             return pStmtPool.borrowObject(createKey(sql, resultSetType, resultSetConcurrency, resultSetHoldability));
-        } catch (final RuntimeException e) {
-            throw e;
-        } catch (final Exception e) {
-            throw new SQLException("Borrow prepareStatement from pool failed", e);
-        }
-    }
-
-    PreparedStatement prepareStatement(final String sql, final int[] columnIndexes) throws SQLException {
-        if (pStmtPool == null) {
-            return connection.prepareStatement(sql, columnIndexes);
-        }
-        try {
-            return pStmtPool.borrowObject(createKey(sql, columnIndexes));
         } catch (final RuntimeException e) {
             throw e;
         } catch (final Exception e) {
@@ -715,6 +722,20 @@ class PooledConnectionImpl
     }
 
     /**
+     * My {@link KeyedPooledObjectFactory} method for validating {@link PreparedStatement}s.
+     *
+     * @param key
+     *            Ignored.
+     * @param pooledObject
+     *            Ignored.
+     * @return {@code true}
+     */
+    @Override
+    public boolean validateObject(final PStmtKey key, final PooledObject<DelegatingPreparedStatement> pooledObject) {
+        return true;
+    }
+
+    /**
      * @since 2.6.0
      */
     @Override
@@ -738,19 +759,5 @@ class PooledConnectionImpl
         builder.append(accessToUnderlyingConnectionAllowed);
         builder.append("]");
         return builder.toString();
-    }
-
-    /**
-     * My {@link KeyedPooledObjectFactory} method for validating {@link PreparedStatement}s.
-     *
-     * @param key
-     *            Ignored.
-     * @param pooledObject
-     *            Ignored.
-     * @return {@code true}
-     */
-    @Override
-    public boolean validateObject(final PStmtKey key, final PooledObject<DelegatingPreparedStatement> pooledObject) {
-        return true;
     }
 }

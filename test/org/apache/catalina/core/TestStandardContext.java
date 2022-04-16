@@ -23,27 +23,28 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.GenericFilter;
-import jakarta.servlet.HttpConstraintElement;
-import jakarta.servlet.HttpMethodConstraintElement;
-import jakarta.servlet.MultipartConfigElement;
-import jakarta.servlet.Servlet;
-import jakarta.servlet.ServletContainerInitializer;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRegistration;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.ServletSecurityElement;
-import jakarta.servlet.annotation.HttpConstraint;
-import jakarta.servlet.annotation.HttpMethodConstraint;
-import jakarta.servlet.annotation.MultipartConfig;
-import jakarta.servlet.annotation.ServletSecurity;
-import jakarta.servlet.annotation.ServletSecurity.TransportGuarantee;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.HttpConstraintElement;
+import javax.servlet.HttpMethodConstraintElement;
+import javax.servlet.MultipartConfigElement;
+import javax.servlet.Servlet;
+import javax.servlet.ServletContainerInitializer;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRegistration;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.ServletSecurityElement;
+import javax.servlet.annotation.HttpConstraint;
+import javax.servlet.annotation.HttpMethodConstraint;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.ServletSecurity;
+import javax.servlet.annotation.ServletSecurity.TransportGuarantee;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.MatcherAssert;
@@ -158,9 +159,12 @@ public class TestStandardContext extends TomcatBaseTest {
         }
     }
 
-    public static final class Bug46243Filter extends GenericFilter {
+    public static final class Bug46243Filter implements Filter {
 
-        private static final long serialVersionUID = 1L;
+        @Override
+        public void destroy() {
+            // NOOP
+        }
 
         @Override
         public void doFilter(ServletRequest request, ServletResponse response,
@@ -171,10 +175,11 @@ public class TestStandardContext extends TomcatBaseTest {
         }
 
         @Override
-        public void init() throws ServletException {
-            boolean fail = getInitParameter("fail").equals("true");
+        public void init(FilterConfig filterConfig) throws ServletException {
+            boolean fail = filterConfig.getInitParameter("fail").equals("true");
             if (fail) {
-                throw new ServletException("Init fail (test)", new ClassNotFoundException());
+                throw new ServletException("Init fail (test)",
+                        new ClassNotFoundException());
             }
         }
     }
@@ -266,7 +271,7 @@ public class TestStandardContext extends TomcatBaseTest {
     }
 
     private static class FailingLifecycleListener implements LifecycleListener {
-        private static final String failEvent = Lifecycle.CONFIGURE_START_EVENT;
+        private final String failEvent = Lifecycle.CONFIGURE_START_EVENT;
         private boolean fail = true;
         protected void setFail(boolean fail) {
             this.fail = fail;
@@ -328,9 +333,12 @@ public class TestStandardContext extends TomcatBaseTest {
     }
 
 
-    public static final class Bug49922Filter extends GenericFilter {
+    public static final class Bug49922Filter implements Filter {
 
-        private static final long serialVersionUID = 1L;
+        @Override
+        public void destroy() {
+            // NOOP
+        }
 
         @Override
         public void doFilter(ServletRequest request, ServletResponse response,
@@ -338,6 +346,11 @@ public class TestStandardContext extends TomcatBaseTest {
             response.setContentType("text/plain");
             response.getWriter().print("Filter");
             chain.doFilter(request, response);
+        }
+
+        @Override
+        public void init(FilterConfig filterConfig) throws ServletException {
+            // NOOP
         }
     }
 
@@ -902,7 +915,7 @@ public class TestStandardContext extends TomcatBaseTest {
                 .isAvailable());
     }
 
-    private static class FailingStartupServlet extends HttpServlet {
+    private class FailingStartupServlet extends HttpServlet {
 
         private static final long serialVersionUID = 1L;
 

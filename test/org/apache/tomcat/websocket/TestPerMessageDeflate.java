@@ -23,8 +23,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import jakarta.websocket.Extension;
-import jakarta.websocket.Extension.Parameter;
+import javax.websocket.Extension;
+import javax.websocket.Extension.Parameter;
 
 import org.junit.Assert;
 import org.junit.Test;

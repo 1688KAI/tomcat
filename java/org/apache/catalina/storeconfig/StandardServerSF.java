@@ -18,6 +18,7 @@ package org.apache.catalina.storeconfig;
 
 import java.io.PrintWriter;
 
+import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleListener;
 import org.apache.catalina.Service;
 import org.apache.catalina.core.StandardServer;
@@ -66,7 +67,8 @@ public class StandardServerSF extends StoreFactoryBase {
         if (aObject instanceof StandardServer) {
             StandardServer server = (StandardServer) aObject;
             // Store nested <Listener> elements
-            LifecycleListener listeners[] = server.findLifecycleListeners();
+            LifecycleListener listeners[] = ((Lifecycle) server)
+                    .findLifecycleListeners();
             storeElementArray(aWriter, indent, listeners);
             /*LifecycleListener listener = null;
             for (int i = 0; listener == null && i < listeners.length; i++)

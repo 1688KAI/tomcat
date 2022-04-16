@@ -16,7 +16,7 @@
  */
 package org.apache.tomcat.util.descriptor.web;
 
-import jakarta.servlet.descriptor.TaglibDescriptor;
+import javax.servlet.descriptor.TaglibDescriptor;
 
 public class TaglibDescriptorImpl implements TaglibDescriptor {
 

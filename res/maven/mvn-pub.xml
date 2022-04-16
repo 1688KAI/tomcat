@@ -15,7 +15,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project name="Tomcat 10.1 Maven Deployment" default="" basedir="."
+<project name="Tomcat 8.5 Maven Deployment" default="" basedir="."
          xmlns:resolver="antlib:org.apache.maven.resolver.ant"
          xmlns:if="ant:if"
          xmlns:unless="ant:unless">
@@ -51,12 +51,8 @@
       </filterset>
     </copy>
 
-    <resolver:install>
-      <artifact file="${file}" />
-      <artifact file="${src}" classifier="sources"/>
+    <resolver:install file="${file}">
       <pom file="${pom}.tmp"/>
-      <artifact file="${file}.asc" type="jar.asc" if:set="gpg.passphrase"/>
-      <artifact file="${pom}.asc" type="pom.asc" if:set="gpg.passphrase"/>
     </resolver:install>
 
     <delete file="${pom}.tmp"/>
@@ -270,111 +266,6 @@
     </sequential>
   </macrodef>
 
-  <target name="generic-install" depends="init-maven">
-     <doMavenInstall artifactId="tomcat-juli"
-                          file="${tomcat.bin.path}/tomcat-juli.jar"/>
-
-     <!-- Standard jars in lib directory -->
-     <doMavenInstall artifactId="tomcat-annotations-api"
-                   jarFileName="annotations-api.jar"
-                srcJarFileName="annotations-api-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-catalina"
-                   jarFileName="catalina.jar"
-                srcJarFileName="catalina-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-catalina-ant"
-                   jarFileName="catalina-ant.jar"
-                srcJarFileName="catalina-ant-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-catalina-ha"
-                   jarFileName="catalina-ha.jar"
-                srcJarFileName="catalina-ha-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-tribes"
-                   jarFileName="catalina-tribes.jar"
-                srcJarFileName="catalina-tribes-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-ssi"
-                   jarFileName="catalina-ssi.jar"
-                srcJarFileName="catalina-ssi-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-storeconfig"
-                   jarFileName="catalina-storeconfig.jar"
-                srcJarFileName="catalina-storeconfig-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-jdbc"
-                   jarFileName="tomcat-jdbc.jar"
-                srcJarFileName="tomcat-jdbc-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-el-api"
-                   jarFileName="el-api.jar"
-                srcJarFileName="el-api-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-jasper"
-                   jarFileName="jasper.jar"
-                srcJarFileName="jasper-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-jasper-el"
-                   jarFileName="jasper-el.jar"
-                srcJarFileName="jasper-el-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-jsp-api"
-                   jarFileName="jsp-api.jar"
-                srcJarFileName="jsp-api-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-servlet-api"
-                   jarFileName="servlet-api.jar"
-                srcJarFileName="servlet-api-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-websocket-api"
-                   jarFileName="websocket-api.jar"
-                srcJarFileName="websocket-api-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-websocket-client-api"
-                   jarFileName="websocket-client-api.jar"
-                srcJarFileName="websocket-client-api-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-jaspic-api"
-                   jarFileName="jaspic-api.jar"
-                srcJarFileName="jaspic-api-src.jar"/>
-
-     <doMavenInstall artifactId="tomcat-api"/>
-     <doMavenInstall artifactId="tomcat-jni"/>
-     <doMavenInstall artifactId="tomcat-util"/>
-     <doMavenInstall artifactId="tomcat-util-scan"/>
-     <doMavenInstall artifactId="tomcat-coyote"/>
-     <doMavenInstall artifactId="tomcat-dbcp"/>
-     <doMavenInstall artifactId="tomcat-websocket"/>
-
-     <!-- Emedded jars -->
-     <doMavenInstall artifactId="tomcat-embed-core"
-         groupId="org.apache.tomcat.embed"
-         file="${tomcat.embed.path}/tomcat-embed-core.jar"
-         pom="tomcat-embed-core.pom"
-         src="${tomcat.embed.src.path}/tomcat-embed-core-src.jar"/>
-     <doMavenInstall artifactId="tomcat-embed-programmatic"
-         groupId="org.apache.tomcat.experimental"
-         file="${tomcat.embed.path}/tomcat-embed-programmatic.jar"
-         pom="tomcat-embed-programmatic.pom"
-         src="${tomcat.embed.src.path}/tomcat-embed-programmatic-src.jar"/>
-     <doMavenInstall artifactId="tomcat-embed-jasper"
-         groupId="org.apache.tomcat.embed"
-         file="${tomcat.embed.path}/tomcat-embed-jasper.jar"
-         pom="tomcat-embed-jasper.pom"
-         src="${tomcat.embed.src.path}/tomcat-embed-jasper-src.jar"/>
-     <doMavenInstall artifactId="tomcat-embed-el"
-         groupId="org.apache.tomcat.embed"
-         file="${tomcat.embed.path}/tomcat-embed-el.jar"
-         pom="tomcat-embed-el.pom"
-         src="${tomcat.embed.src.path}/tomcat-embed-el-src.jar"/>
-     <doMavenInstall artifactId="tomcat-embed-websocket"
-         groupId="org.apache.tomcat.embed"
-         file="${tomcat.embed.path}/tomcat-embed-websocket.jar"
-         pom="tomcat-embed-websocket.pom"
-         src="${tomcat.embed.src.path}/tomcat-embed-websocket-src.jar"/>
-  </target>
-
   <target name="generic-deploy" depends="init-maven,init-gpg-1,init-gpg-2,init-ldap">
     <!-- Standard jars in bin directory -->
     <!-- Skip bootstrap.jar - it is just a subset of catalina.jar -->
@@ -401,10 +292,6 @@
     <doMavenDeploy artifactId="tomcat-tribes"
                   jarFileName="catalina-tribes.jar"
                srcJarFileName="catalina-tribes-src.jar"/>
-
-    <doMavenDeploy artifactId="tomcat-ssi"
-                  jarFileName="catalina-ssi.jar"
-               srcJarFileName="catalina-ssi-src.jar"/>
 
     <doMavenDeploy artifactId="tomcat-storeconfig"
                   jarFileName="catalina-storeconfig.jar"
@@ -438,10 +325,6 @@
                   jarFileName="websocket-api.jar"
                srcJarFileName="websocket-api-src.jar"/>
 
-    <doMavenDeploy artifactId="tomcat-websocket-client-api"
-                  jarFileName="websocket-client-api.jar"
-               srcJarFileName="websocket-client-api-src.jar"/>
-
     <doMavenDeploy artifactId="tomcat-jaspic-api"
                   jarFileName="jaspic-api.jar"
                srcJarFileName="jaspic-api-src.jar"/>
@@ -453,15 +336,19 @@
     <doMavenDeploy artifactId="tomcat-coyote"/>
     <doMavenDeploy artifactId="tomcat-dbcp"/>
     <doMavenDeploy artifactId="tomcat-websocket"/>
-    <doMavenDeployNoSrc artifactId="tomcat-i18n-cs"/>
     <doMavenDeployNoSrc artifactId="tomcat-i18n-de"/>
     <doMavenDeployNoSrc artifactId="tomcat-i18n-es"/>
     <doMavenDeployNoSrc artifactId="tomcat-i18n-fr"/>
     <doMavenDeployNoSrc artifactId="tomcat-i18n-ja"/>
     <doMavenDeployNoSrc artifactId="tomcat-i18n-ko"/>
-    <doMavenDeployNoSrc artifactId="tomcat-i18n-pt-BR"/>
     <doMavenDeployNoSrc artifactId="tomcat-i18n-ru"/>
     <doMavenDeployNoSrc artifactId="tomcat-i18n-zh-CN"/>
+
+    <!-- Extras jars -->
+    <doMavenDeploy artifactId="tomcat-catalina-ws"
+        groupId="org.apache.tomcat.extras"
+        file="${tomcat.extras.path}/catalina-ws.jar"
+        src="${tomcat.extras.src.path}/catalina-ws-src.jar" />
 
     <!-- Emedded jars -->
     <!-- Skip DBCP - optional and can use standard ones above -->
@@ -470,11 +357,6 @@
         file="${tomcat.embed.path}/tomcat-embed-core.jar"
         pom="tomcat-embed-core.pom"
         src="${tomcat.embed.src.path}/tomcat-embed-core-src.jar"/>
-    <doMavenDeploy artifactId="tomcat-embed-programmatic"
-                   groupId="org.apache.tomcat.experimental"
-                   file="${tomcat.embed.path}/tomcat-embed-programmatic.jar"
-                   pom="tomcat-embed-programmatic.pom"
-                   src="${tomcat.embed.src.path}/tomcat-embed-programmatic-src.jar"/>
     <doMavenDeploy artifactId="tomcat-embed-jasper"
         groupId="org.apache.tomcat.embed"
         file="${tomcat.embed.path}/tomcat-embed-jasper.jar"
@@ -503,7 +385,7 @@
       <param name="maven.repo.repositoryId"
              value="${maven.snapshot.repo.repositoryId}"/>
       <param name="maven.repo.url" value="${maven.snapshot.repo.url}"/>
-      <param name="maven.deploy.version" value="10.1.0-SNAPSHOT"/>
+      <param name="maven.deploy.version" value="8.5-SNAPSHOT"/>
       <param name="maven.deploy.binary.version"
              value="${maven.asf.release.deploy.version}-dev"/>
     </antcall>

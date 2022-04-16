@@ -21,18 +21,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import jakarta.el.ELResolver;
-import jakarta.servlet.jsp.el.ImplicitObjectELResolver;
+import javax.el.ELResolver;
+import javax.servlet.jsp.el.ImplicitObjectELResolver;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import org.apache.el.stream.StreamELResolverImpl;
-import org.apache.jasper.runtime.JspRuntimeLibrary;
 
 public class TestJasperELResolver {
-
-    private static final int STANDARD_RESOLVERS_COUNT = 11;
 
     @Test
     public void testConstructorNone() throws Exception {
@@ -56,16 +53,15 @@ public class TestJasperELResolver {
             list.add(new ImplicitObjectELResolver());
         }
 
-        int adjustedForGraalCount = JspRuntimeLibrary.GRAAL ? count + 1 : count;
-
         JasperELResolver resolver =
                 new JasperELResolver(list, new StreamELResolverImpl());
 
+
         Assert.assertEquals(Integer.valueOf(count),
                 getField("appResolversSize", resolver));
-        Assert.assertEquals(STANDARD_RESOLVERS_COUNT + adjustedForGraalCount,
+        Assert.assertEquals(9 + count,
                 ((ELResolver[])getField("resolvers", resolver)).length);
-        Assert.assertEquals(Integer.valueOf(STANDARD_RESOLVERS_COUNT + adjustedForGraalCount),
+        Assert.assertEquals(Integer.valueOf(9 + count),
                 Integer.valueOf(((AtomicInteger) getField("resolversSize", resolver)).get()));
     }
 

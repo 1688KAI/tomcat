@@ -18,7 +18,6 @@ package org.apache.catalina.mbeans;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
@@ -29,7 +28,6 @@ import org.apache.catalina.User;
 import org.apache.tomcat.util.modeler.BaseModelMBean;
 import org.apache.tomcat.util.modeler.ManagedBean;
 import org.apache.tomcat.util.modeler.Registry;
-import org.apache.tomcat.util.res.StringManager;
 
 /**
  * <p>A <strong>ModelMBean</strong> implementation for the
@@ -39,7 +37,6 @@ import org.apache.tomcat.util.res.StringManager;
  */
 public class UserMBean extends BaseModelMBean {
 
-    private static final StringManager sm = StringManager.getManager(UserMBean.class);
 
     // ----------------------------------------------------- Instance Variables
 
@@ -64,7 +61,7 @@ public class UserMBean extends BaseModelMBean {
     public String[] getGroups() {
 
         User user = (User) this.resource;
-        List<String> results = new ArrayList<>();
+        ArrayList<String> results = new ArrayList<>();
         Iterator<Group> groups = user.getGroups();
         while (groups.hasNext()) {
             Group group = null;
@@ -74,7 +71,7 @@ public class UserMBean extends BaseModelMBean {
                     MBeanUtils.createObjectName(managed.getDomain(), group);
                 results.add(oname.toString());
             } catch (MalformedObjectNameException e) {
-                throw new IllegalArgumentException(sm.getString("userMBean.createError.group", group), e);
+                throw new IllegalArgumentException("Cannot create object name for group " + group, e);
             }
         }
         return results.toArray(new String[0]);
@@ -87,7 +84,7 @@ public class UserMBean extends BaseModelMBean {
     public String[] getRoles() {
 
         User user = (User) this.resource;
-        List<String> results = new ArrayList<>();
+        ArrayList<String> results = new ArrayList<>();
         Iterator<Role> roles = user.getRoles();
         while (roles.hasNext()) {
             Role role = null;
@@ -97,7 +94,7 @@ public class UserMBean extends BaseModelMBean {
                     MBeanUtils.createObjectName(managed.getDomain(), role);
                 results.add(oname.toString());
             } catch (MalformedObjectNameException e) {
-                throw new IllegalArgumentException(sm.getString("userMBean.createError.role", role), e);
+                throw new IllegalArgumentException("Cannot create object name for role " + role, e);
             }
         }
         return results.toArray(new String[0]);
@@ -119,7 +116,7 @@ public class UserMBean extends BaseModelMBean {
         }
         Group group = user.getUserDatabase().findGroup(groupname);
         if (group == null) {
-            throw new IllegalArgumentException(sm.getString("userMBean.invalidGroup", groupname));
+            throw new IllegalArgumentException("Invalid group name '" + groupname + "'");
         }
         user.addGroup(group);
     }
@@ -138,7 +135,7 @@ public class UserMBean extends BaseModelMBean {
         }
         Role role = user.getUserDatabase().findRole(rolename);
         if (role == null) {
-            throw new IllegalArgumentException(sm.getString("userMBean.invalidRole", rolename));
+            throw new IllegalArgumentException("Invalid role name '" + rolename + "'");
         }
         user.addRole(role);
     }
@@ -157,7 +154,7 @@ public class UserMBean extends BaseModelMBean {
         }
         Group group = user.getUserDatabase().findGroup(groupname);
         if (group == null) {
-            throw new IllegalArgumentException(sm.getString("userMBean.invalidGroup", groupname));
+            throw new IllegalArgumentException("Invalid group name '" + groupname + "'");
         }
         user.removeGroup(group);
     }
@@ -176,7 +173,7 @@ public class UserMBean extends BaseModelMBean {
         }
         Role role = user.getUserDatabase().findRole(rolename);
         if (role == null) {
-            throw new IllegalArgumentException(sm.getString("userMBean.invalidRole", rolename));
+            throw new IllegalArgumentException("Invalid role name '" + rolename + "'");
         }
         user.removeRole(role);
     }

@@ -28,7 +28,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import jakarta.servlet.ServletException;
+import javax.servlet.ServletException;
 
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.connector.Request;
@@ -420,6 +420,6 @@ public class StuckThreadDetectionValve extends ValveBase {
     }
 
     private enum MonitoredThreadState {
-        RUNNING, STUCK, DONE
+        RUNNING, STUCK, DONE;
     }
 }

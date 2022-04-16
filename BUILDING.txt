@@ -19,10 +19,9 @@
             Building The Apache Tomcat @VERSION_MAJOR_MINOR@ Servlet/JSP Container
             ====================================================
 
-This project contains the source code for Tomcat @VERSION_MAJOR_MINOR@, a container that
-implements the Jakarta Servlet 6.0, JSP 3.1, EL 5.0, WebSocket 2.1 and
-Authentication 2.0 specifications from the Jakarta EE project at Eclipse
-<https://jakarta.ee//>.
+This subproject contains the source code for Tomcat @VERSION_MAJOR_MINOR@, a container that
+implements the Servlet 3.1, JSP 2.3, EL 3.0, WebSocket 1.1 and JASPIC 1.1
+specifications from the Java Community Process <https://www.jcp.org/>.
 
 Note: If you just need to run Apache Tomcat, it is not necessary to build
 it. You may simply download a binary distribution. It is cross-platform.
@@ -95,7 +94,7 @@ source distribution, do the following:
 (3.1) Checkout or obtain the source code for Tomcat @VERSION_MAJOR_MINOR@
 
 Clone the source using git, then checkout a specific major branch or
-main for the latest code development, or download and unpack a source
+master for the latest code development, or download and unpack a source
 package.
 
  *  Tomcat GitHub repository URL:
@@ -299,6 +298,15 @@ You can build them by using the following commands:
         codesigning.storepass=request-via-pmc
 
     Release managers will be provided with the necessary credentials by the PMC.
+    It will also be necessary to enable TLS 1.2 and the correct cipher suite to
+    for the build process to communicate with the code signing service. The
+    simplest way is by setting the ANT_OPTS environment variable.
+    E.g. (for Windows):
+
+    set ANT_OPTS=-Dhttps.protocols=TLSv1,TLSv1.1,TLSv1.2 -Dhttps.cipherSuites=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+
+    You will also need to download and install the Java 7 unlimited strength
+    jurisdiction policy files in order to use the above cipher suite.
 
  4. Build the release:
 
@@ -326,29 +334,29 @@ directory:
 
     output/build/logs
 
-By default the testsuite is run twice to test the 2 different implementations
-of Tomcat connectors: NIO and NIO2. (If you are not familiar with Tomcat
-connectors, see config/http.html in documentation for details).
+By default the testsuite is run three times to test 3 different
+implementations of Tomcat connectors: NIO, NIO2 and APR. (If you are not
+familiar with Tomcat connectors, see config/http.html in documentation for
+details).
 
-The 2 runs are enabled and disabled individually by the following
+The 3 runs are enabled and disabled individually by the following
 properties, which all are "true" by default:
 
     execute.test.nio=true
     execute.test.nio2=true
+    execute.test.apr=true
 
-The SSL tests will be run twice. Once with the JSSE implementation and once
-with the OpenSSL implementation. The OpenSSL implementation can only can be
-tested if Tomcat-Native library binaries are found by the testsuite. The
-"test.apr.loc" property specifies the directory where the library binaries are
-located.
+The APR connector can be tested only if Tomcat-Native library binaries are
+found by the testsuite. The "test.apr.loc" property specifies the directory
+where the library binaries are located.
 
 By default the "test.apr.loc" property specifies the following location:
 
     output/build/bin/
 
-If you are on Windows and want to test the OpenSSL TLS implementation you can
-put the tcnative-1.dll file into ${tomcat.source}/bin/ and it will be
-copied into the above directory when the build runs.
+If you are on Windows and want to test the APR connector you can put the
+tcnative-1.dll file into ${tomcat.source}/bin/ and it will be copied
+into the above directory when the build runs.
 
 The unit tests include tests of the clustering functionality which require
 multicast to be enabled. There is a simple application provided in the Tomcat

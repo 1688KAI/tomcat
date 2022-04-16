@@ -25,6 +25,7 @@ public abstract class AbstractRxTask implements Runnable
 
     private ListenCallback callback;
     private RxTaskPool pool;
+    private boolean doRun = true;
     private int options;
     protected boolean useBufferPool = true;
 
@@ -44,6 +45,10 @@ public abstract class AbstractRxTask implements Runnable
         this.callback = callback;
     }
 
+    public void setDoRun(boolean doRun) {
+        this.doRun = doRun;
+    }
+
     public RxTaskPool getTaskPool() {
         return pool;
     }
@@ -56,8 +61,12 @@ public abstract class AbstractRxTask implements Runnable
         return callback;
     }
 
+    public boolean isDoRun() {
+        return doRun;
+    }
+
     public void close() {
-        // NO-OP
+        doRun = false;
     }
 
     public void setUseBufferPool(boolean usebufpool) {

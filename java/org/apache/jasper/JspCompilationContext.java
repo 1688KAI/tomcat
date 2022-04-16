@@ -27,8 +27,8 @@ import java.net.URLConnection;
 import java.util.Set;
 import java.util.jar.JarEntry;
 
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.jsp.tagext.TagInfo;
+import javax.servlet.ServletContext;
+import javax.servlet.jsp.tagext.TagInfo;
 
 import org.apache.jasper.compiler.Compiler;
 import org.apache.jasper.compiler.JspRuntimeContext;
@@ -130,7 +130,7 @@ public class JspCompilationContext {
         this.baseURI = baseURI;
 
         this.rctxt = rctxt;
-        this.basePackageName = options.getGeneratedJspPackageName();
+        this.basePackageName = Constants.JSP_PACKAGE_NAME;
 
         this.tagInfo = tagInfo;
         this.tagJar = tagJar;
@@ -178,8 +178,10 @@ public class JspCompilationContext {
 
     public ClassLoader getJspLoader() {
         if( jspLoader == null ) {
-            jspLoader = new JasperLoader(new URL[] {baseUrl}, getClassLoader(),
-                    basePackageName, rctxt.getPermissionCollection());
+            jspLoader = new JasperLoader
+                    (new URL[] {baseUrl},
+                            getClassLoader(),
+                            rctxt.getPermissionCollection());
         }
         return jspLoader;
     }
@@ -445,7 +447,7 @@ public class JspCompilationContext {
     }
 
     /**
-     * Package name for the generated class is made up of the base package
+     * Package name for the generated class is make up of the base package
      * name, which is user settable, and the derived package name.  The
      * derived package name directly mirrors the file hierarchy of the JSP page.
      * @return the package name
@@ -454,11 +456,11 @@ public class JspCompilationContext {
         if (isTagFile()) {
             String className = tagInfo.getTagClassName();
             int lastIndex = className.lastIndexOf('.');
-            String packageName = "";
+            String pkgName = "";
             if (lastIndex != -1) {
-                packageName = className.substring(0, lastIndex);
+                pkgName = className.substring(0, lastIndex);
             }
-            return packageName;
+            return pkgName;
         } else {
             String dPackageName = getDerivedPackageName();
             if (dPackageName.length() == 0) {
@@ -478,19 +480,11 @@ public class JspCompilationContext {
     }
 
     /**
-     * @return The base package name into which all servlet and associated code
-     *         is generated
-     */
-    public String getBasePackageName() {
-        return basePackageName;
-    }
-
-    /**
      * The package name into which the servlet class is generated.
-     * @param basePackageName The package name to use
+     * @param servletPackageName The package name to use
      */
-    public void setBasePackageName(String basePackageName) {
-        this.basePackageName = basePackageName;
+    public void setServletPackageName(String servletPackageName) {
+        this.basePackageName = servletPackageName;
     }
 
     /**
@@ -767,3 +761,4 @@ public class JspCompilationContext {
         return result.toString();
     }
 }
+

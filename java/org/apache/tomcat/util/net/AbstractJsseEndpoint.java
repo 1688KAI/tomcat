@@ -28,6 +28,8 @@ import java.util.Set;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 
+import org.apache.tomcat.util.compat.JreCompat;
+import org.apache.tomcat.util.net.openssl.OpenSSLImplementation;
 import org.apache.tomcat.util.net.openssl.ciphers.Cipher;
 
 public abstract class AbstractJsseEndpoint<S,U> extends AbstractEndpoint<S,U> {
@@ -129,8 +131,13 @@ public abstract class AbstractJsseEndpoint<S,U> extends AbstractEndpoint<S,U> {
         engine.setEnabledProtocols(sslHostConfig.getEnabledProtocols());
 
         SSLParameters sslParameters = engine.getSSLParameters();
-        sslParameters.setUseCipherSuitesOrder(sslHostConfig.getHonorCipherOrder());
-        if (clientRequestedApplicationProtocols != null
+        String honorCipherOrderStr = sslHostConfig.getHonorCipherOrder();
+        if (honorCipherOrderStr != null) {
+            boolean honorCipherOrder = Boolean.parseBoolean(honorCipherOrderStr);
+            JreCompat.getInstance().setUseServerCipherSuitesOrder(sslParameters, honorCipherOrder);
+        }
+
+        if (JreCompat.isAlpnSupported() && clientRequestedApplicationProtocols != null
                 && clientRequestedApplicationProtocols.size() > 0
                 && negotiableProtocols.size() > 0) {
             // Only try to negotiate if both client and server have at least
@@ -141,7 +148,7 @@ public abstract class AbstractJsseEndpoint<S,U> extends AbstractEndpoint<S,U> {
             commonProtocols.retainAll(clientRequestedApplicationProtocols);
             if (commonProtocols.size() > 0) {
                 String[] commonProtocolsArray = commonProtocols.toArray(new String[0]);
-                sslParameters.setApplicationProtocols(commonProtocolsArray);
+                JreCompat.getInstance().setApplicationProtocols(sslParameters, commonProtocolsArray);
             }
         }
         switch (sslHostConfig.getCertificateVerification()) {
@@ -175,7 +182,7 @@ public abstract class AbstractJsseEndpoint<S,U> extends AbstractEndpoint<S,U> {
         LinkedHashSet<Cipher> serverCiphers = sslHostConfig.getCipherList();
 
         List<Cipher> candidateCiphers = new ArrayList<>();
-        if (sslHostConfig.getHonorCipherOrder()) {
+        if (Boolean.parseBoolean(sslHostConfig.getHonorCipherOrder())) {
             candidateCiphers.addAll(serverCiphers);
             candidateCiphers.retainAll(clientCiphers);
         } else {
@@ -198,9 +205,51 @@ public abstract class AbstractJsseEndpoint<S,U> extends AbstractEndpoint<S,U> {
 
 
     @Override
+    public boolean isAlpnSupported() {
+        // ALPN requires TLS so if TLS is not enabled, ALPN cannot be supported
+        if (!isSSLEnabled()) {
+            return false;
+        }
+
+        // Depends on the SSLImplementation.
+        SSLImplementation sslImplementation;
+        try {
+            sslImplementation = SSLImplementation.getInstance(getSslImplementationName());
+        } catch (ClassNotFoundException e) {
+            // Ignore the exception. It will be logged when trying to start the
+            // end point.
+            return false;
+        }
+        return sslImplementation.isAlpnSupported();
+    }
+
+
+    @Override
+    public void init() throws Exception {
+        testServerCipherSuitesOrderSupport();
+        super.init();
+    }
+
+
+    private void testServerCipherSuitesOrderSupport() {
+        // Only need to test for this if running on Java < 8 and not using the
+        // OpenSSL SSLImplementation
+        if(!JreCompat.isJre8Available() &&
+                !OpenSSLImplementation.class.getName().equals(getSslImplementationName())) {
+            for (SSLHostConfig sslHostConfig : sslHostConfigs.values()) {
+                if (sslHostConfig.getHonorCipherOrder() != null) {
+                    throw new UnsupportedOperationException(
+                            sm.getString("endpoint.jsse.cannotHonorServerCipherOrder"));
+                }
+            }
+        }
+    }
+
+
+    @Override
     public void unbind() throws Exception {
         for (SSLHostConfig sslHostConfig : sslHostConfigs.values()) {
-            for (SSLHostConfigCertificate certificate : sslHostConfig.getCertificates()) {
+            for (SSLHostConfigCertificate certificate : sslHostConfig.getCertificates(true)) {
                 certificate.setSslContext(null);
             }
         }

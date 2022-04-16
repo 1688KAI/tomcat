@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletRequestWrapper;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -84,7 +84,7 @@ public class TestRequestUtilSameOrigin {
         private final int port;
 
         public TesterRequest(String scheme, String host, int port) {
-            super(new Request(null));
+            super(new Request());
             this.scheme = scheme;
             this.host = host;
             this.port = port;

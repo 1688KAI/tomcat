@@ -16,14 +16,9 @@
  */
 package org.apache.tomcat.util.buf;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import org.junit.Assert;
@@ -149,29 +144,6 @@ public class TestByteChunk {
     }
 
 
-    @Test
-    public void testSerialization() throws Exception {
-        String data = "Hello world!";
-        byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
-
-        ByteChunk bcIn = new ByteChunk();
-        bcIn.setBytes(bytes, 0, bytes.length);
-        bcIn.setCharset(StandardCharsets.UTF_8);
-
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(bcIn);
-        oos.close();
-
-        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-        ObjectInputStream ois = new ObjectInputStream(bais);
-        ByteChunk bcOut = (ByteChunk) ois.readObject();
-
-        Assert.assertArrayEquals(bytes, bcOut.getBytes());
-        Assert.assertEquals(bcIn.getCharset(), bcOut.getCharset());
-    }
-
-
     @Ignore // Requires a 6GB heap (on markt's desktop - YMMV)
     @Test
     public void testAppend() throws Exception {
@@ -189,7 +161,7 @@ public class TestByteChunk {
     }
 
 
-    public static class Sink implements ByteOutputChannel {
+    public class Sink implements ByteOutputChannel {
 
         @Override
         public void realWriteBytes(byte[] cbuf, int off, int len) throws IOException {
@@ -200,19 +172,5 @@ public class TestByteChunk {
         public void realWriteBytes(ByteBuffer from) throws IOException {
             // NO-OP
         }
-    }
-
-
-    @Test
-    public void testToString() {
-        ByteChunk bc = new ByteChunk();
-        Assert.assertNull(bc.toString());
-        byte[] data = new byte[8];
-        bc.setBytes(data, 0, data.length);
-        Assert.assertNotNull(bc.toString());
-        bc.recycle();
-        // toString() should behave consistently for new ByteChunk and
-        // immediately after a call to recycle().
-        Assert.assertNull(bc.toString());
     }
 }

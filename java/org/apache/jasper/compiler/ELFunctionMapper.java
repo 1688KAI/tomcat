@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import jakarta.servlet.jsp.tagext.FunctionInfo;
+import javax.servlet.jsp.tagext.FunctionInfo;
 
 import org.apache.jasper.Constants;
 import org.apache.jasper.JasperException;

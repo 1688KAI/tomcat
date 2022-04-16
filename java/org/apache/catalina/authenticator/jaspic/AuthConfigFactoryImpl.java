@@ -27,20 +27,9 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import javax.security.auth.Subject;
-import javax.security.auth.callback.CallbackHandler;
-
-import jakarta.security.auth.message.AuthException;
-import jakarta.security.auth.message.AuthStatus;
-import jakarta.security.auth.message.MessageInfo;
-import jakarta.security.auth.message.config.AuthConfigFactory;
-import jakarta.security.auth.message.config.AuthConfigProvider;
-import jakarta.security.auth.message.config.ClientAuthConfig;
-import jakarta.security.auth.message.config.RegistrationListener;
-import jakarta.security.auth.message.config.ServerAuthConfig;
-import jakarta.security.auth.message.config.ServerAuthContext;
-import jakarta.security.auth.message.module.ServerAuthModule;
-import jakarta.servlet.ServletContext;
+import javax.security.auth.message.config.AuthConfigFactory;
+import javax.security.auth.message.config.AuthConfigProvider;
+import javax.security.auth.message.config.RegistrationListener;
 
 import org.apache.catalina.Globals;
 import org.apache.catalina.authenticator.jaspic.PersistentProviderRegistrations.Provider;
@@ -60,8 +49,6 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
     private static final Object CONFIG_FILE_LOCK = new Object();
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
-
-    private static final String SERVLET_LAYER_ID = "HttpServlet";
 
     private static String DEFAULT_REGISTRATION_ID = getRegistrationID(null, null);
 
@@ -100,8 +87,9 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
 
 
     @Override
-    public String registerConfigProvider(String className, Map<String,String> properties,
-            String layer, String appContext, String description) {
+    public String registerConfigProvider(String className,
+            @SuppressWarnings("rawtypes") Map properties, String layer, String appContext,
+            String description) {
         String registrationID =
                 doRegisterConfigProvider(className, properties, layer, appContext, description);
         savePersistentRegistrations();
@@ -109,8 +97,10 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
     }
 
 
-    private String doRegisterConfigProvider(String className, Map<String,String> properties,
-            String layer, String appContext, String description) {
+    @SuppressWarnings("unchecked")
+    private String doRegisterConfigProvider(String className,
+            @SuppressWarnings("rawtypes") Map properties, String layer, String appContext,
+            String description) {
         if (log.isDebugEnabled()) {
             log.debug(sm.getString("authConfigFactoryImpl.registerClass",
                     className, layer, appContext));
@@ -130,7 +120,7 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
 
 
     private AuthConfigProvider createAuthConfigProvider(String className,
-            Map<String,String> properties) throws SecurityException {
+            @SuppressWarnings("rawtypes") Map properties) throws SecurityException {
         Class<?> clazz = null;
         AuthConfigProvider provider = null;
         try {
@@ -330,49 +320,6 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
     }
 
 
-    @Override
-    public String registerServerAuthModule(ServerAuthModule serverAuthModule, Object context) {
-        if (context == null) {
-            throw new IllegalArgumentException(sm.getString("authConfigFactoryImpl.nullContext"));
-        }
-
-        if (context instanceof ServletContext) {
-            ServletContext servletContext = (ServletContext) context;
-            String appContext = servletContext.getVirtualServerName() + " " + servletContext.getContextPath();
-
-            ServerAuthContext serverAuthContext = new SingleModuleServerAuthContext(serverAuthModule);
-            ServerAuthConfig serverAuthConfig = new SingleContextServerAuthConfig(serverAuthContext, appContext);
-            AuthConfigProvider authConfigProvider = new SingleConfigAuthConfigProvider(serverAuthConfig);
-
-            return registerConfigProvider(authConfigProvider, SERVLET_LAYER_ID, appContext, "");
-        }
-
-        // Unsupported context type
-        throw new IllegalArgumentException(
-                sm.getString("authConfigFactoryImpl.unsupportedContextType", context.getClass().getName()));
-    }
-
-
-    @Override
-    public void removeServerAuthModule(Object context) {
-        if (context == null) {
-            throw new IllegalArgumentException(sm.getString("authConfigFactoryImpl.nullContext"));
-        }
-
-        if (context instanceof ServletContext) {
-            ServletContext servletContext = (ServletContext) context;
-            String layer = "HttpServlet";
-            String appContextID = servletContext.getVirtualServerName() + " " + servletContext.getContextPath();
-
-            removeRegistration(getRegistrationID(layer, appContextID));
-        }
-
-        // Unsupported context type
-        throw new IllegalArgumentException(
-                sm.getString("authConfigFactoryImpl.unsupportedContextType", context.getClass().getName()));
-    }
-
-
     private static String getRegistrationID(String layer, String appContext) {
         if (layer != null && layer.length() == 0) {
             throw new IllegalArgumentException(
@@ -562,102 +509,6 @@ public class AuthConfigFactoryImpl extends AuthConfigFactory {
 
         public RegistrationListener getListener() {
             return listener;
-        }
-    }
-
-
-    private static class SingleModuleServerAuthContext implements ServerAuthContext {
-
-        private final ServerAuthModule module;
-
-        public SingleModuleServerAuthContext(ServerAuthModule module) {
-            this.module = module;
-        }
-
-        @Override
-        public AuthStatus validateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject)
-                throws AuthException {
-            return module.validateRequest(messageInfo, clientSubject, serviceSubject);
-        }
-
-        @Override
-        public AuthStatus secureResponse(MessageInfo messageInfo, Subject serviceSubject) throws AuthException {
-            return module.secureResponse(messageInfo, serviceSubject);
-        }
-
-        @Override
-        public void cleanSubject(MessageInfo messageInfo, Subject subject) throws AuthException {
-            module.cleanSubject(messageInfo, subject);
-        }
-    }
-
-
-    private static class SingleContextServerAuthConfig implements ServerAuthConfig {
-
-        private final ServerAuthContext context;
-        private final String appContext;
-
-        public SingleContextServerAuthConfig(ServerAuthContext context, String appContext) {
-            this.context = context;
-            this.appContext = appContext;
-        }
-
-        @Override
-        public String getMessageLayer() {
-            return SERVLET_LAYER_ID;
-        }
-
-        @Override
-        public String getAppContext() {
-            return appContext;
-        }
-
-        @Override
-        public String getAuthContextID(MessageInfo messageInfo) {
-            return messageInfo.toString();        }
-
-        @Override
-        public void refresh() {
-            // NO-OP
-        }
-
-        @Override
-        public boolean isProtected() {
-            return false;
-        }
-
-        @Override
-        public ServerAuthContext getAuthContext(String authContextID, Subject serviceSubject,
-                Map<String, Object> properties) throws AuthException {
-            return context;
-        }
-    }
-
-
-    private static class SingleConfigAuthConfigProvider implements AuthConfigProvider {
-
-        private final ServerAuthConfig serverAuthConfig;
-
-        public SingleConfigAuthConfigProvider(ServerAuthConfig serverAuthConfig) {
-            this.serverAuthConfig = serverAuthConfig;
-        }
-
-        @Override
-        public ClientAuthConfig getClientAuthConfig(String layer, String appContext, CallbackHandler handler)
-                throws AuthException {
-            // Should never be called
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public ServerAuthConfig getServerAuthConfig(String layer, String appContext, CallbackHandler handler)
-                throws AuthException {
-            return serverAuthConfig;
-        }
-
-        @Override
-        public void refresh() {
-            // NO-OP
         }
     }
 }

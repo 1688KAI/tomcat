@@ -21,15 +21,12 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
-import jakarta.servlet.ReadListener;
-import jakarta.servlet.ServletConnection;
+import javax.servlet.ReadListener;
 
 import org.apache.tomcat.util.buf.B2CConverter;
+import org.apache.tomcat.util.buf.ByteChunk;
 import org.apache.tomcat.util.buf.MessageBytes;
 import org.apache.tomcat.util.buf.UDecoder;
 import org.apache.tomcat.util.http.MimeHeaders;
@@ -72,18 +69,6 @@ public final class Request {
     // Expected maximum typical number of cookies per request.
     private static final int INITIAL_COOKIE_SIZE = 4;
 
-    /*
-     * At 100,000 requests a second there are enough IDs here for ~3,000,000
-     * years before it overflows (and then we have another 3,000,000 years
-     * before it gets back to zero).
-     *
-     * Local testing shows that 5, 10, 50, 500 or 1000 threads can obtain
-     * 60,000,000+ IDs a second from a single AtomicLong. That is about about
-     * 17ns per request. It does not appear that the introduction of this
-     * counter will cause a bottleneck for request processing.
-     */
-    private static final AtomicLong requestIdGenerator = new AtomicLong(0);
-
     // ----------------------------------------------------------- Constructors
 
     public Request() {
@@ -108,8 +93,6 @@ public final class Request {
     private final MessageBytes queryMB = MessageBytes.newInstance();
     private final MessageBytes protoMB = MessageBytes.newInstance();
 
-    private volatile String requestId = Long.toString(requestIdGenerator.getAndIncrement());
-
     // remote address/host
     private final MessageBytes remoteAddrMB = MessageBytes.newInstance();
     private final MessageBytes peerAddrMB = MessageBytes.newInstance();
@@ -118,7 +101,6 @@ public final class Request {
     private final MessageBytes localAddrMB = MessageBytes.newInstance();
 
     private final MimeHeaders headers = new MimeHeaders();
-    private final Map<String,String> trailerFields = new HashMap<>();
 
     /**
      * Path parameters
@@ -171,7 +153,7 @@ public final class Request {
 
     private long bytesRead=0;
     // Time of the request - useful to avoid repeated calls to System.currentTime
-    private long startTimeNanos = -1;
+    private long startTime = -1;
     private long threadId = 0;
     private int available = 0;
 
@@ -300,18 +282,6 @@ public final class Request {
     }
 
 
-    public boolean isTrailerFieldsReady() {
-        AtomicBoolean result = new AtomicBoolean(false);
-        action(ActionCode.IS_TRAILER_FIELDS_READY, result);
-        return result.get();
-    }
-
-
-    public Map<String,String> getTrailerFields() {
-        return trailerFields;
-    }
-
-
     public UDecoder getURLDecoder() {
         return urlDecoder;
     }
@@ -404,7 +374,7 @@ public final class Request {
     /**
      * Get the character encoding used for this request.
      *
-     * @return The value set via {@link #setCharset(Charset)} or if no
+     * @return The value set via {@link #setCharacterEncoding(String)} or if no
      *         call has been made to that method try to obtain if from the
      *         content type.
      */
@@ -420,7 +390,7 @@ public final class Request {
     /**
      * Get the character encoding used for this request.
      *
-     * @return The value set via {@link #setCharset(Charset)} or if no
+     * @return The value set via {@link #setCharacterEncoding(String)} or if no
      *         call has been made to that method try to obtain if from the
      *         content type.
      *
@@ -433,9 +403,22 @@ public final class Request {
             if (characterEncoding != null) {
                 charset = B2CConverter.getCharset(characterEncoding);
             }
-         }
+        }
 
         return charset;
+    }
+
+
+    /**
+     * @param enc The new encoding
+     *
+     * @throws UnsupportedEncodingException If the encoding is invalid
+     *
+     * @deprecated This method will be removed in Tomcat 9.0.x
+     */
+    @Deprecated
+    public void setCharacterEncoding(String enc) throws UnsupportedEncodingException {
+        setCharset(B2CConverter.getCharset(enc));
     }
 
 
@@ -635,6 +618,35 @@ public final class Request {
 
 
     /**
+     * Read data from the input buffer and put it into a byte chunk.
+     *
+     * The buffer is owned by the protocol implementation - it will be reused on
+     * the next read. The Adapter must either process the data in place or copy
+     * it to a separate buffer if it needs to hold it. In most cases this is
+     * done during byte-&gt;char conversions or via InputStream. Unlike
+     * InputStream, this interface allows the app to process data in place,
+     * without copy.
+     *
+     * @param chunk The destination to which to copy the data
+     *
+     * @return The number of bytes copied
+     *
+     * @throws IOException If an I/O error occurs during the copy
+     *
+     * @deprecated Unused. Will be removed in Tomcat 9. Use
+     *             {@link #doRead(ApplicationBufferHandler)}
+     */
+    @Deprecated
+    public int doRead(ByteChunk chunk) throws IOException {
+        int n = inputBuffer.doRead(chunk);
+        if (n > 0) {
+            bytesRead+=n;
+        }
+        return n;
+    }
+
+
+    /**
      * Read data from the input buffer and put it into ApplicationBufferHandler.
      *
      * The buffer is owned by the protocol implementation - it will be reused on
@@ -693,49 +705,17 @@ public final class Request {
 
     // -------------------- debug --------------------
 
-    public String getRequestId() {
-        return requestId;
-    }
-
-
-    public String getProtocolRequestId() {
-        AtomicReference<String> ref = new AtomicReference<>();
-        hook.action(ActionCode.PROTOCOL_REQUEST_ID, ref);
-        return ref.get();
-    }
-
-
-    public ServletConnection getServletConnection() {
-        AtomicReference<ServletConnection> ref = new AtomicReference<>();
-        hook.action(ActionCode.SERVLET_CONNECTION, ref);
-        return ref.get();
-    }
-
-
     @Override
     public String toString() {
         return "R( " + requestURI().toString() + ")";
     }
 
     public long getStartTime() {
-        return System.currentTimeMillis() - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNanos);
+        return startTime;
     }
 
-    /**
-     *
-     * @param startTime time
-     * @deprecated This setter will be removed in Tomcat 11
-     */
-    @Deprecated
     public void setStartTime(long startTime) {
-    }
-
-    public long getStartTimeNanos() {
-        return startTimeNanos;
-    }
-
-    public void setStartTimeNanos(long startTimeNanos) {
-        this.startTimeNanos = startTimeNanos;
+        this.startTime = startTime;
     }
 
     public long getThreadId() {
@@ -759,7 +739,7 @@ public final class Request {
 
     /**
      * Used to store private data. Thread data could be used instead - but
-     * if you have the req, getting/setting a note is just an array access, may
+     * if you have the req, getting/setting a note is just a array access, may
      * be faster than ThreadLocal for very frequent operations.
      *
      *  Example use:
@@ -797,7 +777,6 @@ public final class Request {
         characterEncoding = null;
         expectation = false;
         headers.recycle();
-        trailerFields.clear();
         serverNameMB.recycle();
         serverPort=-1;
         localAddrMB.recycle();
@@ -809,14 +788,6 @@ public final class Request {
         remotePort = -1;
         available = 0;
         sendfile = true;
-
-        // There may be multiple calls to recycle but only the first should
-        // trigger a change in the request ID until a new request has been
-        // started. Use startTimeNanos to detect when a request has started so a
-        // subsequent call to recycle() will trigger a change in the request ID.
-        if (startTimeNanos != -1) {
-            requestId = Long.toHexString(requestIdGenerator.getAndIncrement());
-        }
 
         serverCookies.recycle();
         parameters.recycle();
@@ -844,7 +815,7 @@ public final class Request {
         }
         allDataReadEventSent.set(false);
 
-        startTimeNanos = -1;
+        startTime = -1;
         threadId = 0;
     }
 

@@ -15,11 +15,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
-                      https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
-  version="6.0"
+  xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+                      http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+  version="3.1"
   metadata-complete="true">
 
   <display-name>Tomcat Test Application</display-name>
@@ -66,19 +66,6 @@
     <dispatcher>FORWARD</dispatcher>
     <dispatcher>INCLUDE</dispatcher>
   </filter-mapping>
-  <servlet>
-    <servlet-name>bug49297NoSpace</servlet-name>
-    <jsp-file>/bug49nnn/bug49297NoSpace.jsp</jsp-file>
-      <init-param>
-        <param-name>strictWhitespace</param-name>
-        <param-value>false</param-value>
-      </init-param>
-    <load-on-startup>-2</load-on-startup>
-  </servlet>
-  <servlet-mapping>
-    <servlet-name>bug49297NoSpace</servlet-name>
-    <url-pattern>/bug49nnn/bug49297NoSpace.jsp</url-pattern>
-  </servlet-mapping>
   <servlet>
     <servlet-name>Bug49922Forward</servlet-name>
     <servlet-class>
@@ -151,14 +138,6 @@
       <url-pattern>/jsp/encoding/bug60769b.jspx</url-pattern>
       <page-encoding>ISO-8859-1</page-encoding>
       <is-xml>true</is-xml>
-    </jsp-property-group>
-    <jsp-property-group>
-      <url-pattern>/jsp/errorOnELNotFound/web-xml-true.jsp</url-pattern>
-      <error-on-el-not-found>true</error-on-el-not-found>
-    </jsp-property-group>
-    <jsp-property-group>
-      <url-pattern>/jsp/errorOnELNotFound/web-xml-false.jsp</url-pattern>
-      <error-on-el-not-found>false</error-on-el-not-found>
     </jsp-property-group>
   </jsp-config>
 
@@ -327,12 +306,4 @@
     <mapped-name>Bug53465MappedName</mapped-name>
   </env-entry>
 
-  <session-config>
-    <cookie-config>
-      <attribute>
-        <attribute-name>aaa</attribute-name>
-        <attribute-value>bbb</attribute-value>
-      </attribute>
-    </cookie-config>
-  </session-config>
 </web-app>
