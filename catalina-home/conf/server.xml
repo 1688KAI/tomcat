@@ -66,9 +66,24 @@
          APR (HTTP/AJP) Connector: /docs/apr.html
          Define a non-SSL/TLS HTTP/1.1 Connector on port 8080
     -->
-    <Connector port="8080" protocol="HTTP/1.1"
+<!--    <Connector port="8080" protocol="HTTP/1.1"-->
+<!--               connectionTimeout="20000"-->
+<!--               redirectPort="8443" />-->
+
+    <Connector port="8860" protocol="org.apache.coyote.http11.Http11NioProtocol"
                connectionTimeout="20000"
-               redirectPort="8443" />
+               redirectPort="8862"
+               URIEncoding="UTF-8"
+               useBodyEncodingForURI="true"
+               compression="on" compressionMinSize="2048"
+               compressableMimeType="text/html,text/xml,text/plain,text/javascript,text/css,application/x-json,application/json,application/x-javascript"
+               maxThreads="1024" minSpareThreads="200"
+               acceptCount="800"
+               maxConnections="10000"
+               enableLookups="false"
+               keystoreFile="D:\test.keystore" keystorePass="123456"
+               clientAuth="false" sslProtocol="TLS"
+    />
     <!-- A "Connector" using the shared thread pool-->
     <!--
     <Connector executor="tomcatThreadPool"
